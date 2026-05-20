@@ -1,0 +1,10 @@
+{
+  "data": {
+    "precision": 0.01,
+    "unit": "m/s",
+    "value": 0.34
+  },
+  "encrypted": false,
+  "timestamp": 1753638529,
+  "block": "9c6f438b25b90856244aea99b169bf6bbfc5f10b934b5d9af0b2b20d4f9af721"
+}
