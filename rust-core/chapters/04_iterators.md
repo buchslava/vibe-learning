@@ -1,4 +1,4 @@
-# Chapter 3: Iterators
+# Chapter 4: Iterators
 
 ## Hook
 
@@ -14,13 +14,13 @@
 | **Unix** | pipes — one program’s output is the next program’s input stream |
 | **Rust** | `Iterator` trait — lazy adapters + consumers |
 
-The names differ; the habit transfers: **describe the pipeline, not the loop variable.** That is why this chapter sits early in Part I — you will meet the same style in logs, configs, protocol parsing, and [Chapter 8](08_collections_iterators.md) collections work.
+The names differ; the habit transfers: **describe the pipeline, not the loop variable.** This chapter sits early in Part I because you will meet the same style in logs, configs, protocol parsing, and [Chapter 11](11_collections.md) collections work.
 
 **Rust’s version:** the **`Iterator`** trait in `std` — a **lazy** sequence you extend with `.map()`, `.filter()`, and finish with `.collect()`, `.sum()`, and friends.
 
-Nothing in the chain runs until you ask for a result — unlike eager list comprehensions that build intermediate lists in Python. In `--release` builds, these pipelines often compile to the same machine code as a hand-written loop ([Chapter 1](01_paradigm_shift.md#zero-cost-abstractions)).
+Nothing in the chain runs until you ask for a result. That differs from eager Python list comprehensions that build intermediate lists. In `--release` builds, these pipelines often compile to the same machine code as a hand-written loop ([Chapter 1](01_paradigm_shift.md#zero-cost-abstractions)).
 
-You will use `Vec` and `HashMap` heavily in [Chapter 8](08_collections_iterators.md). This chapter is the **iteration machinery** that works on those types (and on ranges, strings, slices).
+You will use `Vec` and `HashMap` heavily in [Chapter 11](11_collections.md). This chapter is the **iteration machinery** for those types, plus ranges, strings, and slices.
 
 ## `for` is syntax sugar
 
@@ -89,7 +89,7 @@ The iterator method picks the **element type** the whole pipeline sees:
 | `v.iter_mut()` | `&mut T` | still `v` |
 | `v.into_iter()` | `T` | moved out of `v`; `v` is empty/unusable |
 
-**Java / Python habit:** looping a list does not destroy the list. In Rust, `for x in v` is **`into_iter`** — equivalent to consuming `v`. That surprises newcomers and is a common compile-error source.
+**Common habit in Java/Python-style loops:** iterating a list does not destroy the list. In Rust, `for x in v` is **`into_iter`** — equivalent to consuming `v`. That surprises newcomers and is a common compile-error source.
 
 ```rust
 // Playground — uncomment ONE wrong line at a time to see the error
@@ -179,7 +179,7 @@ fn main() {
 }
 ```
 
-`.filter` and `.map` take **closures** (`|x| ...`). How closures capture variables (`Fn`, `FnMut`, `FnOnce`) is covered in [Chapter 8 — Closures](08_collections_iterators.md#closures).
+`.filter` and `.map` take **closures** (`|x| ...`). How closures capture variables (`Fn`, `FnMut`, `FnOnce`) is covered in [Chapter 12 — Closures](12_closures.md).
 
 ### Why closures see `&&i32` (double reference)
 
@@ -193,7 +193,7 @@ On `v.iter()`, each `Item` is `&i32`. Adapter methods like `.filter()` pass **`&
 
 Pick one style and stay consistent in a chain. Mixing `.iter()` with a closure that expects owned `i32` without peeling references is a frequent compile error.
 
-The `Iterator` trait lives in `std` and defines `.next() -> Option<Item>`. You rarely implement it yourself until [Chapter 6](06_structs_traits_generics.md); calling `.iter()` on standard types is enough for most automation code.
+The `Iterator` trait lives in `std` and defines `.next() -> Option<Item>`. Calling `.iter()` on standard types covers most code — when you need a custom walk, see [Implementing Iterator](#implementing-iterator) below and [Chapter 7 — associated types](07_structs_traits_generics.md#associated-types-and-supertraits).
 
 ## Common adapters
 
@@ -332,7 +332,7 @@ fn main() {
 }
 ```
 
-Owned collection after parsing is the safe default: `.map(|s| s.clone())` or collect into `Vec<String>` before dropping the source buffer. Lifetimes formalize this in [Chapter 4](04_lifetimes.md).
+Owned collection after parsing is the safe default: `.map(|s| s.clone())` or collect into `Vec<String>` before dropping the source buffer. Lifetimes formalize this in [Chapter 5](05_lifetimes.md).
 
 ### Consumer edge cases
 
@@ -359,6 +359,116 @@ fn main() {
 }
 ```
 
+## Implementing Iterator
+
+Most code uses `.iter()` on collections. When you own the walk logic — port ranges, non-empty lines, frame parsing — implement `Iterator` yourself.
+
+### Port range scanner
+
+Scan Modbus-style ports 502–505 without building a `Vec` first:
+
+```rust
+// Playground
+struct PortScan {
+    next_port: u16,
+    end: u16,
+}
+
+impl Iterator for PortScan {
+    type Item = u16;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_port > self.end {
+            return None;
+        }
+        let p = self.next_port;
+        self.next_port += 1;
+        Some(p)
+    }
+}
+
+fn main() {
+    let ports: Vec<u16> = PortScan { next_port: 502, end: 505 }.collect();
+    let sum: u16 = PortScan { next_port: 502, end: 504 }.sum();
+    println!("ports={:?} sum={}", ports, sum);
+}
+```
+
+`type Item = u16` is an **associated type** — see [Chapter 7](07_structs_traits_generics.md#associated-types-and-supertraits). Adapters like `.map` and `.sum` use it to know what flows through the pipeline.
+
+### Non-empty line iterator
+
+Skip blank lines while walking config text:
+
+```rust
+// Playground
+struct NonEmptyLines<'a> {
+    inner: std::str::Lines<'a>,
+}
+
+impl<'a> Iterator for NonEmptyLines<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let line = self.inner.next()?;
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed);
+            }
+        }
+    }
+}
+
+fn main() {
+    let cfg = "PORT=502\n\nHOST=127.0.0.1\n";
+    let keys: Vec<_> = NonEmptyLines { inner: cfg.lines() }
+        .filter_map(|line| line.split('=').next())
+        .collect();
+    println!("{:?}", keys);
+}
+```
+
+State lives in the struct fields. `next` returns `None` when the inner iterator is exhausted — that is how every iterator signals "done."
+
+### Implementing Iterator edge cases
+
+**Empty range — immediate `None`:**
+
+```rust
+// Playground
+fn main() {
+    let scan = PortScan { next_port: 502, end: 501 };
+    let n = scan.count();
+    println!("{}", n); // 0
+}
+```
+
+**Infinite range — always pair with `.take(n)`:**
+
+```rust
+// Playground
+struct Counter {
+    n: u64,
+}
+
+impl Iterator for Counter {
+    type Item = u64;
+    fn next(&mut self) -> Option<u64> {
+        let v = self.n;
+        self.n += 1;
+        Some(v)
+    }
+}
+
+fn main() {
+    let first_five: Vec<_> = Counter { n: 0 }.take(5).collect();
+    println!("{:?}", first_five); // [0, 1, 2, 3, 4]
+}
+```
+
+**`IntoIterator` vs `Iterator`:** collections implement `IntoIterator` so `for x in vec` works. Your type can implement both — `Iterator` for `.next()`, and `IntoIterator` with `type Item = Self; type IntoIter = Self` when consuming `self` in a `for` loop is natural.
+
 ## When the compiler says no (iterator checklist)
 
 | Error message (typical) | Likely cause | Smallest fix |
@@ -383,7 +493,7 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 
 ## Idiom spotlight
 
-> **Iterator chains over index loops.** `for i in 0..v.len()` plus `v[i]` is a smell when `.iter()`, `.enumerate()`, or `.windows(2)` states intent. Sliding pairs over samples live in [Chapter 8](08_collections_iterators.md).
+> **Iterator chains over index loops.** `for i in 0..v.len()` plus `v[i]` is a smell when `.iter()`, `.enumerate()`, or `.windows(2)` states intent. Sliding pairs over samples live in [Chapter 11](11_collections.md).
 
 ## Go deeper
 
@@ -394,9 +504,10 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 
 - [Chapter 1: Ownership and borrowing](01_paradigm_shift.md#references-borrowing-and-dereferencing) — `iter` vs `into_iter`
 - [Chapter 2: Types and expressions](02_types.md) — ranges, `for`, string iterators
-- [Chapter 4: Lifetimes](04_lifetimes.md) — borrows inside iterator chains
-- [Chapter 6: Structs, traits, and generics](06_structs_traits_generics.md) — `Iterator` trait and custom types
-- [Chapter 8: Collections](08_collections_iterators.md) — `Vec`, `HashMap`, closures, `.windows`
+- [Chapter 5: Lifetimes](05_lifetimes.md) — borrows inside iterator chains
+- [Chapter 7: Structs, traits, and generics](07_structs_traits_generics.md#associated-types-and-supertraits) — `type Item`, associated types
+- [Chapter 11: Collections](11_collections.md) — `Vec`, `HashMap`, `.windows`
+- [Chapter 12: Closures](12_closures.md) — `Fn` traits for adapters
 
 ### Afterparty: AI Lego blocks
 
@@ -445,3 +556,13 @@ Copy a prompt into your AI tutor after running the Playground examples. Insist o
 24. **&&i32 decoder** — “One `.iter().filter().map()` chain: I label the closure parameter type at each step; you correct and show `|x|`, `|&x|`, and `|&&x|` versions that compile.”
 25. **Empty iterator policy** — “Three tasks (sum, find, all) on possibly empty `Vec`. I state the result and whether it is a domain bug; you correct (e.g. empty `all` is true).”
 26. **zip truncation** — “IDs len 5, values len 100 — I write zip collect; you explain silent loss and sketch `zip` + length check or `enumerate` on the longer vec.”
+
+#### Custom iterators
+
+27. **PortScan impl** — "Implement `Iterator` for ports 502..=505; collect to `Vec` and sum with `.sum()` — show `type Item` and `fn next` only."
+28. **Skip blanks** — "Config string with empty lines — write `NonEmptyLines` iterator that trims and skips `''`; collect keys before `=`."
+29. **Infinite take** — "Counter from 0 without end — why must you `.take(n)` before `.collect()`? Show hang vs bounded collect."
+30. **IntoIterator pair** — "Same struct: implement `Iterator` and `IntoIterator` so both `scan.next()` and `for p in scan` work — minimal impl blocks."
+31. **Stateful parser** — "Byte buffer iterator yielding complete 4-byte frames; partial frame stays in struct — sketch `next()` state machine."
+32. **Capstone iterator** — "CSV line iterator: split fields, parse col 2 as `u16`, filter > 0 — custom struct + one consumer chain."
+

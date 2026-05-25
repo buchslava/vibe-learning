@@ -1,12 +1,12 @@
-# Chapter 15: I/O, Processes, and Bits
+# Chapter 19: I/O, Processes, and Bits
 
 ## Hook
 
-Python’s `open()` and `subprocess` get scripts talking to the world quickly. Java uses `Files` and `ProcessBuilder`. Rust unifies files, sockets, serial ports, and pipes behind **`Read`** and **`Write`** traits — and uses **`Command`** for subprocesses with explicit error types. Automation lives here.
+I/O APIs differ by language (**Python** `open()`/`subprocess`, **Java** `Files`/`ProcessBuilder`, …). Rust unifies files, sockets, serial ports, and pipes behind **`Read`** and **`Write`** traits — and uses **`Command`** for subprocesses with explicit error types. CLIs, services, and protocol code all live here.
 
 ## Scope — a brief tour, not a systems programming textbook
 
-I/O and binary protocols are **broad**. This chapter is a **practical capstone** — enough to build CLIs, parse frames, spawn tools, and read Tokio I/O with context. It is **not** a kernel, networking, or embedded-HAL course.
+I/O and binary protocols are broad. This chapter is a practical capstone — enough to build CLIs, parse frames, spawn tools, and read Tokio I/O with context. It is not a kernel, networking, or embedded-HAL course. Use **Afterparty** prompts for pipelines, capstone gateway design, and serial debug checklists.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -14,24 +14,22 @@ I/O and binary protocols are **broad**. This chapter is a **practical capstone**
 | File and line processing (sync) | Full logging/observability stacks |
 | `Command`, pipes, shell vs direct exec | Job orchestration (Kubernetes, systemd) |
 | Bit packing, endianness, CRC sketch | Full Modbus/TCP stacks, `nom` parsers |
-| Serial orientation (`serialport`) | GPIO/MCU bare-metal ([archive Ch02 §4](../archive/CHAPTER_02_AUTOMATION_AND_SYSTEM_PROGRAMMING.md)) |
-| Sync vs async I/O choice | Tokio tuning ([Chapter 12](12_async_tokio.md)) |
+| Serial orientation (`serialport`) | GPIO/MCU bare-metal |
+| Sync vs async I/O choice | Tokio tuning ([Chapter 16](16_async_tokio.md)) |
 
-Use **Afterparty** prompts for pipelines, capstone gateway design, and serial debug checklists.
-
-This chapter closes Part III. It builds on [Chapter 7](07_errors_and_testing.md) (`Result`, `?`), [Chapter 12](12_async_tokio.md) (async I/O contrast), and [Chapter 14](14_unsafe_and_internals.md) (FFI drivers):
+This chapter closes Part III. It builds on [Chapter 8](08_errors_and_testing.md) (`Result`, `?`), [Chapter 16](16_async_tokio.md) (async I/O contrast), and [Chapter 18](18_unsafe_and_internals.md) (FFI drivers):
 
 ```mermaid
 flowchart LR
-  ch7[Ch7 errors] --> ch15[Ch15 sync IO]
-  ch12[Ch12 async IO] --> ch15
-  ch14[Ch14 FFI] --> ch15
+  ch7[Ch8 errors] --> ch15[Ch19 sync IO]
+  ch12[Ch16 async IO] --> ch15
+  ch14[Ch18 FFI] --> ch15
   ch15 --> afterparty[Afterparty capstone]
 ```
 
 ## Why `Read` and `Write` — the aim
 
-Automation code reads the same patterns everywhere: **pull bytes in**, **push bytes out**, **handle errors**, **don't panic on bad input**.
+Application code reads the same patterns everywhere: **pull bytes in**, **push bytes out**, **handle errors**, **don't panic on bad input**.
 
 | Medium | Rust surface | Same trait? |
 |--------|--------------|-------------|
@@ -40,9 +38,9 @@ Automation code reads the same patterns everywhere: **pull bytes in**, **push by
 | In-memory test double | `Cursor<&[u8]>`, `Vec<u8>` | yes |
 | TCP socket (sync) | `std::net::TcpStream` | yes |
 | Serial port | `serialport` open handle | yes |
-| Async TCP | `tokio::net::TcpStream` | `.await` variants ([Chapter 12](12_async_tokio.md)) |
+| Async TCP | `tokio::net::TcpStream` | `.await` variants ([Chapter 16](16_async_tokio.md)) |
 
-**Aim:** write **one** `fn process<R: Read, W: Write>(...)` and reuse it for files, pipes, and test buffers — Java `InputStream`/`OutputStream` and Python file objects play the same role, but Rust encodes errors in **`io::Result`** instead of exceptions.
+**Aim:** write **one** `fn process<R: Read, W: Write>(...)` and reuse it for files, pipes, and test buffers. Java `InputStream`/`OutputStream` and Python file objects play the same role, but Rust encodes errors in **`io::Result`** instead of exceptions.
 
 ## `Read` and `Write` essentials
 
@@ -112,7 +110,7 @@ fn main() {
 }
 ```
 
-**What happened:** prints **`poll_ms -> 100`** and **`port -> 502`** — `BufReader` reduces syscalls for real files; `# comment` line skipped (no `=`). In production, return `io::Result` and map errors ([Chapter 7](07_errors_and_testing.md)) instead of `expect` on lines.
+**What happened:** prints **`poll_ms -> 100`** and **`port -> 502`** — `BufReader` reduces syscalls for real files; `# comment` line skipped (no `=`). In production, return `io::Result` and map errors ([Chapter 8](08_errors_and_testing.md)) instead of `expect` on lines.
 
 ### Level 3 — Intermediate: frame struct + CRC
 
@@ -247,11 +245,11 @@ fn process_file(input: &str, output: &str) -> std::io::Result<()> {
 | `BufWriter` + `write_all` | Many small writes |
 | `main() -> io::Result<()>` | CLI tools — map to exit code at boundary |
 
-**Boundary discipline** ([Chapter 7](07_errors_and_testing.md)): internal `fn load_config() -> Result<Config, Error>`; `main` prints `eprintln!("{e}")` and exits `1` — never `unwrap` on user-supplied paths in unattended automation.
+**Boundary discipline** ([Chapter 8](08_errors_and_testing.md)): internal `fn load_config() -> Result<Config, Error>`; `main` prints `eprintln!("{e}")` and exits `1` — never `unwrap` on user-supplied paths in unattended services.
 
 ## Bitwise and binary protocols
 
-Automation registers and status words are **bit fields**, not separate bool variables on the wire:
+Register and status words on the wire are **bit fields**, not separate bool variables:
 
 | Technique | Use |
 |-----------|-----|
@@ -268,21 +266,21 @@ Use **unsigned** types (`u8`, `u16`, `u32`) for shifts — signed shifts are a f
 | Situation | Prefer |
 |-----------|--------|
 | CLI tool, batch file transform | **sync** `std::fs`, `BufReader` |
-| One serial poll loop, blocking read with timeout | **sync** + dedicated thread ([Chapter 10](10_multithreading.md)) |
-| Many TCP connections, one process | **async** Tokio ([Chapter 12](12_async_tokio.md)) |
+| One serial poll loop, blocking read with timeout | **sync** + dedicated thread ([Chapter 14](14_multithreading.md)) |
+| Many TCP connections, one process | **async** Tokio ([Chapter 16](16_async_tokio.md)) |
 | Blocking `read` inside `async fn` | **Bad** — stalls executor; `tokio::fs` or `spawn_blocking` |
 
-Same **traits** mentally; async adds `.await` and a runtime. [Chapter 12](12_async_tokio.md) defers production protocol code here.
+Same **traits** mentally; async adds `.await` and a runtime. [Chapter 16](16_async_tokio.md) defers production protocol code here.
 
-## Practical automation scenarios
+## Practical I/O scenarios
 
 | Task | Approach |
 |------|----------|
-| Read CSV/TOML config | `BufReader` + parse, or `serde` + file ([Chapter 13](13_metaprogramming.md)) |
+| Read CSV/TOML config | `BufReader` + parse, or `serde` + file ([Chapter 17](17_metaprogramming.md)) |
 | Run `systemctl` / vendor CLI | `Command` direct args; capture stdout; check `status` |
 | Modbus-style register | `Frame` struct, BE `u16`, CRC per spec |
-| Serial sensor / PLC | `serialport` crate — same `Read`/`Write` ([archive §4](../archive/CHAPTER_02_AUTOMATION_AND_SYSTEM_PROGRAMMING.md)) |
-| Vendor C driver only | Safe Rust wrapper ([Chapter 14](14_unsafe_and_internals.md)) |
+| Serial sensor / PLC | `serialport` crate — same `Read`/`Write` |
+| Vendor C driver only | Safe Rust wrapper ([Chapter 18](18_unsafe_and_internals.md)) |
 
 **Serial orientation (Cargo only):**
 
@@ -309,9 +307,104 @@ Same **traits** mentally; async adds `.await` and a runtime. [Chapter 12](12_asy
 
 Poll loops: set **read timeout**, log port name on error, **retry with backoff** (Afterparty P102) — do not spin tight on failure.
 
+## CLI utility — paths, env, and time
+
+One tool thread: resolve config path from env → check file size → read key=value lines.
+
+### Path and env
+
+```rust
+// Cargo only — conceptual main fragment
+// use std::path::{Path, PathBuf};
+// use std::env;
+//
+// fn config_path() -> PathBuf {
+//     env::var("APP_CONFIG")
+//         .map(PathBuf::from)
+//         .unwrap_or_else(|_| {
+//             Path::new(&env::var("HOME").unwrap_or_else(|_| ".".into()))
+//                 .join(".config")
+//                 .join("gateway.toml")
+//         })
+// }
+```
+
+`Path` / `PathBuf` join segments without manual slash handling. Accept `impl AsRef<Path>` in helpers ([Chapter 13](13_standard_traits.md)).
+
+### File metadata before read
+
+```rust
+// Cargo only
+// use std::fs;
+//
+// fn read_if_small(path: &Path) -> std::io::Result<String> {
+//     let meta = fs::metadata(path)?;
+//     if meta.len() > 1_000_000 {
+//         return Err(std::io::Error::new(
+//             std::io::ErrorKind::InvalidData,
+//             "config too large",
+//         ));
+//     }
+//     fs::read_to_string(path)
+// }
+```
+
+Check `metadata().len()` before allocating a huge buffer — cheap guard for untrusted paths.
+
+### Stdin prompt alongside args
+
+```rust
+// Playground
+use std::io::{self, Write};
+
+fn main() -> io::Result<()> {
+    let arg_port = std::env::args().nth(1);
+    let port = if let Some(p) = arg_port {
+        p
+    } else {
+        print!("port: ");
+        io::stdout().flush()?;
+        let mut buf = String::new();
+        io::stdin().read_line(&mut buf)?;
+        buf.trim().to_string()
+    };
+    println!("using port {}", port);
+    Ok(())
+}
+```
+
+Args for scripts; stdin for interactive runs — same binary, two entry paths.
+
+### Timeout with `Duration`
+
+```rust
+// Playground
+use std::time::Duration;
+
+fn retry_delay(attempt: u32) -> Duration {
+    let secs = std::env::var("RETRY_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(2);
+    Duration::from_secs(secs.saturating_mul(attempt as u64))
+}
+
+fn main() {
+    println!("attempt 3 sleep {:?}", retry_delay(3));
+}
+```
+
+`Duration` pairs with thread `sleep` and serial timeouts — env var gives ops a knob without recompile.
+
+### CLI I/O edge cases
+
+**Wrong — assume path is UTF-8 string on all OSes:** use `Path` end to end; convert to `str` only when displaying.
+
+**Line endings:** `read_line` keeps `\n`; call `.trim()` before parsing numbers.
+
 ## PTY (note)
 
-Interactive CLI automation sometimes needs a **pseudo-terminal** (line discipline, echo). Not in `std`; crates like `pty-process` or `expectrl` fill the gap. Start with `Command`; add PTY when the tool checks `isatty`.
+Interactive CLI tools sometimes need a **pseudo-terminal** (line discipline, echo). Not in `std`; crates like `pty-process` or `expectrl` fill the gap. Start with `Command`; add PTY when the tool checks `isatty`.
 
 ## Edge cases and compiler traps
 
@@ -331,21 +424,20 @@ Interactive CLI automation sometimes needs a **pseudo-terminal** (line disciplin
 >
 > **Generic over `Read`/`Write` for testability** — `Cursor` in unit tests, real `File` in integration tests.
 >
-> **Treat I/O as `Result` at boundaries** — automation binaries should survive bad paths and timeouts without panic ([Chapter 7](07_errors_and_testing.md)).
+> **Treat I/O as `Result` at boundaries** — long-running binaries should survive bad paths and timeouts without panic ([Chapter 8](08_errors_and_testing.md)).
 
 ## Go deeper
 
-- Archive: [CHAPTER_02 §1–4](../archive/CHAPTER_02_AUTOMATION_AND_SYSTEM_PROGRAMMING.md) — files, bits, processes, serial
 - [Csv parser / writer](https://hightechmind.io/rust/) — 958–959
 - [Rust book — I/O](https://doc.rust-lang.org/book/ch12-00-an-io-project.html)
 
 ## See also
 
-- [Chapter 7: Errors](07_errors_and_testing.md) — `io::Error`, `?`, no panic in production loops
-- [Chapter 10: Multithreading](10_multithreading.md) — blocking I/O on worker threads
-- [Chapter 12: Async I/O](12_async_tokio.md) — `tokio::fs`, `TcpListener`
-- [Chapter 13: Metaprogramming](13_metaprogramming.md) — `include_str!`, config derives
-- [Chapter 14: Unsafe](14_unsafe_and_internals.md) — FFI and safe wrappers over I/O handles
+- [Chapter 8: Errors](08_errors_and_testing.md) — `io::Error`, `?`, no panic in production loops
+- [Chapter 14: Multithreading](14_multithreading.md) — blocking I/O on worker threads
+- [Chapter 16: Async I/O](16_async_tokio.md) — `tokio::fs`, `TcpListener`
+- [Chapter 17: Metaprogramming](17_metaprogramming.md) — `include_str!`, config derives
+- [Chapter 18: Unsafe](18_unsafe_and_internals.md) — FFI and safe wrappers over I/O handles
 
 ### Afterparty: AI Lego blocks
 
@@ -393,4 +485,14 @@ Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers and qu
 23. **GPIO next step** — “After serial works on Pi, outline migration to gpio-cdev for one LED.”
 24. **Code review** — “I paste capstone main loop; review for panic risks and missing flush.”
 25. **Gateway capstone** — “End-to-end: config file → serial poll → JSON log line — module list and error types only.”
-26. **Ch12 bridge** — “Same echo server: sketch sync thread version vs Tokio version — tradeoffs table.”
+26. **Ch16 bridge** — “Same echo server: sketch sync thread version vs Tokio version — tradeoffs table.”
+
+#### Paths, env, and CLI
+
+27. **Path join** — "Build config path from `HOME` + `.config/app.toml` — show `Path::join` vs string concat trap."
+28. **Env default** — "`TIMEOUT` env var with default 30 — `var().unwrap_or_else` pattern."
+29. **Metadata guard** — "Reject config files over 1MB before `read_to_string` — sketch `metadata().len()` check."
+30. **Stdin fallback** — "Port from argv or interactive prompt — one `main` with both paths."
+31. **Line parser** — "BufRead lines, skip `#`, parse `key=value` — handle trailing newline."
+32. **Capstone CLI** — "End-to-end: env path → metadata check → line parse → print port — function list only."
+

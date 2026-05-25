@@ -1,6 +1,6 @@
 # Java / Python / Rust — Mental Model Map
 
-One-page orientation. Details live in linked chapters.
+Optional one-page orientation — especially handy if you know **Java** or **Python**. Not required to read the notes; details live in linked chapters.
 
 ## Execution and memory
 
@@ -23,7 +23,7 @@ One-page orientation. Details live in linked chapters.
 | Generics | type erasure + bounds | hints optional | monomorphized, zero-cost |
 | Runtime polymorphism | virtual methods | duck typing | `dyn Trait` or generics |
 
-→ [Ch 6 Traits](../chapters/06_structs_traits_generics.md)
+→ [Ch 7 Traits](../chapters/07_structs_traits_generics.md)
 
 ## Collections and loops
 
@@ -34,7 +34,7 @@ One-page orientation. Details live in linked chapters.
 | Loop style | indexed for | `for x in` | `for x in iter` / iterators |
 | Comprehensions | streams (Java 8+) | list comp | iterator adapters |
 
-→ [Ch 3 Iterators](../chapters/03_iterators.md) · [Ch 8 Collections](../chapters/08_collections_iterators.md) (`Vec`, `HashMap`)
+→ [Ch 4 Iterators](../chapters/04_iterators.md) · [Ch 11 Collections](../chapters/11_collections.md) (`Vec`, `HashMap`)
 
 ## Concurrency
 
@@ -45,7 +45,7 @@ One-page orientation. Details live in linked chapters.
 | Async | virtual threads, CompletableFuture | `asyncio` | `async`/`await` + Tokio |
 | Data races | possible at runtime | possible (C ext) | prevented in safe code |
 
-→ [Ch 10–12](../chapters/10_multithreading.md)
+→ [Ch 14–16](../chapters/14_multithreading.md) (threads, atomics, async)
 
 ## I/O and systems
 
@@ -55,7 +55,7 @@ One-page orientation. Details live in linked chapters.
 | Subprocess | `ProcessBuilder` | `subprocess` | `Command` |
 | Binary data | `ByteBuffer` | `bytes`, `struct` | `u8`, slices, `to_be_bytes` |
 
-→ [Ch 15](../chapters/15_io_processes_bits.md)
+→ [Ch 19](../chapters/19_io_processes_bits.md)
 
 ## Package management
 
@@ -63,7 +63,7 @@ One-page orientation. Details live in linked chapters.
 |------|--------|------|
 | Maven / Gradle | pip / poetry | Cargo + crates.io |
 
-→ [Ch 2 Types](../chapters/02_types.md)
+→ [Ch 3 Functions](../chapters/03_functions.md) · [Ch 9 Modules](../chapters/09_modules_paths_crates.md) · [Ch 2 Types](../chapters/02_types.md)
 
 ## Habits to unlearn
 
@@ -75,4 +75,4 @@ One-page orientation. Details live in linked chapters.
 
 ## AI Afterparty
 
-Use [AI_PROMPT_INDEX.md](AI_PROMPT_INDEX.md) with this map: ask the model to translate a Java or Python snippet you know into idiomatic Rust using the right column.
+Use [AI_PROMPT_INDEX.md](AI_PROMPT_INDEX.md) with this map: if you know Java or Python, ask the model to translate a snippet from either into idiomatic Rust using the right column.

@@ -1,8 +1,8 @@
-# Chapter 13: Metaprogramming
+# Chapter 17: Metaprogramming
 
 ## Hook
 
-Java annotations and reflection generate boilerplate at runtime (or via annotation processors). Python metaclasses twist class creation at import time. Rust metaprogramming is mostly **compile-time**: macros expand source **before** type checking — zero runtime cost for `macro_rules!` and derive.
+Metaprogramming varies by ecosystem — **Java** annotations and reflection, **Python** metaclasses, Rust macros at compile time. Rust metaprogramming is mostly **compile-time**. Macros expand source **before** type checking — zero runtime cost for `macro_rules!` and derive.
 
 | Approach | When it runs | Typical cost |
 |----------|--------------|--------------|
@@ -14,7 +14,9 @@ Java annotations and reflection generate boilerplate at runtime (or via annotati
 
 ## Scope — a brief tour, not a proc-macro authoring course
 
-Metaprogramming in Rust is a **large** topic. This chapter is a **practical intro** — enough to read derive-heavy automation code, write small `macro_rules!` helpers, and know when **not** to macro. It is **not** a guide to authoring proc macros with `syn`/`quote`.
+Metaprogramming in Rust is a **large** topic. This chapter is a **practical intro** — enough to read derive-heavy automation code, write small `macro_rules!` helpers, and know when **not** to macro.
+
+It is **not** a guide to authoring proc macros with `syn`/`quote`.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -25,14 +27,14 @@ Metaprogramming in Rust is a **large** topic. This chapter is a **practical intr
 
 Use **Afterparty** prompts and **Go deeper** for `cargo expand` drills, serde field attrs, and capstone DSL sketches.
 
-This chapter builds on [Chapter 6](06_structs_traits_generics.md) (traits, derive usage), [Chapter 7](07_errors_and_testing.md) (`thiserror`), and [Chapter 12](12_async_tokio.md) (Tokio attribute macros):
+This chapter builds on [Chapter 7](07_structs_traits_generics.md) (traits, derive usage), [Chapter 8](08_errors_and_testing.md) (`thiserror`), and [Chapter 16](16_async_tokio.md) (Tokio attribute macros):
 
 ```mermaid
 flowchart LR
-  ch6[Ch6 traits and derive] --> ch13[Ch13 metaprogramming]
-  ch7[Ch7 thiserror] --> ch13
-  ch12[Ch12 tokio attrs] --> ch13
-  ch13 --> ch14[Ch14 unsafe traits]
+  ch6[Ch7 traits and derive] --> ch13[Ch17 metaprogramming]
+  ch7[Ch8 thiserror] --> ch13
+  ch12[Ch16 tokio attrs] --> ch13
+  ch13 --> ch14[Ch18 unsafe traits]
   ch13 --> afterparty[Afterparty drills]
 ```
 
@@ -44,7 +46,7 @@ flowchart LR
 source tokens → macro expansion → type check + borrow check → LLVM
 ```
 
-Macros match **syntax trees** (tokens), not types. That is why a macro can compile while the **expanded** code fails — and why errors often say `in expansion of macro ...`.
+Macros match **syntax trees** (tokens), not types. A macro can compile while the **expanded** code fails. Errors often say `in expansion of macro ...`.
 
 ## Under the hood — what the compiler actually does
 
@@ -70,11 +72,11 @@ flowchart TD
 
 - The compiler calls a proc-macro function with a **`TokenStream`** (tokens + span metadata).
 - The macro runs as **normal Rust at compile time** (often using `syn` + `quote`) and returns another `TokenStream`.
-- A **`proc-macro = true` crate** may export **only** proc macros — helpers live in a sibling crate. Hard platform rule.
+- A **`proc-macro = true` crate** may export **only** proc macros. Helpers live in a sibling crate — a hard platform rule.
 
 **Hygiene (why names “disappear”):**
 
-- Macro-generated identifiers get a fresh **syntax context** — they do not collide with caller locals, but also **won't resolve** to caller bindings unless passed as `$x:expr`.
+- Macro-generated identifiers get a fresh **syntax context**. They do not collide with caller locals, but also **won't resolve** to caller bindings unless passed as `$x:expr`.
 - `$crate` exists so exported macros refer to **their** crate's paths, not the caller's.
 
 ## `macro_rules!`
@@ -181,7 +183,9 @@ Conceptual `cargo expand` on `#[derive(Debug)]` for `Point` emits an `impl Debug
 
 The macro matcher is a **separate, weaker parser** that must stay **unambiguous today and in future Rust editions** ([follow-set rules](https://doc.rust-lang.org/reference/macros-by-example.html#follow-set-ambiguity-restrictions)).
 
-**Important nuance:** `for`, `let`, and `while` are **not** banned from macro **output**. You can generate `for` loops in the expanded code — and you often should. What *is* restricted is (1) using those keywords **after `$e:expr` / `$s:stmt` in a matcher**, and (2) expanding **multiple statements** (including `let` + `for`) where Rust expects a **single expression**.
+**Important nuance:** `for`, `let`, and `while` are **not** banned from macro **output**. You can generate `for` loops in the expanded code — and you often should.
+
+What *is* restricted is (1) using those keywords **after `$e:expr` / `$s:stmt` in a matcher**, and (2) expanding **multiple statements** (including `let` + `for`) where Rust expects a **single expression**.
 
 ### Follow-set: keywords after `expr` / `stmt`
 
@@ -219,7 +223,7 @@ macro_rules! set_reg {
 
 **Right — `$p:pat` followed by `in` (foreach-style matcher):**
 
-The keyword **`in`** is in the follow-set for `pat` / `pat_param`, so this pattern is **legal** — literal `for` comes *before* the pattern, not after an `expr`:
+The keyword **`in`** is in the follow-set for `pat` / `pat_param`, so this pattern is **legal**. Literal `for` comes *before* the pattern, not after an `expr`:
 
 ```rust
 // Playground
@@ -238,7 +242,9 @@ fn main() {
 
 ### Expression position vs statement expansion (`let`, `for`, multiple lines)
 
-A macro invoked where Rust expects an **expression** (`let x = mac!();`, `mac!() + 1`) must expand to **one** expression. A bare `{ let a = 1; for i in 0..n { ... } }` block is a **block expression** and can work — but a transcribe template with **multiple statements** separated at the top level often breaks.
+A macro invoked where Rust expects an **expression** (`let x = mac!();`, `mac!() + 1`) must expand to **one** expression. A bare `{ let a = 1; for i in 0..n { ... } }` block is a **block expression** and can work.
+
+A transcribe template with **multiple statements** separated at the top level often breaks.
 
 **Wrong — `let` + `for` in expression position (single-brace body):**
 
@@ -279,7 +285,7 @@ fn main() {
 }
 ```
 
-**What happened:** outer `{ ... }` is the macro's transcribe delimiter; inner `{ ... ; () }` is a **block expression** — one value Rust can assign to `_x`. Without the inner block, `let` and `for` are loose statements, invalid in expression position.
+**What happened:** outer `{ ... }` is the macro's transcribe delimiter. Inner `{ ... ; () }` is a **block expression** — one value Rust can assign to `_x`. Without the inner block, `let` and `for` are loose statements, invalid in expression position.
 
 | Situation | Works? | Pattern |
 |-----------|--------|---------|
@@ -288,7 +294,7 @@ fn main() {
 | `for` after `$e:expr` in **matcher** | never | use `$p:pat in $r:expr` or change DSL punctuation |
 | `for` in macro **output** at statement position | yes | `poll_twice!();` as its own statement |
 
-Same logic applies to **`let`**, **`while`**, and **`match`** when they appear **after** an `expr` fragment in a matcher — and to **`let`-heavy expansions** in expression context.
+Same logic applies to **`let`**, **`while`**, and **`match`** when they appear **after** an `expr` fragment in a matcher. It also applies to **`let`-heavy expansions** in expression context.
 
 **Other important limits:**
 
@@ -306,8 +312,8 @@ Same logic applies to **`let`**, **`while`**, and **`match`** when they appear *
 | Macro | Role |
 |-------|------|
 | `vec!`, `format!`, `println!` | collection / formatting |
-| `matches!` | pattern guard sugar ([Chapter 6](06_structs_traits_generics.md)) |
-| `env!`, `option_env!` | build-time strings ([Chapter 0](00_preface.md)) |
+| `matches!` | pattern guard sugar ([Chapter 6 — Advanced patterns](06_types_enums_pattern_matching.md#advanced-patterns)) |
+| `env!`, `option_env!` | build-time strings ([Preface](preface.md)) |
 | `include_str!`, `concat!`, `stringify!` | embed / stringify at compile time |
 | `cfg!`, `assert!`, `debug_assert!` | conditional compile / tests |
 | `todo!`, `unimplemented!` | stub markers |
@@ -324,7 +330,7 @@ fn main() {
 
 ## How `#[derive(...)]` works
 
-[Chapter 6](06_structs_traits_generics.md) shows *which* derives to pick on command/log models. Here: *what derive is doing*.
+[Chapter 7](07_structs_traits_generics.md) shows *which* derives to pick on command/log models. Here: *what derive is doing*.
 
 **Mechanics:**
 
@@ -332,7 +338,7 @@ fn main() {
 2. The macro emits `impl Trait for YourType { ... }`.
 3. The compiler type-checks that impl like hand-written code.
 
-**Field rule:** derive succeeds only when **every field** (or every variant's fields) already implements the trait — otherwise a clear “field X doesn't implement Y” error.
+**Field rule:** derive succeeds only when **every field** (or every variant's fields) already implements the trait. Otherwise you get a clear “field X doesn't implement Y” error.
 
 **Enum vs struct:** enums get per-variant `match` arms in generated `Debug`, `Clone`, `PartialEq`, …; structs get field-wise impls.
 
@@ -359,7 +365,7 @@ fn main() {
 
 **What happened:** `Clone` proc macro generated `fn clone(&self) -> Self { Point { x: self.x.clone(), y: self.y.clone() } }`. `PartialEq` generated field-wise `==`.
 
-**Manual vs derive:** derive when default behaviour fits; hand-write for redacted `Debug`, custom `Clone` (share `Arc` instead of deep copy), or enum `Default` with `#[default]` on one variant (Rust 1.62+).
+**Manual vs derive:** derive when default behaviour fits. Hand-write for redacted `Debug`, custom `Clone` (share `Arc` instead of deep copy), or enum `Default` with `#[default]` on one variant (Rust 1.62+).
 
 **Wrong — `Eq` on floats:**
 
@@ -367,7 +373,7 @@ fn main() {
 // Playground — does not compile
 // #[derive(Eq, PartialEq)]
 // struct Reading { value: f64 }
-// FIX: integer fixed-point, `PartialEq` only, or ordered-float crate — see Ch6
+// FIX: integer fixed-point, `PartialEq` only, or ordered-float crate — see Ch7
 ```
 
 | Java / Python | Rust derive |
@@ -391,14 +397,14 @@ Cloning ties directly to ownership ([Chapter 1](01_paradigm_shift.md)) and shows
 
 **When to derive `Clone` in automation:**
 
-- Config structs from TOML passed into worker threads ([Chapter 10](10_multithreading.md) `move` closures).
+- Config structs from TOML passed into worker threads ([Chapter 14](14_multithreading.md) `move` closures).
 - Command enums — clone before send if both sides need a copy.
 - Snapshot sensor readings for logging without holding locks.
 
 **When not to derive blindly:**
 
 - Large buffers — prefer `Arc<[u8]>` or `&T`.
-- Types with `Mutex`/`RefCell` inside — usually not `Clone` ([Chapter 9](09_smart_pointers_modules.md)).
+- Types with `Mutex`/`RefCell` inside — usually not `Clone` ([Chapter 10](10_smart_pointers_interior_mutability.md)).
 - Cheap shared clone — manual `Clone` calling `Arc::clone`, not derived deep copy.
 
 ```rust
@@ -430,7 +436,7 @@ fn main() {
 |------|---------|-----|
 | Clone in hot poll loop | CPU + allocator churn | borrow, `Arc`, or move |
 | Deep clone of nested graph | accidental megabyte copies | `Arc`, intern, or move |
-| Java-style `dyn Clone` | not in std | enum of variants or `T: Clone` ([Chapter 6](06_structs_traits_generics.md)) |
+| Java-style `dyn Clone` | not in std | enum of variants or `T: Clone` ([Chapter 7](07_structs_traits_generics.md)) |
 | `Copy` on non-Copy field | compile error | drop `Copy`; keep `Clone` |
 
 ## Derive ecosystem — existing solutions
@@ -441,7 +447,7 @@ fn main() {
 |--------|---------|
 | `Debug` | logs, tests, REPL-style printing |
 | `Clone` / `Copy` | duplicates — see above |
-| `PartialEq` / `Eq` | equality (not `f64` total order — Ch6) |
+| `PartialEq` / `Eq` | equality (not `f64` total order — Ch7) |
 | `Hash` | `HashMap` keys |
 | `Default` | `..Default::default()` fills; enum needs `#[default]` variant |
 | `Ord` / `PartialOrd` | sorting when total order exists |
@@ -451,10 +457,10 @@ fn main() {
 | Crate / macro | Typical use |
 |---------------|-------------|
 | **serde** `Serialize`/`Deserialize` | config TOML/JSON, log payloads, IPC |
-| **thiserror** `Error` | library error enums ([Chapter 7](07_errors_and_testing.md)) |
+| **thiserror** `Error` | library error enums ([Chapter 8](08_errors_and_testing.md)) |
 | **clap** `Parser`, `Subcommand`, `Args` | CLI gateways |
 | **tracing** `instrument` | spans around poll loops |
-| **tokio** `main`, `select!`, `join!` | async runtime ([Chapter 12](12_async_tokio.md)) |
+| **tokio** `main`, `select!`, `join!` | async runtime ([Chapter 16](16_async_tokio.md)) |
 | **strum** / **enum-as-inner** | enum ↔ string for protocols |
 | **async-trait** | object-safe async traits (escape hatch) |
 
@@ -488,7 +494,7 @@ struct Cli {
 
 **Version coupling:** `serde` derive feature must match `serde` version; same for `clap` majors.
 
-**Serde + Clone pairing:** `#[derive(Debug, Clone, Deserialize)]` — deserialize once; `clone()` hands copies to threads without re-reading the file.
+**Serde + Clone pairing:** `#[derive(Debug, Clone, Deserialize)]` — deserialize once, then `clone()` hands copies to threads without re-reading the file.
 
 ## Proc macros — three kinds
 
@@ -498,7 +504,7 @@ struct Cli {
 | **attribute** | `#[attr(...)]` on item | `#[tokio::main]`, `#[test]`, `#[tracing::instrument]` |
 | **function-like** | `name!(...)` | `include_bytes!`, `sqlx::query!` |
 
-Proc macros live in separate `proc-macro = true` crates — rust-analyzer sometimes stops at the macro boundary. **Authoring proc macros is out of scope here**; know how to **consume** and **debug** them with `cargo expand`.
+Proc macros live in separate `proc-macro = true` crates — rust-analyzer sometimes stops at the macro boundary. **Authoring proc macros is out of scope here**. Know how to **consume** and **debug** them with `cargo expand`.
 
 ## `const` and compile-time evaluation
 
@@ -526,14 +532,14 @@ fn main() {
 }
 ```
 
-**`env!` vs runtime:** `env!("CARGO_PKG_NAME")` is substituted at **compile time** ([Chapter 0](00_preface.md)). `std::env::var("HOME")` reads the process environment at **runtime** — different tools.
+**`env!` vs runtime:** `env!("CARGO_PKG_NAME")` is substituted at **compile time** ([Preface](preface.md)). `std::env::var("HOME")` reads the process environment at **runtime**. Different tools.
 
 **When to use which:**
 
 ```
 need typed compile-time value?    → const / const fn
 repeated syntax across types?     → derive or macro_rules!
-single generic algorithm?         → fn + generics + traits (Ch6)
+single generic algorithm?         → fn + generics + traits (Ch7)
 external schema/codegen file?     → build.rs or include! — Afterparty
 ```
 
@@ -586,7 +592,7 @@ macro_rules! bad_impl {
 | Proc macro opacity | serde logic in another crate | read crate docs/tests |
 | Debuggers | breakpoints at call site or odd spans | test expanded or public API |
 
-**Java contrast:** annotation processors also generate code, but IDE culture around generated sources is mature. Rust macro output is **invisible unless you expand** — same compile-time idea, rougher tooling surface.
+**Java contrast:** annotation processors also generate code, but IDE culture around generated sources is mature. Rust macro output is **invisible unless you expand**. Same compile-time idea, rougher tooling surface.
 
 **Team guidance:** macros at **stable boundaries** (`serde`, `thiserror`, documented internal DSLs) are fine. Business logic buried in macro layers nobody expands is a liability.
 
@@ -852,13 +858,15 @@ macro_rules! my_vec {
 
 ## See also
 
-- [Chapter 0: Preface](00_preface.md) — `env!` vs runtime env
-- [Chapter 6: Traits](06_structs_traits_generics.md) — derive usage, `matches!`, float/`Eq`
-- [Chapter 7: Errors](07_errors_and_testing.md) — `thiserror`
-- [Chapter 10: Multithreading](10_multithreading.md) — `Clone` + channels
-- [Chapter 12: Async](12_async_tokio.md) — Tokio attribute macros
-- [Chapter 14: Unsafe](14_unsafe_and_internals.md)
-- [Chapter 15: I/O](15_io_processes_bits.md) — config files
+- [Preface](preface.md) — `env!` vs runtime env
+- [Chapter 6: Enums and pattern matching](06_types_enums_pattern_matching.md) — `matches!`, advanced patterns
+- [Chapter 7: Traits](07_structs_traits_generics.md) — derive usage, float/`Eq`
+- [Chapter 13: Standard traits](13_standard_traits.md) — `Display`/`Debug` formatting flags for `format!` / `println!`
+- [Chapter 8: Errors](08_errors_and_testing.md) — `thiserror`
+- [Chapter 14: Multithreading](14_multithreading.md) — `Clone` + channels
+- [Chapter 16: Async](16_async_tokio.md) — Tokio attribute macros
+- [Chapter 18: Unsafe](18_unsafe_and_internals.md)
+- [Chapter 19: I/O](19_io_processes_bits.md) — config files
 
 ### Afterparty: AI Lego blocks
 
@@ -869,7 +877,7 @@ Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these
 1. **Expansion order** — “List compiler phases from tokens to LLVM; where do macros run?”
 2. **Tokens vs types** — “Why can a macro compile but expanded code fail? One example.”
 3. **Follow-set why** — “Explain in 80 words why `$a:expr = $b:expr` is forbidden in matchers.”
-4. **Scope honesty** — “List 5 metaprogramming topics Ch13 skips and where to learn each.”
+4. **Scope honesty** — “List 5 metaprogramming topics Ch17 skips and where to learn each.”
 5. **Trace checklist** — “Give 6 reasons macro code is hard to trace and one mitigation each.”
 
 #### `macro_rules!` drills
@@ -902,9 +910,9 @@ Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these
 
 23. **derive need** — “List derives I want for config struct loaded from TOML — justify each.”
 24. **Serde rename** — “Field `poll_ms` in JSON as `pollIntervalMs` — show attr; trap on refactor.”
-25. **thiserror vs manual** — “Same error enum: count lines derive vs hand-written (Ch7 style).”
+25. **thiserror vs manual** — “Same error enum: count lines derive vs hand-written (Ch8 style).”
 26. **clap subcommands** — “Sketch `#[derive(Subcommand)]` enum for gateway start/stop/status.”
-27. **Float Eq trap** — “Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch6.”
+27. **Float Eq trap** — “Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch7.”
 
 #### Debugging and tooling
 

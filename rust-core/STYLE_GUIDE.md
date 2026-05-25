@@ -6,6 +6,16 @@
 - **Brief**: if a paragraph does not teach or orient, cut it.
 - **Human**: prefer “you move ownership” over “the value undergoes a move operation.”
 
+## Prose
+
+- **One idea per sentence** — aim for 12–22 words; split if you run out of breath reading aloud.
+- **Short paragraphs** — two to four sentences, then a list, example, or break.
+- **Lead with the point** — state what the reader should know, then nuance.
+- **Active voice** — “you borrow”, “the compiler rejects”, not passive stacks.
+- **Hooks stay short** — two or three sentences before the first example.
+- **Terms stay precise** — simplify grammar, not vocabulary; keep Java/Python tables.
+- **Markdown hygiene** — use `` `code` `` for identifiers; reserve **bold** for first mention of a concept, not every keyword.
+
 ## Comparisons
 
 When introducing a Rust concept, use a compact table:
@@ -39,7 +49,7 @@ Every snippet starts with a line comment or bold label:
 
 ## Chapter skeleton
 
-1. Hook (Java/Python assumption → Rust reality)
+1. Hook (prior-language habits → Rust reality; optional Java/Python tables when helpful)
 2. Core sections with examples
 3. **Idiom spotlight** (one boxed habit)
 4. **Afterparty: AI Lego blocks** (5–8 numbered prompts, copy-paste ready)
@@ -58,12 +68,8 @@ Format:
 
 Prompts should be **active**: quiz, refactor, explain error, compare three approaches, design mini-API.
 
-Every chapter’s prompts are catalogued in [appendix/AI_PROMPT_INDEX.md](appendix/AI_PROMPT_INDEX.md) as **P001–P200**.
+Every chapter’s prompts are catalogued in [appendix/AI_PROMPT_INDEX.md](appendix/AI_PROMPT_INDEX.md) (**P001** onward).
 
 ## Crosslinks
 
 Use relative paths: `[Chapter 1](chapters/01_paradigm_shift.md#references-borrowing-and-dereferencing)`
-
-## Archival material
-
-`archive/CHAPTER_01_*.md` and `CHAPTER_02_*.md` are source material only; do not edit them. New text lives under `chapters/`.

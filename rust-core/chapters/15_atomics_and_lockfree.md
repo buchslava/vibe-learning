@@ -1,12 +1,12 @@
-# Chapter 11: Atomics and Lock-Free Basics
+# Chapter 15: Atomics and Lock-Free Basics
 
 ## Hook
 
-Java has `java.util.concurrent.atomic.*`. Python hides atomics behind the GIL for CPython. Rust exposes **`std::sync::atomic`** for lock-free counters and flags when mutex overhead is too high — but **memory ordering** is part of the contract.
+Lock-free primitives appear in many runtimes (**Java** `java.util.concurrent.atomic.*`, **Python** atomics hidden behind the GIL in CPython, …). Rust exposes **`std::sync::atomic`** for lock-free counters and flags when mutex overhead is too high — but **memory ordering** is part of the contract.
 
 ## Scope — a brief tour, not 100% of the topic
 
-Atomics and lock-free programming is a **deep** field. This chapter is a **practical intro** — enough for metrics, shutdown flags, and reading real code. It is **not** a full memory-model course or lock-free data-structure tutorial.
+Atomics and lock-free programming is a deep field. This chapter is a practical intro — enough for metrics, shutdown flags, and reading real code. It is not a full memory-model course or lock-free data-structure tutorial. Use **Afterparty** prompts and **Go deeper** for ABA, fences, and custom lock-free structures.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -16,37 +16,35 @@ Atomics and lock-free programming is a **deep** field. This chapter is a **pract
 | Shared flags/counters in **threads and async** | `crossbeam`, hand-rolled lock-free DS |
 | When **not** to use atomics | SIMD atomics, `portable-atomic` edge cases |
 
-Use **Afterparty** prompts and **Go deeper** for ABA, fences, and custom lock-free structures.
-
 ```mermaid
 flowchart LR
-  ch10[Ch10 threads Mutex] --> ch11[Ch11 atomics]
-  ch11 --> ch12[Ch12 async tasks]
+  ch10[Ch14 threads Mutex] --> ch11[Ch15 atomics]
+  ch11 --> ch12[Ch16 async tasks]
   ch11 --> afterparty[Afterparty deep dives]
 ```
 
-## Where atomics fit — threads, async, and Chapter 10
+## Where atomics fit — threads, async, and Chapter 14
 
-Atomics solve **concurrent read/write of one machine word** without taking a **`Mutex` lock**. They show up in both **OS-thread** code ([Chapter 10](10_multithreading.md)) and **async** services ([Chapter 12](12_async_tokio.md)) — same types, same rules.
+Atomics solve **concurrent read/write of one machine word** without taking a **`Mutex` lock**. They show up in both **OS-thread** code ([Chapter 14](14_multithreading.md)) and **async** services ([Chapter 16](16_async_tokio.md)) — same types, same rules.
 
 | Context | Shared pattern | Atomics role |
 |---------|----------------|--------------|
-| **OS threads** ([Ch10 Level 4](10_multithreading.md)) | `Arc<AtomicUsize>` across `thread::spawn` | Hot counter without mutex contention |
-| **Async tasks** ([Ch12](12_async_tokio.md)) | `Arc<AtomicBool>` read by many `tokio::spawn` tasks | Cooperative **shutdown** without locking the runtime |
-| **Both** | `Arc` wraps the atomic — [`Arc::clone` is cheap](10_multithreading.md) | Metrics: `Relaxed`; flags with dependent data: `Release` / `Acquire` |
+| **OS threads** ([Ch14 Level 4](14_multithreading.md)) | `Arc<AtomicUsize>` across `thread::spawn` | Hot counter without mutex contention |
+| **Async tasks** ([Ch16](16_async_tokio.md)) | `Arc<AtomicBool>` read by many `tokio::spawn` tasks | Cooperative **shutdown** without locking the runtime |
+| **Both** | `Arc` wraps the atomic — [`Arc::clone` is cheap](14_multithreading.md) | Metrics: `Relaxed`; flags with dependent data: `Release` / `Acquire` |
 
 ```
-Ch10:  thread::spawn ──► Arc<AtomicUsize> fetch_add
-Ch12:  tokio::spawn   ──► Arc<AtomicBool>  load/store
+Ch14:  thread::spawn ──► Arc<AtomicUsize> fetch_add
+Ch16:  tokio::spawn   ──► Arc<AtomicBool>  load/store
 ```
 
 **Key message:** Async does **not** remove concurrency — tasks on a thread pool still share memory. Atomics are **`Send` + `Sync`**; wrap in **`Arc`** when many tasks or threads need the same counter or flag.
 
-Atomics do **not** replace [channels](10_multithreading.md) (message streams) or **`Mutex`** (multi-field invariants). One atomic word ≠ “lock-free entire struct.”
+Atomics do **not** replace [channels](14_multithreading.md) (message streams) or **`Mutex`** (multi-field invariants). One atomic word ≠ “lock-free entire struct.”
 
 ## Data races — why atomics exist
 
-A **data race** (informal): two threads access the **same memory**, at least one **writes**, with **no synchronization** → **undefined behavior** in C/C++.
+A **data race** (informal): two threads access the **same memory**, at least one **writes**, with **no synchronization**. In C/C++ that is **undefined behavior**.
 
 | Kind | Example | Safe Rust? |
 |------|---------|------------|
@@ -71,7 +69,7 @@ A **data race** (informal): two threads access the **same memory**, at least one
 // two unsynchronized writes = data race (undefined behavior)
 ```
 
-Same job as [Chapter 10 Level 4 `Arc<Mutex<usize>>`](10_multithreading.md) — atomics trade **expressiveness** for **speed** on simple ops.
+Same job as [Chapter 14 Level 4 `Arc<Mutex<usize>>`](14_multithreading.md) — atomics trade **expressiveness** for **speed** on simple ops.
 
 ## Examples: elementary → hard
 
@@ -110,11 +108,11 @@ fn main() {
 
 - Main sleeps ~20 ms, sets shutdown **`true`**, worker exits loop, prints **`worker stopped`**, **`join`** succeeds.
 - **`Release` store** (main) + **`Acquire` load** (worker) = **happens-before**: worker **sees** all memory writes main made **before** the `store(true)`.
-- Same pattern works behind **`Arc<AtomicBool>`** in **`tokio::spawn`** ([Chapter 12](12_async_tokio.md)) — tasks poll `load(Acquire)` between `.await` points.
+- Same pattern works behind **`Arc<AtomicBool>`** in **`tokio::spawn`** ([Chapter 16](16_async_tokio.md)) — tasks poll `load(Acquire)` between `.await` points.
 
 ### Level 2 — Elementary: `fetch_add` counter
 
-Lock-free increment — port of [Ch10 Mutex counter](10_multithreading.md):
+Lock-free increment — port of [Ch14 Mutex counter](14_multithreading.md):
 
 ```rust
 // Playground
@@ -143,7 +141,7 @@ fn main() {
 |-------|------|
 | `AtomicUsize` | One shared counter word — no `Mutex` |
 | `fetch_add(1, Relaxed)` | Atomic read-modify-write; **`Relaxed`** OK for metrics-only counter |
-| `Arc::clone(&n)` | Cheap handle — same atomic on heap ([Chapter 10](10_multithreading.md)) |
+| `Arc::clone(&n)` | Cheap handle — same atomic on heap ([Chapter 14](14_multithreading.md)) |
 
 **What happened:**
 
@@ -281,11 +279,11 @@ struct BadHandoff {
 // Reader:  if ready.load(Relaxed) { use port }  // may read stale port without Release/Acquire
 ```
 
-Fix: **`Release`** after writing `port`, **`Acquire`** before reading `port` — or protect both under **`Mutex`** ([Chapter 10](10_multithreading.md)).
+Fix: **`Release`** after writing `port`, **`Acquire`** before reading `port` — or protect both under **`Mutex`** ([Chapter 14](14_multithreading.md)).
 
 **What happened (conceptually):** the atomic op itself is well-defined; **your program logic** is wrong if ordering does not establish happens-before between the flag and other fields.
 
-### Level 6 — Hard: automation gateway sketch
+### Level 6 — Hard: gateway sketch
 
 **Metrics** (`Relaxed`) + **shutdown** (`Release`/`Acquire`) — same struct works for threads today, async tasks tomorrow:
 
@@ -327,12 +325,12 @@ fn main() {
 
 - Worker increments **`polls`** several times with **`Relaxed`** (metrics-only).
 - Supervisor prints poll count, sets **`shutdown`** with **`Release`**, worker observes **`Acquire`** and exits.
-- In **async** ([Chapter 12](12_async_tokio.md)): replace `thread::spawn` with `tokio::spawn`, same `Arc<Gateway>` — atomics unchanged.
+- In **async** ([Chapter 16](16_async_tokio.md)): replace `thread::spawn` with `tokio::spawn`, same `Arc<Gateway>` — atomics unchanged.
 
 ## Memory ordering (practical subset)
 
-| Ordering | Typical use | Automation example |
-|----------|-------------|-------------------|
+| Ordering | Typical use | Example |
+|----------|-------------|---------|
 | **`Relaxed`** | Standalone counters, stats | frames processed, bytes read, poll count |
 | **`Release`** | Publish — “data is ready” | store shutdown `true` after flushing state |
 | **`Acquire`** | Observe — “I see your prior writes” | worker checks shutdown flag |
@@ -345,7 +343,7 @@ fn main() {
 
 ## Atomics vs `Mutex`
 
-| | Atomics | `Mutex` ([Ch10](10_multithreading.md)) |
+| | Atomics | `Mutex` ([Ch14](14_multithreading.md)) |
 |---|---------|----------------------------------------|
 | Best for | counters, flags, CAS on one word | multi-field invariants, `Vec` updates |
 | Composability | single-word ops | arbitrary critical sections |
@@ -357,11 +355,11 @@ fn main() {
 ```
 one word, simple op (count, flag)?     → atomic
 several fields must stay consistent?   → Mutex
-stream of messages / commands?         → channel (Ch10)
+stream of messages / commands?         → channel (Ch14)
 custom lock-free queue?                → crate or Afterparty — not hand-roll
 ```
 
-**Port exercise:** [Ch10 Level 4 `Arc<Mutex<usize>>`](10_multithreading.md) → [Level 2](#level-2--elementary-fetch_add-counter) `AtomicUsize` when profiling shows lock contention on a hot path.
+**Port exercise:** [Ch14 Level 4 `Arc<Mutex<usize>>`](14_multithreading.md) → [Level 2](#level-2--elementary-fetch_add-counter) `AtomicUsize` when profiling shows lock contention on a hot path.
 
 ## Edge cases and compiler traps
 
@@ -373,7 +371,7 @@ custom lock-free queue?                → crate or Afterparty — not hand-roll
 | Atomics for large struct | wrong tool — one word only | `Mutex` or channel |
 | False sharing (advanced) | cache line ping-pong between cores | pad/separate hot atomics — Afterparty |
 | ABA on pointer CAS | wrong lock-free pop | epoch / RCU — Afterparty |
-| Confusing panic with race | thread died vs data race | [Ch7 `join`](07_errors_and_testing.md) vs atomics |
+| Confusing panic with race | thread died vs data race | [Ch8 `join`](08_errors_and_testing.md) vs atomics |
 
 **Wrong — `compare_exchange` once, no retry:**
 
@@ -410,7 +408,7 @@ Use **`Mutex<Vec<_>>`**, a **channel**, or a dedicated concurrent crate — not 
 
 > **Start with `Mutex`; switch to atomics when profiling shows lock contention on a hot counter or flag.** Use **`Relaxed`** for metrics-only words; use **`Release`/`Acquire`** when another thread must see your **prior non-atomic writes**.
 >
-> Same **`Arc<Atomic*>`** behind **OS threads** ([Chapter 10](10_multithreading.md)) and **async tasks** ([Chapter 12](12_async_tokio.md)). Do not hand-roll lock-free queues without study.
+> Same **`Arc<Atomic*>`** behind **OS threads** ([Chapter 14](14_multithreading.md)) and **async tasks** ([Chapter 16](16_async_tokio.md)). Do not hand-roll lock-free queues without study.
 
 ## Go deeper
 
@@ -419,9 +417,9 @@ Use **`Mutex<Vec<_>>`**, a **channel**, or a dedicated concurrent crate — not 
 
 ## See also
 
-- [Chapter 10: Multithreading](10_multithreading.md) — `Arc`, `Mutex`, threads
-- [Chapter 12: Async](12_async_tokio.md) — tasks sharing `Arc<AtomicBool>`
-- [Chapter 7: Errors and panic](07_errors_and_testing.md) — `join()` after panic vs race bugs
+- [Chapter 14: Multithreading](14_multithreading.md) — `Arc`, `Mutex`, threads
+- [Chapter 16: Async](16_async_tokio.md) — tasks sharing `Arc<AtomicBool>`
+- [Chapter 8: Errors and panic](08_errors_and_testing.md) — `join()` after panic vs race bugs
 
 ### Afterparty: AI Lego blocks
 
@@ -431,8 +429,8 @@ Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these
 
 1. **Threads vs async atomics** — “Same `Arc<AtomicBool>` in `thread::spawn` vs `tokio::spawn` — what differs, what stays the same?”
 2. **Data race vs logic race** — “Define both; classify lost `static mut` increment vs `fetch_add`.”
-3. **Scope honesty** — “List 5 topics Ch11 skips and where to learn each.”
-4. **Ch10 port** — “Rewrite Mutex counter (Ch10 L4) as `AtomicUsize`; when is each better?”
+3. **Scope honesty** — “List 5 topics Ch15 skips and where to learn each.”
+4. **Ch14 port** — “Rewrite Mutex counter (Ch14 L4) as `AtomicUsize`; when is each better?”
 
 #### Memory ordering
 
@@ -453,7 +451,7 @@ Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these
 
 14. **Race quiz** — “Mark 6 snippets: safe atomic, UB `static mut`, ordering bug, needs Mutex.”
 15. **Visibility story** — “Writer updates `port` then `Relaxed` flag — what can reader see?”
-16. **Panic vs race** — “Thread panicked in worker — is it a data race? Link Ch7.”
+16. **Panic vs race** — “Thread panicked in worker — is it a data race? Link Ch8.”
 
 #### Atomics vs Mutex vs channels
 

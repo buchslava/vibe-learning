@@ -1,35 +1,33 @@
-# Chapter 10: Multithreading
+# Chapter 14: Multithreading
 
 ## Hook
 
-Python threads fight the GIL for CPU work; Java threads share the heap with locks. Rust threads are **OS threads**, but **safe Rust** prevents many data races at compile time via `Send` and `Sync` — plus channels and mutexes when sharing is real.
+Concurrency models differ by language. **Python** threads fight the GIL for CPU work; **Java** threads share the heap with locks. Rust threads are **OS threads**, but **safe Rust** prevents many data races at compile time via `Send` and `Sync` — plus channels and mutexes when sharing is real.
 
 ## Scope — a brief tour, not 100% of the topic
 
-Multithreading is a **large** field. This chapter is an **introductory ladder** — enough to read real code and spot the main patterns. It is **not** a complete reference.
+Multithreading is a large field. This chapter is an introductory ladder — enough to read real code and spot the main patterns. It is not a complete reference. Use **Afterparty** prompts and linked chapters to go deeper; treat this as a map and first steps.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
-| `thread::spawn`, `join`, `move` | `thread::scope`, detached threads |
+| `thread::spawn`, `join`, `move`, `thread::scope` (brief) | detached threads, custom pools |
 | `mpsc` channels | bounded channels, backpressure, worker pools |
-| `Arc<Mutex<T>>` | `RwLock`, `Condvar`, `Barrier` |
+| `Arc<Mutex<T>>`, `RwLock`, `OnceLock` (brief) | `Condvar`, `Barrier`, `LazyLock` depth |
 | `Send` / `Sync` basics | `RefCell` across threads, pinning |
-| One automation worker sketch | `rayon`, custom thread pools, cross-process IPC |
-| — | Lock-free atomics → [Chapter 11](11_atomics_and_lockfree.md) |
-| — | Async concurrency → [Chapter 12](12_async_tokio.md) |
-
-Use **Afterparty** prompts and linked chapters to go deeper. Treat this as **map + first steps**, not the whole territory.
+| One worker sketch (poll + channel) | `rayon`, custom thread pools, cross-process IPC |
+| — | Lock-free atomics → [Chapter 15](15_atomics_and_lockfree.md) |
+| — | Async concurrency → [Chapter 16](16_async_tokio.md) |
 
 ```mermaid
 flowchart LR
-  ch10[Ch10 brief threads] --> ch11[Ch11 atomics]
-  ch10 --> ch12[Ch12 async]
-  ch10 --> afterparty[Afterparty deep dives]
+  ch14[Ch14 brief threads] --> ch15[Ch15 atomics]
+  ch14 --> ch16[Ch16 async]
+  ch14 --> afterparty[Afterparty deep dives]
 ```
 
 ## What multithreading is
 
-A **thread** is an independent call stack scheduled by the OS. Your program can run **multiple threads at once** (or interleaved on one CPU).
+A **thread** is an independent call stack scheduled by the OS. Your program can run multiple threads at once — or interleaved on one CPU.
 
 | Idea | Plain language |
 |------|----------------|
@@ -42,7 +40,28 @@ A **thread** is an independent call stack scheduled by the OS. Your program can 
 main thread:  spawn worker ──► worker runs ──► join() waits ──► use result
 ```
 
-[`Arc`](09_smart_pointers_modules.md) exists largely because threads need **shared ownership** — `Rc` is single-threaded only.
+[`Arc`](10_smart_pointers_interior_mutability.md) exists largely because threads need **shared ownership** — `Rc` is single-threaded only.
+
+## `Send` and `Sync` — the thread boundary rules
+
+When data crosses a thread boundary, the compiler checks two marker traits:
+
+| Trait | Meaning (simplified) |
+|-------|----------------------|
+| **`Send`** | Owning value may be **moved** to another thread |
+| **`Sync`** | Shared **`&T`** may be used from multiple threads safely |
+
+Most types you write are both `Send` and `Sync`. Common exceptions:
+
+| Type | `Send`? | `Sync`? | Why |
+|------|---------|---------|-----|
+| `Rc<T>` | no | no | ref count not thread-safe |
+| `RefCell<T>` | yes* | no | interior mutability not thread-safe |
+| `Mutex<T>` | yes if `T: Send` | yes if `T: Send` | lock enforces exclusive access |
+
+\*Moving `RefCell` to another thread is allowed; sharing `&RefCell` across threads is not.
+
+`thread::spawn` requires the closure be **`Send`** and **`'static`** — captured data must outlive the spawn and be safe to transfer. That is why `Rc` inside a spawned thread fails but `Arc` works ([Chapter 10](10_smart_pointers_interior_mutability.md)).
 
 ## Examples: elementary → hard
 
@@ -68,7 +87,7 @@ fn main() {
 
 - Main spawns a child thread; child sleeps 10 ms, returns `42`.
 - **`joined = Ok(42)`** — `join()` waits for the child and wraps its return value in `Ok`.
-- If the child **panics**, `join()` returns **`Err(...)`** (not a normal return) — see [Chapter 7 — panic and unwind](07_errors_and_testing.md#panic-unwind-and-why-it-is-not-result) and Level 6 below.
+- If the child **panics**, `join()` returns **`Err(...)`** (not a normal return) — see [Chapter 8 — panic and unwind](08_errors_and_testing.md#panic-unwind-and-why-it-is-not-result) and Level 6 below.
 
 ### Level 2 — Elementary: `move` into the thread
 
@@ -177,13 +196,13 @@ fn main() {
 | **`Arc::clone(&counter)`** | Pointer + atomic ref-count only — same heap `Mutex` | **Cheap** — O(1), no data duplicate |
 | **`(*counter.lock().unwrap()).clone()`** | The **inner** `T` when `T: Clone` (e.g. whole `String`, `Vec`) | **Expensive** — full deep copy of protected data |
 
-In the loop, **`Arc::clone(&counter)`** gives each thread a **handle** to the **one** shared counter. Calling **`.clone()` on the inner value** would copy the data under the lock — wrong tool for “many threads, one counter.” See also [Chapter 9 — `Arc` vs deep clone](09_smart_pointers_modules.md).
+In the loop, **`Arc::clone(&counter)`** gives each thread a **handle** to the **one** shared counter. Calling **`.clone()` on the inner value** would copy the data under the lock — wrong tool for “many threads, one counter.” See also [Chapter 10 — `Arc` vs deep clone](10_smart_pointers_interior_mutability.md).
 
 **What happened:**
 
 - Prints **`count = 4`** — each of four threads incremented once; no lost updates.
 - Without **`Mutex`**, sharing `&mut` across threads would not compile — Rust blocks the data race at compile time.
-- **Lock poisoning:** if a thread **panics while holding the lock**, others get **`PoisonError`** on `lock()` — the lock may be inconsistent ([Chapter 7](07_errors_and_testing.md)).
+- **Lock poisoning:** if a thread **panics while holding the lock**, others get **`PoisonError`** on `lock()` — the lock may be inconsistent ([Chapter 8](08_errors_and_testing.md)).
 
 ### Level 5 — Hard: `Send` trap — `Rc` cannot enter a thread
 
@@ -225,7 +244,7 @@ fn main() {
 
 ### Level 6 — Hard: join without `unwrap` + sensor poll worker
 
-**6a. Handle panics at the boundary** ([Chapter 7](07_errors_and_testing.md) — don't `unwrap` production join in unattended services):
+**6a. Handle panics at the boundary** ([Chapter 8](08_errors_and_testing.md) — don't `unwrap` production join in unattended services):
 
 ```rust
 // Playground
@@ -248,7 +267,7 @@ fn main() {
 - **`Ok(100)`** → prints **`ok 100`**.
 - If you uncomment the panic → **`Err(_)`** arm runs; **main survives** — contrast with panic in the worker killing the whole process if unhandled.
 
-**6b. Automation sketch — poll thread, main logs readings:**
+**6b. Poll worker sketch — poll thread, main logs readings:**
 
 ```rust
 // Playground
@@ -280,6 +299,98 @@ fn main() {
 - Worker **produces**; main **consumes** — classic **message-passing work queue** without shared mutable state.
 - Dropping **`tx`** when the worker finishes closes the channel; main's `for reading in rx` exits cleanly.
 
+## `RwLock` — many readers, rare writers
+
+Sensor cache: many threads read, one thread reloads config:
+
+```rust
+// Playground
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+
+fn main() {
+    let cache: Arc<RwLock<HashMap<String, f64>>> =
+        Arc::new(RwLock::new(HashMap::from([("temp".into(), 22.5)])));
+
+    let reader = Arc::clone(&cache);
+    let t = std::thread::spawn(move || {
+        let map = reader.read().expect("lock poisoned");
+        println!("read temp={}", map["temp"]);
+    });
+    t.join().unwrap();
+
+    {
+        let mut map = cache.write().expect("lock poisoned");
+        map.insert("temp".into(), 23.1);
+    }
+    let map = cache.read().unwrap();
+    println!("after reload temp={}", map["temp"]);
+}
+```
+
+`.read()` allows concurrent readers. `.write()` exclusive for updates. If a thread panics while holding a lock, the lock is **poisoned** — `.expect` or match on the `Result`.
+
+## `OnceLock` — initialize once
+
+Lazy global config without hand-rolled double-checked locking:
+
+```rust
+// Playground
+use std::sync::OnceLock;
+
+struct Settings {
+    port: u16,
+}
+
+static CONFIG: OnceLock<Settings> = OnceLock::new();
+
+fn settings() -> &'static Settings {
+    CONFIG.get_or_init(|| Settings { port: 502 })
+}
+
+fn main() {
+    println!("port={}", settings().port);
+    println!("same={}", settings().port);
+}
+```
+
+First call runs the closure; later calls return the same reference. For stack-local one-time init, `std::sync::LazyLock` (Rust 1.80+) works similarly without `static`.
+
+## `thread::scope` — borrow stack data into threads
+
+Parallel checksum over chunks — each thread borrows `&chunks[i]` safely:
+
+```rust
+// Playground
+use std::thread;
+
+fn checksum(chunk: &[u8]) -> u32 {
+    chunk.iter().map(|&b| b as u32).sum()
+}
+
+fn main() {
+    let chunks: Vec<[u8; 4]> = vec![[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]];
+
+    thread::scope(|s| {
+        let handles: Vec<_> = chunks
+            .iter()
+            .map(|chunk| s.spawn(|| checksum(chunk)))
+            .collect();
+
+        let total: u32 = handles.into_iter().map(|h| h.join().unwrap()).sum();
+        println!("total={}", total);
+    });
+}
+```
+
+`scope` guarantees threads join before returning — so borrows from `chunks` cannot dangle. Plain `spawn` cannot borrow local `Vec` elements without `'static` data.
+
+### Sync primitive edge cases
+
+**RwLock vs Mutex:** use `RwLock` when reads dominate; `Mutex` is simpler when writes are frequent or critical sections are tiny.
+
+**Poisoned lock:** if a writer panics, `read()` returns `Err`. Log and rebuild cache, or use `into_inner()` on the poison error to recover the inner value.
+
 ## Techniques at a glance
 
 Popular primitives — one line each. Details for starred rows live in Afterparty or linked chapters.
@@ -292,10 +403,10 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 | `Arc<Mutex<T>>` | Shared mutable state, short locks | Level 4 |
 | **`Send`** | Safe to **move** `T` to another thread | Level 5 |
 | **`Sync`** | Safe to share **`&T`** across threads | Level 4 (`Arc` shares `&Mutex`) |
-| `RwLock` | Many readers, rare writers | Afterparty |
+| `RwLock` | Many readers, rare writers | Section above |
 | `rayon` / thread pools | CPU-bound parallelism | Afterparty / Go deeper |
-| atomics | Lock-free counters, flags | [Chapter 11](11_atomics_and_lockfree.md) |
-| async / `.await` | Many concurrent I/O waits | [Chapter 12](12_async_tokio.md) |
+| atomics | Lock-free counters, flags | [Chapter 15](15_atomics_and_lockfree.md) |
+| async / `.await` | Many concurrent I/O waits | [Chapter 16](16_async_tokio.md) |
 
 **`Send` / `Sync` in practice:**
 
@@ -306,9 +417,9 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 
 ## Idiom spotlight
 
-> **Prefer channels for work queues and command streams; use `Mutex` for short critical sections.** Long-held locks hurt automation latency (Modbus poll misses its slot).
+> **Prefer channels for work queues and command streams; use `Mutex` for short critical sections.** Long-held locks hurt poll latency (a Modbus cycle can miss its slot).
 >
-> **I/O-bound automation:** one thread blocked on serial read, another on network publish — overlap waits without fighting the GIL.
+> **I/O-bound services:** one thread blocked on serial read, another on network publish — overlap waits without fighting the GIL.
 >
 > **Handle `join()` like `Result`** at the supervisor boundary — worker panic is data, not necessarily process death.
 
@@ -320,10 +431,11 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 
 ## See also
 
-- [Chapter 7: Errors and panic](07_errors_and_testing.md) — `join()` after worker panic, why `unwrap` in loops is risky
-- [Chapter 9: Arc and smart pointers](09_smart_pointers_modules.md) — `Rc` vs `Arc`
-- [Chapter 11: Atomics](11_atomics_and_lockfree.md) — lock-free counters
-- [Chapter 12: Async](12_async_tokio.md) — when threads are not the right tool
+- [Chapter 8: Errors and panic](08_errors_and_testing.md) — `join()` after worker panic, why `unwrap` in loops is risky
+- [Chapter 10: Arc and smart pointers](10_smart_pointers_interior_mutability.md) — `Rc` vs `Arc`
+- [Chapter 12: Closures](12_closures.md) — `move` and `Fn` traits for `spawn`
+- [Chapter 15: Atomics](15_atomics_and_lockfree.md) — lock-free counters, `OnceLock` vs hand-rolled init
+- [Chapter 16: Async](16_async_tokio.md) — when threads are not the right tool
 
 ### Afterparty: AI Lego blocks
 
@@ -333,8 +445,8 @@ Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these
 
 1. **GIL vs OS threads** — “Same CPU-bound task in Python `threading` vs Rust OS threads — who runs in parallel?”
 2. **Parallelism vs concurrency** — “Define both; classify Modbus poll + HTTP publish as one or both.”
-3. **Threads vs async** — “Gateway with 200 idle TCP connections — argue threads vs async; link Ch12.”
-4. **Scope honesty** — “List 5 multithreading topics Ch10 deliberately skips and where to learn each.”
+3. **Threads vs async** — “Gateway with 200 idle TCP connections — argue threads vs async; link Ch16.”
+4. **Scope honesty** — “List 5 multithreading topics Ch14 deliberately skips and where to learn each.”
 
 #### Spawn, move, join
 
@@ -367,3 +479,13 @@ Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these
 22. **Lock latency** — “Modbus cycle 20 ms — max time holding mutex for register cache update?”
 23. **Capstone audit** — “Mark 6 snippets: UB/data race in C++ vs Rust compile error vs safe pattern.”
 24. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”
+
+#### RwLock, OnceLock, and scope
+
+16. **RwLock cache** — "Read-heavy sensor map — sketch `Arc<RwLock<HashMap>>`; when does write starve readers?"
+17. **Mutex vs RwLock** — "Same cache with 50% writes — pick Mutex or RwLock and justify in two sentences."
+18. **OnceLock init** — "`get_or_init` fails second init with different value — show `OnceLock` behaviour."
+19. **Scope borrow** — "Parallel sum over `Vec<[u8;512]>` with `thread::scope` — why plain `spawn` fails on `&chunk`."
+20. **Poison recovery** — "Writer thread panics holding `RwLock` — show poisoned `read()` error and recovery options."
+21. **Capstone sync** — "Design: lazy config (`OnceLock`), shared cache (`RwLock`), scoped batch workers — list types only."
+

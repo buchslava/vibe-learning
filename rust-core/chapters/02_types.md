@@ -2,7 +2,7 @@
 
 ## Hook
 
-Rust’s type system is not ceremony — it is how the compiler checks ownership, catches bugs, and keeps automation code predictable **before** you run anything. This chapter maps the built-in types, how inference works, and the expression-style control flow you will see in every idiomatic crate.
+Rust’s type system is not ceremony. The compiler uses it to check ownership, catch bugs, and keep your code predictable **before** you run anything. This chapter maps the built-in types, how inference works, and the expression-style control flow you will see in every idiomatic crate.
 
 ## Integer types
 
@@ -25,9 +25,13 @@ fn main() {
 }
 ```
 
-**Defaults:** integer literals infer `i32` unless you suffix (`42u64`) or annotate. For wire formats and hardware, **always** choose an explicit width — do not rely on “whatever the platform uses.”
+**Defaults:** integer literals infer `i32` unless you suffix (`42u64`) or annotate.
 
-**Overflow:** in debug builds, arithmetic that overflows **panics**; in release, integers wrap (two’s complement). Use `checked_add`, `saturating_add`, or `wrapping_add` when the policy matters.
+For wire formats and hardware, **always** choose an explicit width. Do not rely on “whatever the platform uses.”
+
+**Overflow:** in debug builds, arithmetic that overflows **panics**. In release, integers wrap (two’s complement).
+
+Use `checked_add`, `saturating_add`, or `wrapping_add` when the policy matters.
 
 ## Floating point, `bool`, and `char`
 
@@ -49,7 +53,9 @@ fn main() {
 }
 ```
 
-`char` is not a UTF-8 byte — it is a single code point. Text strings use `str` / `String` (below); ownership of those buffers is [Chapter 1](01_paradigm_shift.md#ownership-vs-garbage-collection).
+`char` is not a UTF-8 byte — it is a single code point.
+
+Text strings use `str` / `String` (below); ownership of those buffers is [Chapter 1](01_paradigm_shift.md#ownership-vs-garbage-collection).
 
 ## Inference and annotations
 
@@ -66,7 +72,7 @@ fn main() {
 }
 ```
 
-**Casts** use `as` between numeric types (`u16 as u32`). **Conversions** that can fail (string parsing, narrowing) use methods like `.parse()` or `TryFrom` — covered in [Chapter 7](07_errors_and_testing.md).
+**Casts** use `as` between numeric types (`u16 as u32`). **Conversions** that can fail (string parsing, narrowing) use methods like `.parse()` or `TryFrom` — covered in [Chapter 8](08_errors_and_testing.md).
 
 ## Tuples and arrays
 
@@ -90,11 +96,13 @@ fn main() {
 }
 ```
 
-Growable `Vec<T>` and ownership rules for slices come back in [Chapter 1](01_paradigm_shift.md#references-borrowing-and-dereferencing) and [Chapter 8](08_collections_iterators.md).
+Growable `Vec<T>` and ownership rules for slices come back in [Chapter 1](01_paradigm_shift.md#references-borrowing-and-dereferencing) and [Chapter 11](11_collections.md).
 
 ## Slices
 
-A **slice** is a **view** into contiguous memory: pointer plus length, no ownership. The type is written `&[T]` — a borrow of `[T]`, which is **unsized** (the compiler does not know its length at compile time).
+A **slice** is a **view** into contiguous memory: pointer plus length, no ownership.
+
+The type is written `&[T]` — a borrow of `[T]`. `[T]` is **unsized**: the compiler does not know its length at compile time.
 
 | Form | Meaning |
 |------|---------|
@@ -118,7 +126,9 @@ fn main() {
 }
 ```
 
-**Indexing:** `[i]` on a slice is a direct access — out-of-range indices **panic** at runtime. Prefer `.get(i) -> Option<&T>` when the index comes from user input, parsed fields, or loop math you have not proven safe.
+**Indexing:** `[i]` on a slice is a direct access. Out-of-range indices **panic** at runtime.
+
+Prefer `.get(i) -> Option<&T>` when the index comes from user input, parsed fields, or loop math you have not proven safe.
 
 ```rust
 // Playground
@@ -136,7 +146,9 @@ Half-open ranges match `for` loops: `&xs[0..3]` includes indices 0, 1, 2. An emp
 
 ## Strings and UTF-8
 
-Rust strings are **UTF-8** byte sequences, not fixed-width characters. That keeps them compact and compatible with the web and most modern protocols, but it means **byte index ≠ character index**.
+Rust strings are **UTF-8** byte sequences, not fixed-width characters. That keeps them compact and compatible with the web and most modern protocols.
+
+It also means **byte index ≠ character index**.
 
 | Type | Role |
 |------|------|
@@ -160,7 +172,9 @@ fn main() {
 }
 ```
 
-**Literals** have type `&str`. **`String::from`**, **`.to_string()`**, and **`format!`** allocate when you need an owned buffer. **`push_str`** / **`push`** extend a `String` in place — idiomatic when building output in a loop (log lines, CSV rows, protocol text fields).
+**Literals** have type `&str`. **`String::from`**, **`.to_string()`**, and **`format!`** allocate when you need an owned buffer.
+
+**`push_str`** / **`push`** extend a `String` in place. Use them when building output in a loop — log lines, CSV rows, protocol text fields.
 
 ### `&str` vs `String` in APIs
 
@@ -189,7 +203,9 @@ fn main() {
 }
 ```
 
-Rust **coerces** `&String` to `&str` at call sites, so `fn f(s: &str)` is the default for read-only string parameters. Take `String` when the function must **own** the data (store in a struct, spawn a thread, insert into a map keyed by owned text).
+Rust **coerces** `&String` to `&str` at call sites. So `fn f(s: &str)` is the default for read-only string parameters.
+
+Take `String` when the function must **own** the data — for example, to store in a struct, spawn a thread, or insert into a map keyed by owned text.
 
 ### Length, iteration, and slicing text
 
@@ -215,7 +231,9 @@ fn main() {
 }
 ```
 
-**String slicing** uses the same range syntax as byte slices, but ranges must fall on **UTF-8 character boundaries**. Slicing at a bad byte index **panics**:
+**String slicing** uses the same range syntax as byte slices. Ranges must fall on **UTF-8 character boundaries**.
+
+Slicing at a bad byte index **panics**:
 
 ```rust
 // Playground
@@ -230,7 +248,9 @@ fn main() {
 }
 ```
 
-For automation: treat **`&[u8]`** as opaque bytes on the wire; treat **`&str`** as validated human-readable text (config keys, error messages, JSON string fields after parsing). Do not cast arbitrary bytes to `&str` without validation — use **`std::str::from_utf8`** or **`String::from_utf8`** when converting ([Chapter 7](07_errors_and_testing.md)).
+At protocol and config boundaries, treat **`&[u8]`** as opaque bytes on the wire. Treat **`&str`** as validated human-readable text — config keys, error messages, JSON string fields after parsing.
+
+Do not cast arbitrary bytes to `&str` without validation. Use **`std::str::from_utf8`** or **`String::from_utf8`** when converting ([Chapter 8](08_errors_and_testing.md)).
 
 ### Common `&str` helpers (no allocation)
 
@@ -295,11 +315,11 @@ fn main() {
 
 - **`if`** is an expression — both branches must return the same type.
 - **`0..3`** is half-open (0, 1, 2); **`0..=3`** is inclusive (0 through 3).
-- **`loop`**, **`while`**, and **`for`** cover the usual iteration shapes; `for` over a range is idiomatic for indexed passes. Iterator pipelines (`map`, `filter`, `collect`) are [Chapter 3](03_iterators.md).
+- **`loop`**, **`while`**, and **`for`** cover the usual iteration shapes; `for` over a range is idiomatic for indexed passes. Iterator pipelines (`map`, `filter`, `collect`) are [Chapter 4](04_iterators.md).
 
 ## `match` preview
 
-Full power in [Chapter 5](05_types_enums_pattern_matching.md); here, matching integers:
+Full power in [Chapter 6](06_types_enums_pattern_matching.md); here, matching integers:
 
 ```rust
 // Playground
@@ -318,22 +338,21 @@ fn main() {
 
 ## Idiom spotlight
 
-> **Name your widths at boundaries.** Inside a function, inference is fine. At protocol edges, file headers, and public APIs, use explicit types (`u16`, `[u8; 8]`) so refactors cannot silently change layout.
+> **Name your widths at boundaries.** Inside a function, inference is fine. At protocol edges, file headers, and public APIs, use explicit types (`u16`, `[u8; 8]`). That way refactors cannot silently change layout.
 
-> **Borrow text, own when storing.** Prefer `&str` and `&[u8]` in function parameters; return or store `String` / `Vec<u8>` only when the data must outlive the caller. At binary/text boundaries, keep **`&[u8]` for bytes** and **`&str` for validated UTF-8** — do not mix them silently.
+> **Borrow text, own when storing.** Prefer `&str` and `&[u8]` in function parameters. Return or store `String` / `Vec<u8>` only when the data must outlive the caller. At binary/text boundaries, keep **`&[u8]` for bytes** and **`&str` for validated UTF-8**. Do not mix them silently.
 
 ## Go deeper
 
 - [The Rust Book — Data Types](https://doc.rust-lang.org/book/ch03-02-data-types.html)
 - [The Rust Book — String slices](https://doc.rust-lang.org/book/ch04-03-slices.html)
-- Archive: [CHAPTER_01 §1](../archive/CHAPTER_01_RUST_BASICS.md)
 
 ## See also
 
-- [Chapter 0: Preface](00_preface.md) — rustup and Cargo setup
+- [Preface](preface.md) — rustup and Cargo setup
 - [Chapter 1: Ownership and borrowing](01_paradigm_shift.md#references-borrowing-and-dereferencing)
-- [Chapter 3: Iterators](03_iterators.md)
-- [Chapter 5: Enums and pattern matching](05_types_enums_pattern_matching.md)
+- [Chapter 4: Iterators](04_iterators.md)
+- [Chapter 6: Enums and pattern matching](06_types_enums_pattern_matching.md)
 
 ### Afterparty: AI Lego blocks
 

@@ -1,46 +1,44 @@
-# Chapter 12: Async Rust and Tokio
+# Chapter 16: Async Rust and Tokio
 
 ## Hook
 
-If you know Java `CompletableFuture` or Python `asyncio`, Rust async will feel familiar in shape but different in mechanics. The headline difference: **`async fn` returns a Future** — a lazy state machine that an **executor polls**; until you `.await` (or spawn), that work does not run. **Tokio** is the runtime most Rust services use for networking and concurrent I/O.
+Async/await shows up in many stacks (**Java** `CompletableFuture`, **Python** `asyncio`, JavaScript promises, …). Rust async will feel familiar in shape but different in mechanics. The headline difference: **`async fn` returns a Future** — a lazy state machine that an **executor polls**; until you `.await` (or spawn), that work does not run. **Tokio** is the runtime most Rust services use for networking and concurrent I/O.
 
 ## Scope — a brief tour, not 100% of async Rust
 
-Async Rust is a **large** ecosystem. This chapter is a **practical intro** — enough to read Tokio services and avoid executor footguns. It is **not** a runtime internals course or web-framework guide.
+Async Rust is a large ecosystem. This chapter is a practical intro — enough to read Tokio services and avoid executor footguns. It is not a runtime internals course or web-framework guide. Use **Afterparty** prompts and **Go deeper** for echo servers, cancellation details, and async traits.
 
-The table below splits what you get here from what to pick up later. Treat this chapter as a **map + first steps**, not the whole async territory.
+The table below splits what you get here from what to pick up later:
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
-| `async` / `.await`, Future mental model | Pin/Unpin formalism, `async` trait impls in depth ([Ch6](06_structs_traits_generics.md)) |
+| `async` / `.await`, Future mental model | Pin/Unpin formalism, `async` trait impls in depth ([Ch7](07_structs_traits_generics.md)) |
 | Tokio: `#[tokio::main]`, `spawn`, `join!`, `select!`, `timeout` | `async-std`, embedded runtimes, runtime tuning |
 | Blocking footgun + `spawn_blocking` | `block_in_place`, worker thread counts |
-| Async I/O overview (`TcpListener`, `fs`) | Production TCP/Modbus stacks — [Chapter 15](15_io_processes_bits.md) |
-| Shutdown via `Arc<AtomicBool>` ([Ch11 L6](11_atomics_and_lockfree.md)) | `axum`, `tonic`, stream combinators |
+| Async I/O overview (`TcpListener`, `fs`) | Production TCP/Modbus stacks — [Chapter 19](19_io_processes_bits.md) |
+| Shutdown via `Arc<AtomicBool>` ([Ch15 L6](15_atomics_and_lockfree.md)) | `axum`, `tonic`, stream combinators |
 
-Use **Afterparty** prompts and **Go deeper** for echo servers, cancellation details, and async traits.
-
-This chapter builds on [Chapter 10](10_multithreading.md) (threads) and [Chapter 11](11_atomics_and_lockfree.md) (atomics), and points forward to sync I/O in [Chapter 15](15_io_processes_bits.md):
+This chapter builds on [Chapter 14](14_multithreading.md) (threads) and [Chapter 15](15_atomics_and_lockfree.md) (atomics), and points forward to sync I/O in [Chapter 19](19_io_processes_bits.md):
 
 ```mermaid
 flowchart LR
-  ch10[Ch10 OS threads] --> ch12[Ch12 async tasks]
-  ch11[Ch11 atomics] --> ch12
-  ch12 --> ch15[Ch15 sync IO]
+  ch10[Ch14 OS threads] --> ch12[Ch16 async tasks]
+  ch11[Ch15 atomics] --> ch12
+  ch12 --> ch15[Ch19 sync IO]
   ch12 --> afterparty[Afterparty deep dives]
 ```
 
 ## What async is
 
-**Async** is cooperative concurrency: one OS thread can host many **tasks**, each pausing at `.await` so the executor can run others. Unlike [Chapter 10](10_multithreading.md) threads (OS-preempted), async tasks **yield voluntarily** — which makes blocking calls inside them dangerous.
+**Async** is cooperative concurrency: one OS thread hosts many **tasks**, each pausing at `.await` so the executor runs others. Unlike [Chapter 14](14_multithreading.md) threads (OS-preempted), async tasks **yield voluntarily** — which makes blocking calls inside them dangerous.
 
 | Idea | Plain language |
 |------|----------------|
 | **`async fn`** | Returns a **Future** — a state machine describing work; **does not run** until polled |
 | **`.await`** | Pause **this** task until the step is ready; the **executor** runs other tasks |
 | **Executor (Tokio)** | Thread pool + scheduler that **polls** futures to completion |
-| vs **OS thread** ([Chapter 10](10_multithreading.md)) | Threads are preempted by the OS; async **cooperates** — a blocking call in one task can stall many |
-| **Shared state** | Same concurrency rules: `Arc`, atomics ([Chapter 11](11_atomics_and_lockfree.md)), **`tokio::sync::Mutex`** — not `std::sync::Mutex` held across `.await` |
+| vs **OS thread** ([Chapter 14](14_multithreading.md)) | Threads are preempted by the OS; async **cooperates** — a blocking call in one task can stall many |
+| **Shared state** | Same concurrency rules: `Arc`, atomics ([Chapter 15](15_atomics_and_lockfree.md)), **`tokio::sync::Mutex`** — not `std::sync::Mutex` held across `.await` |
 
 When a task hits `.await`, control returns to the executor until the waited-on step is ready:
 
@@ -135,7 +133,7 @@ async fn main() {
 
 ### Level 3 — Medium: `join!` and `timeout`
 
-Automation often waits on **multiple** device polls at once, and must **give up** when hardware is slow. `join!` waits for all branches; `timeout` caps how long one future may run:
+Services often wait on **multiple** device polls at once and must **give up** when hardware is slow. `join!` waits for all branches; `timeout` caps how long one future may run:
 
 ```rust
 // Cargo project
@@ -166,7 +164,7 @@ async fn main() {
 **What happened:**
 
 - **`join!`** runs both **`fast_poll`** tasks concurrently → prints **`502 502`** quickly.
-- **`timeout(50ms, slow_poll())`** returns **`Err(_)`** — slow poll needs 500 ms → automation **deadline** pattern for Modbus/serial timeouts.
+- **`timeout(50ms, slow_poll())`** returns **`Err(_)`** — slow poll needs 500 ms. This is the **deadline** pattern for Modbus/serial timeouts.
 
 ### Level 4 — Medium: `select!` — first branch wins
 
@@ -203,31 +201,20 @@ async fn main() {
 
 ### Level 5 — Hard: blocking footgun + `spawn_blocking`
 
-#### The problem in plain language
-
-Tokio runs **many async tasks** on a **small** set of OS threads (often one per CPU core). Each thread is a **worker**. When a task hits `.await`, it **steps aside** so the worker can run other tasks. That is the whole trick: one thread, many tasks, no one waits unless they have to.
-
-**Blocking** code does the opposite: it **never steps aside**. It sits on the worker until it finishes.
+Tokio runs many async tasks on a **small** set of OS worker threads. When a task hits `.await`, it **steps aside** so the worker can run other tasks. **Blocking** code never steps aside — it holds the worker until it finishes.
 
 | What you call | What actually happens |
 |---------------|------------------------|
-| `thread::sleep(100ms)` inside `async fn` | Worker thread is **stuck** for 100 ms. Every other task assigned to that worker **waits**. |
-| `tokio::time::sleep(100ms).await` | Task says “wake me in 100 ms” and **releases** the worker. Other tasks run during those 100 ms. |
+| `thread::sleep(100ms)` inside `async fn` | Worker thread is **stuck** for 100 ms. Every other task on that worker **waits**. |
+| `tokio::time::sleep(100ms).await` | Task releases the worker. Other tasks run during the wait. |
 | `std::fs::read` / heavy CPU on hot path | Same as `thread::sleep` — blocks the worker. |
-| `tokio::task::spawn_blocking(...)` | Moves the blocking work to a **separate** thread pool built for blocking calls. Async workers stay free. |
+| `tokio::task::spawn_blocking(...)` | Moves blocking work to a **separate** thread pool. Async workers stay free. |
 
-**Restaurant analogy:** one waiter (worker) serves many tables (tasks). `.await` = “I’ll check back when the kitchen is ready” — waiter serves other tables. `thread::sleep` = waiter stands frozen at one table for 100 ms while other tables go ignored.
+**Restaurant analogy:** one waiter (worker) serves many tables (tasks). `.await` = “I’ll check back when the kitchen is ready.” `thread::sleep` = waiter stands frozen at one table while others go ignored.
 
-**Why it matters:** under load, a few `thread::sleep` or `std::fs::read` calls in async handlers can make **every** connection feel slow — not just the one that blocked.
+Under load, a few `thread::sleep` or `std::fs::read` calls in async handlers can slow **every** connection — not just the one that blocked.
 
-#### What the code does (step by step)
-
-1. **`bad_blocking`** — uses `std::thread::sleep`. Looks innocent; **does not yield**.
-2. **`good_async_sleep`** — uses `tokio::time::sleep(...).await`. **Yields** correctly.
-3. **`main`** runs two experiments with `tokio::join!`:
-   - Pair `bad_blocking` with a 10 ms async sleep → the 10 ms task **cannot start** until the 100 ms block ends.
-   - Pair `good_async_sleep` with the same 10 ms task → both run **together** (~100 ms total, not 110 ms).
-4. **`spawn_blocking`** — when you **must** use blocking APIs (legacy sync library, `thread::sleep`, heavy file read), run that closure on Tokio’s blocking pool and `.await` the result back on the async side.
+The snippet below runs two experiments with `tokio::join!`: first with `std::thread::sleep` (bad), then with `tokio::time::sleep` (good), then `spawn_blocking` for work you cannot make async.
 
 ```rust
 // Cargo project
@@ -278,13 +265,11 @@ Quick reference for what belongs inside an async task:
 - **`good_async_sleep` + 10 ms task** — prints elapsed ≈ **100 ms**. Both tasks **shared** the worker during waits; wall time is ~max(100, 10), not 100 + 10.
 - **`spawn_blocking`** — prints **`spawn_blocking -> 99`**. The 50 ms `thread::sleep` ran on a **blocking** thread; async workers were not stuck.
 
-**Rule of thumb:** in [Chapter 10](10_multithreading.md), `thread::sleep` on its own OS thread only blocks **that** thread. Inside Tokio async code, it blocks a **shared** worker — so it hurts **all** tasks on that worker.
+**Rule of thumb:** in [Chapter 14](14_multithreading.md), `thread::sleep` on its own OS thread only blocks **that** thread. Inside Tokio async code, it blocks a **shared** worker — so it hurts **all** tasks on that worker.
 
 ### Level 6 — Hard: async gateway supervisor
 
-#### What this example is
-
-This is the **same gateway pattern** as [Chapter 11 Level 6](11_atomics_and_lockfree.md), but the worker is a **Tokio task** instead of an OS thread:
+This mirrors [Chapter 15 Level 6](15_atomics_and_lockfree.md), but the worker is a **Tokio task** instead of an OS thread:
 
 | Piece | Role |
 |-------|------|
@@ -294,9 +279,7 @@ This is the **same gateway pattern** as [Chapter 11 Level 6](11_atomics_and_lock
 | **`tokio::spawn`** | Starts the worker **in the background** without blocking `main` |
 | **`shutdown` flag** | `main` sets `true`; worker sees it and exits the loop cleanly |
 
-Think of **`main` as supervisor**, **`run_worker` as the poll loop** on a device gateway. Supervisor runs for 25 ms, prints how many polls happened, then tells the worker to stop and waits for a clean exit.
-
-#### How the flow works
+**`main` is the supervisor**; **`run_worker` is the poll loop** on a device gateway. Supervisor runs for 25 ms, prints poll count, then stops the worker and waits for a clean exit.
 
 ```
 main                          worker (spawned task)
@@ -312,9 +295,9 @@ main                          worker (spawned task)
  └─ print "supervisor done"          │
 ```
 
-**Why atomics again?** Same as Chapter 11: `polls` is a **metric** (`Relaxed` is fine). `shutdown` is a **signal** — `Release` when main writes, `Acquire` when the worker reads — so the worker **definitely** sees the stop request.
+**Why atomics again?** Same as Chapter 15: `polls` is a **metric** (`Relaxed` is fine). `shutdown` is a **signal** — `Release` when main writes, `Acquire` when the worker reads.
 
-**Why `sleep(...).await` in the worker?** Each 5 ms pause **yields** to Tokio. A `thread::sleep` here would block a worker on every iteration (Level 5 footgun).
+**Why `sleep(...).await` in the worker?** Each 5 ms pause **yields** to Tokio. `thread::sleep` here would block a worker on every iteration (Level 5 footgun).
 
 ```rust
 // Cargo project
@@ -355,22 +338,17 @@ async fn main() -> Result<(), &'static str> {
 }
 ```
 
-**What happened (line by line):**
+**What happened (summary):**
 
-1. **`Arc::new(Gateway { ... })`** — one gateway in memory; `Arc` allows shared ownership.
-2. **`Arc::clone(&gw)` + `tokio::spawn`** — worker gets its own `Arc` handle; runs **concurrently** with `main`.
-3. **`sleep(25ms).await`** — supervisor waits without blocking a worker thread; worker keeps polling during this time.
-4. **`polls.load(Relaxed)`** — read-only metric; prints something like **`metrics polls=4`** (exact count varies slightly — ~25 ms ÷ 5 ms per loop).
-5. **`shutdown.store(true, Release)`** — “stop after this loop iteration.”
-6. **`handle.await`** — wait until the worker task **finishes** (not just until shutdown is set).
-   - Outer `Result`: task panicked → `Err` (mapped to `"worker join failed"`).
-   - Inner `Result`: `run_worker` returned `Ok(())` or an error from the async fn.
-   - The **`??`** applies `?` twice — once for join failure, once for `run_worker`’s `Result`.
-7. **`supervisor done`** — worker exited; no dangling background task.
+1. Worker polls concurrently with `main` while supervisor sleeps 25 ms.
+2. **`polls.load(Relaxed)`** prints something like **`metrics polls=4`** (~25 ms ÷ 5 ms per loop).
+3. **`shutdown.store(true, Release)`** stops the worker after the current iteration.
+4. **`handle.await`** waits for the task to finish. The **`??`** applies `?` to both the join result and `run_worker`’s `Result`.
+5. **`supervisor done`** — no dangling background task.
 
-**Compared to Chapter 11:** replace `thread::spawn` + `thread::sleep` with `tokio::spawn` + `tokio::time::sleep().await`. The **atomics and shutdown pattern stay the same** — only the concurrency runtime changes.
+**Compared to Chapter 15:** replace `thread::spawn` + `thread::sleep` with `tokio::spawn` + `tokio::time::sleep().await`. Atomics and shutdown pattern stay the same — only the runtime changes.
 
-**`main() -> Result`** ([Chapter 7](07_errors_and_testing.md)): errors bubble to one place instead of scattering `unwrap()` in the supervisor. In a real binary you might add `eprintln!` and a non-zero exit code at the top level.
+**`main() -> Result`** ([Chapter 8](08_errors_and_testing.md)): errors bubble to one place instead of scattering `unwrap()` in the supervisor.
 
 ## Techniques at a glance
 
@@ -386,7 +364,7 @@ Use this table as a cheat sheet while reading Tokio code elsewhere. Each row map
 | `tokio::time::timeout` | deadline / device timeout | 3 |
 | `spawn_blocking` | sync I/O or `thread::sleep` off executor | 5 |
 | `tokio::sync::mpsc` | async message passing | Afterparty |
-| `Arc<AtomicBool>` | shutdown flag across tasks | 6, Ch11 |
+| `Arc<AtomicBool>` | shutdown flag across tasks | 6, Ch15 |
 
 **Mutex choice:** use **`tokio::sync::Mutex`** if the lock may be held across `.await`. Holding **`std::sync::MutexGuard`** across `.await` makes the future **`!Send`** — the compiler rejects it (see edge cases below).
 
@@ -394,7 +372,7 @@ Use this table as a cheat sheet while reading Tokio code elsewhere. Each row map
 
 Networking and file I/O are where async pays off: many connections wait on kernel I/O while a small thread pool keeps working. Tokio mirrors std I/O with **async** APIs — `.await` instead of blocking the thread:
 
-| Sync ([Ch15](15_io_processes_bits.md)) | Async (Tokio) |
+| Sync ([Ch19](19_io_processes_bits.md)) | Async (Tokio) |
 |----------------------------------------|---------------|
 | `std::fs::read` | `tokio::fs::read` |
 | `TcpListener::accept` | `tokio::net::TcpListener::accept().await` |
@@ -417,24 +395,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Many connections → **one process**, **many tasks** — each `accept` can `tokio::spawn` a handler. Full protocols and error handling: [Chapter 15](15_io_processes_bits.md) + Afterparty.
+Many connections → **one process**, **many tasks** — each `accept` can `tokio::spawn` a handler. Full protocols and error handling: [Chapter 19](19_io_processes_bits.md) + Afterparty.
 
 ## Async vs OS threads
 
-You already have OS threads from [Chapter 10](10_multithreading.md). Async is not a replacement — it is a different tool for **many concurrent waits** on a small thread pool:
+You already have OS threads from [Chapter 14](14_multithreading.md). Async is not a replacement — it is a different tool for **many concurrent waits** on a small thread pool:
 
-| | OS threads ([Ch10](10_multithreading.md)) | Async tasks (Tokio) |
+| | OS threads ([Ch14](14_multithreading.md)) | Async tasks (Tokio) |
 |---|-------------------------------------------|---------------------|
 | Best for | CPU-bound parallel work | Many **I/O waits** (TCP, timers) |
 | Stack / memory | higher per thread | many tasks on thread pool |
 | Blocking call | blocks one thread only | **blocks executor worker** — hurts all tasks on that worker |
-| Shared shutdown | `Arc<AtomicBool>` ([Ch11](11_atomics_and_lockfree.md)) | same atomics behind `tokio::spawn` |
+| Shared shutdown | `Arc<AtomicBool>` ([Ch15](15_atomics_and_lockfree.md)) | same atomics behind `tokio::spawn` |
 
-When choosing for an automation gateway:
+When choosing for a device gateway or network service:
 
 ```
 many idle TCP/serial waits?     → async
-CPU-bound parallel compute?     → threads (or rayon — Ch10 Afterparty)
+CPU-bound parallel compute?     → threads (or rayon — Ch14 Afterparty)
 one simple PLC poll loop?       → single thread may suffice
 1000 connections, one process?  → async
 ```
@@ -487,7 +465,7 @@ async fn main() {
 
 One paragraph to carry into production code:
 
-> **Async for many I/O waits; threads for CPU-heavy or a single simple poll loop.** Never block the executor — **`tokio::time::sleep`**, not **`thread::sleep`**. Share shutdown with **`Arc<AtomicBool>`** ([Chapter 11](11_atomics_and_lockfree.md)). Bubble errors with **`?`** and **`main() -> Result`** at the boundary ([Chapter 7](07_errors_and_testing.md)).
+> **Async for many I/O waits; threads for CPU-heavy or a single simple poll loop.** Never block the executor — **`tokio::time::sleep`**, not **`thread::sleep`**. Share shutdown with **`Arc<AtomicBool>`** ([Chapter 15](15_atomics_and_lockfree.md)). Bubble errors with **`?`** and **`main() -> Result`** at the boundary ([Chapter 8](08_errors_and_testing.md)).
 
 ## Go deeper
 
@@ -502,11 +480,11 @@ When this chapter’s ladder is not enough, these links cover fundamentals, chan
 
 Related chapters — read these when you need threads, atomics, errors, sync I/O, or async traits in depth:
 
-- [Chapter 10: Multithreading](10_multithreading.md) — when threads beat async
-- [Chapter 11: Atomics](11_atomics_and_lockfree.md) — `Arc<AtomicBool>` shutdown in async
-- [Chapter 7: Errors](07_errors_and_testing.md) — `Result` boundary in `main`
-- [Chapter 15: I/O](15_io_processes_bits.md) — sync I/O and processes
-- [Chapter 6: Traits](06_structs_traits_generics.md) — async traits (advanced)
+- [Chapter 14: Multithreading](14_multithreading.md) — when threads beat async
+- [Chapter 15: Atomics](15_atomics_and_lockfree.md) — `Arc<AtomicBool>` shutdown in async
+- [Chapter 8: Errors](08_errors_and_testing.md) — `Result` boundary in `main`
+- [Chapter 19: I/O](19_io_processes_bits.md) — sync I/O and processes
+- [Chapter 7: Traits](07_structs_traits_generics.md) — async traits (advanced)
 
 ### Afterparty: AI Lego blocks
 
@@ -519,7 +497,7 @@ Prompts to solidify how futures, polling, and scope fit together:
 1. **Future diagram** — “Draw state machine for `async fn` with two `.await` points.”
 2. **Poll vs await** — “Who polls the Future — caller, executor, or Tokio runtime?”
 3. **Executor vs thread** — “One paragraph: cooperative async vs preemptive OS threads.”
-4. **Scope honesty** — “List 5 async topics Ch12 skips and where to learn each.”
+4. **Scope honesty** — “List 5 async topics Ch16 skips and where to learn each.”
 5. **Forgotten await** — “Show unused Future bug; fix with `.await` or `spawn`.”
 
 #### Tokio basics
@@ -535,7 +513,7 @@ Runtime setup, spawn lifecycle, and error boundaries:
 Reinforce blocking vs yielding and the async gateway supervisor:
 
 9. **Bad join timing** — “Walk through Level 5 bad path: why does a 10 ms task wait ~100 ms when paired with `thread::sleep`?”
-10. **Ch11 port** — “Compare Level 6 to [Ch11 L6](11_atomics_and_lockfree.md) — what changes with `tokio::spawn`, what stays the same?”
+10. **Ch15 port** — “Compare Level 6 to [Ch15 L6](15_atomics_and_lockfree.md) — what changes with `tokio::spawn`, what stays the same?”
 11. **Supervisor timeline** — “Trace Level 6 step by step: when does the worker stop, and why must it use `tokio::time::sleep` not `thread::sleep`?”
 
 #### Concurrency primitives
@@ -563,9 +541,9 @@ Architecture choices for gateways and connection counts:
 20. **200 TCP connections** — “One process — async vs thread-per-connection memory story.”
 21. **When thread enough** — “Single serial port poll — justify thread loop over Tokio.”
 
-#### Atomics and shared state (Ch11)
+#### Atomics and shared state (Ch15)
 
-Bridging lock-free flags from Chapter 11 into async tasks:
+Bridging lock-free flags from Chapter 15 into async tasks:
 
 22. **Async sleep in worker** — “Why must Level 6’s poll loop use `tokio::time::sleep().await` on every iteration, not `thread::sleep`?”
 23. **tokio Mutex** — “Rewrite bad `std::sync::MutexGuard` across await with `tokio::sync::Mutex`.”

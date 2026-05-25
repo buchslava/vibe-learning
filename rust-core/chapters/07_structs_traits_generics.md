@@ -1,8 +1,8 @@
-# Chapter 6: Structs, Traits, and Generics
+# Chapter 7: Structs, Traits, and Generics
 
 ## Hook
 
-Java: classes bundle data + inheritance. Python: duck typing (“if it quacks…”). Rust: **structs** for data, `**impl`** for methods, **traits** for shared behaviour, **enums** for closed alternatives — **composition over inheritance**, checked at compile time.
+Rust uses **structs** for data, `impl` for methods, **traits** for shared behaviour, and **enums** for closed alternatives. **Java** bundles data with inheritance; **Python** relies on duck typing (“if it quacks…”) — optional comparison points. Rust favors composition over inheritance, all checked at compile time.
 
 ## Structs and methods
 
@@ -31,13 +31,13 @@ fn main() {
 
 ## Traits — interfaces done right
 
-If you are coming from **Java** or **Python**, a **trait** is the piece that may feel most unfamiliar — and most useful.
+If you know **Java** or **Python**, a **trait** may feel unfamiliar at first — and it is often the most useful piece.
 
-**What it is.** A trait names a **capability** or **contract**: a set of methods any type can opt into. `Reading`, `Alarm`, and a third struct do not need a common base class; each implements `Summary` (or not) in its own `impl` block.
+**What it is.** A trait names a **capability** or **contract**: a set of methods any type can opt into. `Reading`, `Alarm`, and a third struct do not need a common base class. Each implements `Summary` (or not) in its own `impl` block.
 
-**Aim.** Let unrelated types share behaviour **without inheritance**. You write `fn print_summary(item: &impl Summary)` once; anything that implements `Summary` can be passed in — like a Java interface parameter or a Python function that “just calls `.summarize()`”, except Rust checks that at **compile time**.
+**Aim.** Traits let unrelated types share behaviour **without inheritance**. You write `fn print_summary(item: &impl Summary)` once. Anything that implements `Summary` can be passed in — like a Java interface parameter or a Python function that “just calls `.summarize()`”. Rust checks that at **compile time**.
 
-**Motivation.** Rust deliberately has no subclassing. Traits replace “extend a base class to get polymorphism” with **composition**: small data types (`struct` / `enum`) plus explicit `impl Trait for Type`. When the protocol grows, you add a method to the trait and the compiler lists every type that must be updated — no silent runtime `AttributeError`, no forgotten override in a distant subclass.
+**Motivation.** Rust deliberately has no subclassing. Traits replace “extend a base class to get polymorphism” with **composition**: small data types (`struct` / `enum`) plus explicit `impl Trait for Type`. When the protocol grows, you add a method to the trait. The compiler lists every type that must be updated — no silent runtime `AttributeError`, no forgotten override in a distant subclass.
 
 **Why traits are a win**
 
@@ -51,7 +51,7 @@ If you are coming from **Java** or **Python**, a **trait** is the piece that may
 | Optional polymorphism | always reference types / ABCs                       | `dyn Trait` only when you need mixed-type collections                       |
 
 
-You will use traits everywhere: `Display`, `Clone`, `Iterator`, custom `Measurable` / `Summary` in automation code. Start with `**impl Trait for MyType`** and `**fn f(x: &impl Trait)**`; reach for `dyn Trait` later when types truly differ at runtime (see below).
+You will use traits everywhere: `Display`, `Clone`, `Iterator`, custom `Measurable` / `Summary` in automation code. Start with `impl Trait for MyType` and `fn f(x: &impl Trait)`; reach for `dyn Trait` later when types truly differ at runtime (see below).
 
 ```rust
 // Playground
@@ -87,14 +87,14 @@ fn main() {
 
 ## Enums, structs, and traits together
 
-[Chapter 5](05_types_enums_pattern_matching.md) gave you `enum` + exhaustive `match`. This section is the missing piece: **how structs and traits attach to enums** — Rust’s substitute for a class hierarchy or a Python `Union` of unrelated types.
+[Chapter 6](06_types_enums_pattern_matching.md) gave you `enum` + exhaustive `match`. This section covers **how structs and traits attach to enums** — Rust’s substitute for a class hierarchy or a Python `Union` of unrelated types.
 
 The idiomatic shape for automation and protocol code:
 
-1. `**enum`** — closed set of states or message kinds (compiler tracks every variant).
-2. `**struct**` — per-variant payload when a variant carries real data.
-3. `**trait**` — shared behaviour across *different* types (`Reading`, `Alarm`, …), or a uniform API over one enum.
-4. `**impl*`* — inherent methods on the enum *and/or* trait implementations that `**match` inside**.
+1. `enum` — closed set of states or message kinds (compiler tracks every variant).
+2. `struct` — per-variant payload when a variant carries real data.
+3. `trait` — shared behaviour across *different* types (`Reading`, `Alarm`, …), or a uniform API over one enum.
+4. `impl` — inherent methods on the enum *and/or* trait implementations that `match` inside.
 
 ```rust
 // Playground
@@ -154,9 +154,9 @@ fn main() {
 
 **What `!matches!(self, SensorReading::Skipped { .. })` does**
 
-- `**matches!(value, pattern)`** — standard-library **macro** ([Chapter 13: Metaprogramming](13_metaprogramming.md)) that expands to a `match` returning `true` or `false`. It is syntax sugar for “does this value fit this pattern?” without binding variables you do not need.
-- `**SensorReading::Skipped { .. }`** — matches the `Skipped` struct variant and **ignores** the `reason` field (`..` = “other fields don’t matter for this test”). Same pattern token as in [Chapter 5](05_types_enums_pattern_matching.md).
-- `**!`** — negates the result: `Temp` and `Press` → `true`; `Skipped { .. }` → `false`.
+- `matches!(value, pattern)` — standard-library **macro** ([Chapter 17: Metaprogramming](17_metaprogramming.md)) that expands to a `match` returning `true` or `false`. It is syntax sugar for “does this value fit this pattern?” without binding variables you do not need.
+- `SensorReading::Skipped { .. }` — matches the `Skipped` struct variant and **ignores** the `reason` field (`..` = “other fields don’t matter for this test”). Same pattern token as in [Chapter 6](06_types_enums_pattern_matching.md).
+- `!` — negates the result: `Temp` and `Press` → `true`; `Skipped { .. }` → `false`.
 
 Equivalent without the macro:
 
@@ -170,7 +170,7 @@ fn is_valid_longhand(r: &SensorReading) -> bool {
 }
 ```
 
-Use `matches!` for readable guards and filters; use full `match` when each arm returns different data. More on declarative macros: [Chapter 13 — `macro_rules!](13_metaprogramming.md#macro_rules)`.
+Use `matches!` for readable guards and filters; use full `match` when each arm returns different data. More on declarative macros: [Chapter 17 — `macro_rules!`](17_metaprogramming.md#macro_rules).
 
 ### Two `impl` blocks on one type
 
@@ -181,7 +181,7 @@ Use `matches!` for readable guards and filters; use full `match` when each arm r
 | `impl Measurable for SensorReading { ... }` | **Trait** impl — call only where `Measurable` is required  | interface implementation |
 
 
-Both on the same `enum` is normal. Put variant-specific logic in inherent methods; put cross-type contracts on traits.
+Both on the same `enum` is normal. Put variant-specific logic in inherent methods. Put cross-type contracts on traits.
 
 ### Struct-in-enum vs enum-in-struct
 
@@ -227,7 +227,7 @@ Prefer **enum + struct variants** when each variant would have been a subclass w
 
 ### Trait on enum: `match` is mandatory
 
-Unlike a single `struct`, an `enum` trait body almost always `**match self`** (or `match &self`) — one arm per variant. That mirrors [Chapter 5](05_types_enums_pattern_matching.md) exhaustiveness: add a variant, and the compiler lists every `impl` and `match` you must update.
+Unlike a single `struct`, an `enum` trait body almost always uses `match self` (or `match &self`) — one arm per variant. That mirrors [Chapter 6](06_types_enums_pattern_matching.md) exhaustiveness. Add a variant, and the compiler lists every `impl` and `match` you must update.
 
 **Default trait methods** still work — override only where a variant differs:
 
@@ -269,7 +269,7 @@ fn main() {
 
 #### Calling the trait’s default method from your override
 
-Yes — `**HasCode::label(other)**` deliberately calls the **default body written on the trait**, not your override. That is how you reuse the trait’s fallback for some cases (here, `OverTemp`) while customising others (`CommLost`).
+Yes — `HasCode::label(other)` deliberately calls the **default body written on the trait**, not your override. That is how you reuse the trait’s fallback for some cases (here, `OverTemp`) while customising others (`CommLost`).
 
 
 | Call                     | What runs                                                                                             |
@@ -278,7 +278,7 @@ Yes — `**HasCode::label(other)**` deliberately calls the **default body writte
 | `HasCode::label(&fault)` | **Default trait body** — `format!("code {}", self.code())`, which still uses your overridden `code()` |
 
 
-**Not Java overloading.** Rust has **no** method overloading (same name, different parameter lists). There is only one `label(&self) -> String` here. What looks like “pick another version” is **explicit qualified call syntax**: `Trait::method(receiver)` — sometimes called UFCS (universal function call syntax).
+**Not Java overloading.** Rust has **no** method overloading (same name, different parameter lists). There is only one `label(&self) -> String` here. What looks like “pick another version” is **explicit qualified call syntax**: `Trait::method(receiver)`. This is sometimes called UFCS (universal function call syntax).
 
 **Closer Java analogy:** a **default interface method**, not overloads:
 
@@ -367,7 +367,7 @@ Where **multiple traits appear together** is on **bounds**, not on `impl`:
 | Trait inheritance | `trait Loud: Display { ... }`         | every `Loud` type must also implement `Display` |
 
 
-So: `**impl HasCode for Fault`** and `**impl Display for Fault**` are two separate blocks; `**T: HasCode + Display**` means “T implements both.”
+So: `impl HasCode for Fault` and `impl Display for Fault` are two separate blocks; `T: HasCode + Display` means “T implements both.”
 
 ### `#[derive(...)]` on enums and structs
 
@@ -407,7 +407,9 @@ fn main() {
 }
 ```
 
-`SetSpeedLog` is the **struct side** of the same automation model: the enum is the wire/command shape (`Stop`, `SetSpeed(1500)`); the struct is the persisted audit row (`at` + `rpm`). `Command::to_log` bridges them — only `SetSpeed` produces a `SetSpeedLog`; `Stop` returns `None`. Both types share `#[derive(...)]` because you typically want the same tooling (`Debug`, `Clone`, equality) on commands and the records they generate.
+`SetSpeedLog` is the **struct side** of the same automation model. The enum is the wire/command shape (`Stop`, `SetSpeed(1500)`); the struct is the persisted audit row (`at` + `rpm`). `Command::to_log` bridges them — only `SetSpeed` produces a `SetSpeedLog`; `Stop` returns `None`.
+
+Both types share `#[derive(...)]` because you typically want the same tooling (`Debug`, `Clone`, equality) on commands and the records they generate.
 
 `PartialEq`/`Eq` on enums requires every payload type to be comparable. A variant holding `f64` forces you to drop `Eq` or model floats differently — see edge cases below.
 
@@ -508,7 +510,7 @@ trait Measurable {
 // ERROR: trait `Measurable` is not dyn compatible
 ```
 
-Only **object-safe** traits (`&self` methods, no generic methods on the trait itself) can become `dyn Trait`. Enums with trait impls usually use **static dispatch** (`impl Trait` / generics) instead.
+Only **object-safe** traits can become `dyn Trait` — `&self` methods, no generic methods on the trait itself. Enums with trait impls usually use **static dispatch** (`impl Trait` / generics) instead.
 
 **Wrong — `Eq` on enum with `f64` payload:**
 
@@ -578,7 +580,7 @@ fn main() {
 
 ## Trait objects (`dyn Trait`)
 
-**Generics and `impl Trait`** pick the concrete type at **compile time** (monomorphization — one machine-code copy per type). A **`dyn Trait`** value is **runtime polymorphism**: one variable, many concrete types, resolved through a **vtable** (virtual method table). Java `Interface` references and Python “anything with `.greet()`” at runtime are closer to this model.
+**Generics and `impl Trait`** pick the concrete type at **compile time**. The compiler monomorphizes — one machine-code copy per type. A **`dyn Trait`** value is **runtime polymorphism**: one variable, many concrete types, resolved through a **vtable** (virtual method table). Java `Interface` references and Python “anything with `.greet()`” at runtime are closer to this model.
 
 ### What you actually store
 
@@ -676,7 +678,7 @@ fn main() {
 }
 ```
 
-Borrowed `&dyn AlarmSink` avoids heap allocation when callers already own `LogSink` / `MetricsSink` on the stack. A **`Vec<Box<dyn AlarmSink>>`** is the next step when sinks are constructed dynamically and stored for the process lifetime.
+Borrowed `&dyn AlarmSink` avoids heap allocation when callers already own `LogSink` / `MetricsSink` on the stack. Use a **`Vec<Box<dyn AlarmSink>>`** when sinks are constructed dynamically and stored for the process lifetime.
 
 **Factory returning erased type:**
 
@@ -695,7 +697,7 @@ fn main() {
 }
 ```
 
-`-> impl Greeter` cannot replace this if the two arms return **different** concrete types — `impl Trait` in return position hides a **single** concrete type per function body. For “either `En` or `Fr`”, use `Box<dyn Greeter>` or an `enum`.
+`-> impl Greeter` cannot replace this if the two arms return **different** concrete types. `impl Trait` in return position hides a **single** concrete type per function body. For “either `En` or `Fr`”, use `Box<dyn Greeter>` or an `enum`.
 
 ### `impl Trait` vs `dyn Trait` vs `enum`
 
@@ -773,7 +775,7 @@ trait Parse {
 // ERROR: trait `Parse` is not dyn compatible
 ```
 
-**Fix for `-> Self`:** return a boxed trait object or associated type with a bound, or use static dispatch (`impl Clone` on generic `T` instead of `dyn Clone`-style patterns). Standard library `Clone` is not dyn-compatible for this reason — you clone concrete types or use `Box<dyn Display>` etc. for other traits.
+**Fix for `-> Self`:** return a boxed trait object or associated type with a bound, or use static dispatch (`impl Clone` on generic `T` instead of `dyn Clone`-style patterns). Standard library `Clone` is not dyn-compatible for this reason. You clone concrete types or use `Box<dyn Display>` etc. for other traits.
 
 Cross-reference: the same object-safety trap appears in [enums + traits edge cases](#enums--traits-edge-cases-and-compiler-traps) above.
 
@@ -836,6 +838,149 @@ Return `Box<dyn Greeter>` when the callee allocates/chooses the value.
 | Closed protocol | stringly plug-in names | `enum` beats `dyn` for speed + exhaustiveness |
 | Dangling `&dyn` | borrow checker on return | `Box<dyn Trait>` or borrow from caller’s value |
 
+## Associated types and supertraits
+
+You already implement traits with methods. Many std traits also declare an **associated type** — one output type fixed per `impl`, not a separate generic parameter on the trait itself.
+
+### `Iterator::Item` — one output type per iterator
+
+[Chapter 4 — Implementing Iterator](04_iterators.md#implementing-iterator) defines a port scanner. The associated type pins what `.next()` yields:
+
+```rust
+// Playground
+struct PortScan {
+    next_port: u16,
+    end: u16,
+}
+
+impl Iterator for PortScan {
+    type Item = u16; // associated type — fixed for this impl
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_port > self.end {
+            return None;
+        }
+        let p = self.next_port;
+        self.next_port += 1;
+        Some(p)
+    }
+}
+
+fn main() {
+    let ports: Vec<u16> = PortScan { next_port: 502, end: 505 }.collect();
+    let sum: u16 = PortScan { next_port: 502, end: 504 }.sum();
+    println!("ports={:?} sum={}", ports, sum);
+}
+```
+
+`type Item = u16` tells every adapter (`.map`, `.sum`, `.collect`) what flows through the pipeline. Change it to `String` and the same `impl` body stops compiling — callers and adapters depend on that one associated type.
+
+### Custom trait with `type Output`
+
+When a trait's return type varies **per implementor** but stays **one type per implementor**, use an associated type instead of a generic parameter on the trait:
+
+```rust
+// Playground
+trait Summarizable {
+    type Output;
+    fn summarize(&self) -> Self::Output;
+}
+
+struct TempReading(f64);
+struct PressReading(f64);
+
+impl Summarizable for TempReading {
+    type Output = String;
+    fn summarize(&self) -> String {
+        format!("temp={:.1}C", self.0)
+    }
+}
+
+impl Summarizable for PressReading {
+    type Output = String;
+    fn summarize(&self) -> String {
+        format!("press={:.0}kPa", self.0)
+    }
+}
+
+fn log_reading(r: &impl Summarizable) {
+    println!("{}", r.summarize());
+}
+
+fn main() {
+    log_reading(&TempReading(22.5));
+    log_reading(&PressReading(101.3));
+}
+```
+
+### Associated type vs generic trait parameter
+
+| Style | Example | When |
+|-------|---------|------|
+| Associated type | `trait Iterator { type Item; … }` | **One** output type per implementor (`u16` ports, `&str` lines) |
+| Generic param | `trait Storage<T> { fn get(&self) -> T; }` | Caller picks `T` at each call site — many operations per implementor |
+| Both in std | `FromStr` with `type Err` | Error type is fixed per parsed type, like `Item` for iterators |
+
+`Iterator` could have been `trait Iterator<T> { fn next(&mut self) -> Option<T>; }` — but then every function taking "some iterator" would need an extra type parameter. Associated types keep call sites clean.
+
+### Supertraits — stacking requirements
+
+A **supertrait** requires another trait as a prerequisite. Your type must implement both:
+
+```rust
+// Playground
+use std::fmt::Display;
+
+trait Loggable: Display {
+    fn log(&self) {
+        println!("[LOG] {}", self);
+    }
+}
+
+struct Port(u16);
+impl Display for Port {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Port({})", self.0)
+    }
+}
+impl Loggable for Port {}
+
+fn emit(p: &impl Loggable) {
+    p.log();
+}
+
+fn main() {
+    emit(&Port(502));
+}
+```
+
+`Loggable: Display` means "anything loggable must also be displayable." The default method can call `Display` formatting inside the trait.
+
+### Associated types and object safety
+
+Traits with `type Item` or `type Err` can still be object-safe when methods don't return bare `Self`. `Clone` returns `Self` — that is why `dyn Clone` is awkward. `Iterator` is object-safe, but boxing iterators is rare; prefer `impl Iterator` or generics.
+
+### UFCS when two traits share a method name
+
+**Wrong — ambiguous method call:**
+
+```rust
+// Playground — does not compile
+trait A { fn id(&self) -> u32; }
+trait B { fn id(&self) -> u32; }
+struct Tag;
+impl A for Tag { fn id(&self) -> u32 { 1 } }
+impl B for Tag { fn id(&self) -> u32 { 2 } }
+
+fn main() {
+    let t = Tag;
+    // println!("{}", t.id()); // ERROR: multiple applicable items in scope
+    println!("A={} B={}", A::id(&t), B::id(&t));
+}
+```
+
+Use **UFCS** — `TraitName::method(&self)` — when two traits define the same method name.
+
 ## Idiom spotlight
 
 > **Default: `impl Trait` / generics (static dispatch).** Use **`dyn Trait`** for runtime plug-in lists, factories that erase type, or FFI-style extension points — and prefer **`enum`** when the variant set is closed and owned by your crate.
@@ -845,14 +990,13 @@ Return `Box<dyn Greeter>` when the callee allocates/chooses the value.
 ## Go deeper
 
 - [Records / structs](https://hightechmind.io/rust/) — example 062
-- Archive: [CHAPTER_01 §4](../archive/CHAPTER_01_RUST_BASICS.md)
 
 ## See also
 
-- [Chapter 5: Enums and pattern matching](05_types_enums_pattern_matching.md) — `match`, exhaustiveness, `Option`/`Result`
-- [Chapter 3: Iterators](03_iterators.md)
-- [Chapter 8: Collections](08_collections_iterators.md)
-- [Chapter 12: Async traits](12_async_tokio.md) (advanced)
+- [Chapter 6: Enums and pattern matching](06_types_enums_pattern_matching.md) — `match`, exhaustiveness, `Option`/`Result`
+- [Chapter 4: Iterators](04_iterators.md#implementing-iterator) — custom `Iterator` and `type Item`
+- [Chapter 11: Collections](11_collections.md)
+- [Chapter 16: Async traits](16_async_tokio.md) (advanced)
 
 ### Afterparty: AI Lego blocks
 
@@ -864,7 +1008,7 @@ Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — qu
 2. **new vs default** — “When is `Sensor::new` idiomatic vs `Default` + field update? One automation example each.”
 3. **Method receiver** — “Same logic three ways: `fn f(self)`, `fn f(&self)`, `fn f(&mut self)` on a struct; I predict what calls compile.”
 
-#### Traits for Java / Python refugees
+#### Optional: traits via Java / Python examples
 
 4. **Interface port** — “Convert Java interface `Measurable` + two classes to trait + two structs + `impl Measurable for` each.”
 5. **Duck typing** — “Python function accepts anything with `.read()`; express as trait bound on a generic `fn load<T: ReadSource>(...)`.”
@@ -923,8 +1067,16 @@ Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — qu
 
 #### Capstone drills
 
-37. **Checklist drill** — “Match 8 Chapter 6 compiler errors to snippets (non-exhaustive match, partial move, orphan, not dyn compatible, unsized, moved self, Eq+f64, multi-trait impl).”
+37. **Checklist drill** — “Match 8 Chapter 7 compiler errors to snippets (non-exhaustive match, partial move, orphan, not dyn compatible, unsized, moved self, Eq+f64, multi-trait impl).”
 38. **PLC message model** — “Design full model: enum frames, struct payloads, two traits, one `dyn` registry for sinks, derive list — no code over 80 lines.”
 39. **Java hierarchy kill** — “Given Java abstract `Device` + `ModbusDevice` + `OpcUaDevice`, produce Rust enum+struct+trait layout; no `dyn` unless I ask for plug-ins.”
 40. **Refactor story** — “Start with `Vec<Box<dyn Driver>>`; protocol closes to two devices; refactor to `enum`; list what the compiler now catches.”
+
+#### Associated types and supertraits
+
+41. **Item type quiz** — "Change `PortScan`'s `type Item` from `u16` to `(u16, bool)` — list every call site in a `.map().collect()` chain that breaks and why."
+42. **Summarizable design** — "Add `Summarizable` with `type Output = String` for three sensor structs; one `fn report(r: &impl Summarizable)` — no duplicate return types in the trait."
+43. **Associated vs generic** — "Same cache API twice: `trait Get<T>` vs `trait Get { type Value; }` — when is each painful at call sites?"
+44. **Supertrait bounds** — "Trait `Exportable: Display + Debug` with default `fn export` — show impl for `Port(u16)`; what fails if `Display` is missing?"
+45. **UFCS fix** — "Type implements `A` and `B`, both define `name()` — show ambiguous call error and UFCS fix with `A::name(&x)`."
 

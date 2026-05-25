@@ -2,7 +2,7 @@
 
 ## Hook
 
-Java and Python let you **share** data freely: references, object graphs, mutable globals. Rust says: **one owner at a time**, checked at compile time. That single rule replaces a garbage collector *and* most data races — but only if you learn to read the compiler as a collaborator, not an adversary.
+Many mainstream languages let you **share** data freely: references, object graphs, mutable globals — **Java** and **Python** are familiar examples. Rust says: **one owner at a time**, checked at compile time. That single rule replaces a garbage collector *and* most data races — but only if you learn to read the compiler as a collaborator, not an adversary.
 
 ## Compiled vs interpreted
 
@@ -14,7 +14,7 @@ Java and Python let you **share** data freely: references, object graphs, mutabl
 | Memory      | GC                  | GC (refcount + cycle GC) | Ownership + deterministic drop |
 
 
-Rust has **no GC**. When a value’s owner goes out of scope, `drop` runs immediately. No stop-the-world pauses — valuable for automation loops and low-latency tools.
+Rust has **no GC**. When a value’s owner goes out of scope, `drop` runs immediately. No stop-the-world pauses — valuable for long-running loops and low-latency tools.
 
 ## Ownership vs garbage collection
 
@@ -84,7 +84,7 @@ The same borrow rules that prevent use-after-free also prevent **data races** in
 
 ## Idiom spotlight
 
-> **Let the type system carry intent.** Prefer `Result` and `Option` over sentinel values (`null`, `-1`, magic strings). You will formalize this in [Chapter 5](05_types_enums_pattern_matching.md) and [Chapter 7](07_errors_and_testing.md).
+> **Let the type system carry intent.** Prefer `Result` and `Option` over sentinel values (`null`, `-1`, magic strings). You will formalize this in [Chapter 6](06_types_enums_pattern_matching.md) and [Chapter 8](08_errors_and_testing.md).
 
 ## Stack and heap
 
@@ -93,7 +93,7 @@ Ownership makes more sense once you see **where** values live. Rust uses two mai
 - **Stack** — per-function frames, very fast allocate/deallocate (pointer bump). Size known at compile time.
 - **Heap** — shared pool for data whose size is unknown or may grow. Slower; requires an explicit allocator and later **free** (in Rust: `drop` when the owner leaves scope).
 
-In Java and Python you rarely think about this: the JVM or Python runtime puts almost everything on the heap and cleans up later with GC. Rust puts **small, fixed-size data on the stack by default** and uses the heap only when the type needs it (`String`, `Vec`, etc.).
+In many GC-managed languages (Java, Python, C#, …) you rarely think about stack vs heap: the runtime puts much of the data on the heap and cleans up later. Rust puts **small, fixed-size data on the stack by default** and uses the heap only when the type needs it (`String`, `Vec`, and similar).
 
 
 |                      | Java                                 | Python              | Rust                                     |
@@ -182,15 +182,15 @@ Java would copy a **reference** (two refs, one object). Python would bind anothe
 
 #### *Why Rust splits the world this way*
 
-*Rust’s default is **move** (transfer ownership). **Copy** is a narrow, opt-in exception. That is not an arbitrary rule — it follows from a design principle:*
+*Rust’s default is **move** (transfer ownership). **Copy** is a narrow, opt-in exception — not an arbitrary rule:*
 
 > ***Every value has exactly one owner who is responsible for cleaning up any resources it holds.***
 
-*If assignment silently duplicated a* `String` *or* `Vec` *handle (pointer + length + capacity on the stack), you would get **two owners for one heap allocation**. When both go out of scope, Rust would try to free the same memory twice — a classic double-free bug. C and C++ leave that to discipline and conventions; Rust makes the dangerous case **illegal at compile time**.*
+*If assignment silently duplicated a* `String` *or* `Vec` *handle, you would get **two owners for one heap allocation**. When both go out of scope, Rust would free the same memory twice — a classic double-free. C and C++ leave that to discipline; Rust makes the dangerous case **illegal at compile time**.*
 
-`Copy` *is allowed only when a bitwise duplicate is **semantically identical** to the original: the type is entirely self-contained, has no destructor (*`Drop`*) that must run exactly once, and duplicating it never creates shared ownership of external memory. Integers and floats are just bits on the stack — copying them is cheap and safe. Heap-backed types **own** external memory, so the compiler forces a **move** unless you explicitly opt into a deep copy with* `.clone()`*.*
+*`Copy` is allowed only when a bitwise duplicate is **semantically identical** to the original: the type is self-contained, has no* `Drop` *that must run once, and duplicating it never shares external memory. Integers and floats are just stack bits — cheap and safe to copy. Heap-backed types **own** external memory, so the compiler **moves** unless you explicitly* `.clone()`*.*
 
-*In other words: Rust treats ownership transfer as the normal case (like handing someone a key), and silent duplication as a special case reserved for values that cannot cause aliasing bugs. That is why assignment feels “strict” compared to Java (reference copy) or Python (name binding) — the language prefers **provable correctness** over implicit sharing.*
+*Rust treats ownership transfer as the normal case (handing someone a key) and silent duplication as a special case for values that cannot alias. Assignment feels “strict” compared to languages with implicit sharing because Rust prefers **provable correctness** over silent aliasing.*
 
 #### Which types are `Copy` vs move?
 
@@ -273,7 +273,7 @@ fn main() {
 }
 ```
 
-**Java / Python:** copying a reference means two variables reach the same object; neither “owns” it in the Rust sense. **Rust:** the **owner** (`s`, `count`) is unchanged; `r` and `m` are temporary handles the compiler checks — they must not outlive what they borrow ([Chapter 4](04_lifetimes.md) formalizes this).
+**Java / Python:** copying a reference means two variables reach the same object; neither “owns” it in the Rust sense. **Rust:** the **owner** (`s`, `count`) is unchanged; `r` and `m` are temporary handles the compiler checks — they must not outlive what they borrow ([Chapter 5](05_lifetimes.md) formalizes this).
 
 References are **`Copy`** (see table above): `let r2 = r1` when both are `&T` copies the **pointer**, not the heap data. There is still **one owner** of the buffer; you just have two names for the same borrow.
 
@@ -335,7 +335,7 @@ fn main() {
 
 #### References vs raw pointers (name only)
 
-The type table above lists **raw pointers** `*const T` and `*mut T`. They also use `*` to dereference, but only inside **`unsafe`** code — common in embedded and FFI, not day-one automation Rust. Safe code uses `&T` / `&mut T`; the compiler enforces borrow rules instead of trusting you.
+The type table above lists **raw pointers** `*const T` and `*mut T`. They also use `*` to dereference, but only inside **`unsafe`** code — common in embedded and FFI, not day-one application Rust. Safe code uses `&T` / `&mut T`; the compiler enforces borrow rules instead of trusting you.
 
 **Rules of thumb:**
 
@@ -354,9 +354,9 @@ These look similar in other languages — “pass something to a function and le
 | Callee’s job | Own, transform, drop, or **return** the value | Temporarily mutate, then **give control back** |
 | Typical use | “Take this and finish with it” | “Tweak my value in place” |
 
-**Move:** the function becomes the owner. If it takes `String` by value, the caller’s `label` is gone after the call — like handing over the key. The callee may mutate and drop it, or return it to transfer ownership again.
+**Move:** the function becomes the owner. If it takes `String` by value, the caller’s `label` is gone after the call — like handing over the key. The callee may mutate and drop it, or return it to transfer ownership.
 
-**`&mut`:** the caller keeps ownership. The function gets a **loan** — exclusive access for the duration of the call — to edit the existing data. When the call returns, the borrow ends and the caller reads the updated value.
+**`&mut`:** the caller keeps ownership. The function gets a **loan** — exclusive access for the call — to edit the existing data. When the call returns, the borrow ends and the caller reads the updated value.
 
 ```rust
 // Playground
@@ -383,9 +383,9 @@ fn main() {
 }
 ```
 
-Why not always use `&mut`? Because sometimes the callee **should** take ownership — building a message and sending it on a channel, storing it in a struct field, or returning a transformed value. A move makes that transfer explicit: after `consume(moved)`, `main` no longer has responsibility for freeing that buffer.
+Use a move when the callee **should** take ownership — sending a message on a channel, storing in a struct field, or returning a transformed value. After `consume(moved)`, `main` no longer frees that buffer.
 
-Why not always move? Because often the caller must **reuse** the same allocation — a `String` label in a loop, a reusable `Vec<u8>` frame buffer, a tick counter. `&mut` mutates in place with no handoff and no `.clone()`.
+Use `&mut` when the caller must **reuse** the same allocation — a `String` label in a loop, a reusable `Vec<u8>` frame buffer, or a tick counter. `&mut` mutates in place with no handoff and no `.clone()`.
 
 For stack `Copy` types like `i32`, “move” is a bitwise copy — both sides can still use their copy. The distinction matters most for **heap-backed** owners (`String`, `Vec`, …) where move means the source name dies.
 
@@ -394,7 +394,7 @@ For stack `Copy` types like `i32`, “move” is a bitwise copy — both sides c
 
 ### Borrow checker edge cases
 
-Rust’s alias rules are strict. These patterns look reasonable if you come from Java/Python; the compiler rejects them **before** run time.
+Rust’s alias rules are strict. These patterns look reasonable if you come from a language with implicit sharing (Java, Python, JavaScript, …). The compiler rejects them **before** run time.
 
 **1. Immutable borrow blocks mutation of the owner**
 
@@ -472,7 +472,7 @@ fn broken() -> &str {
 }
 ```
 
-The owner dies at the end of `broken`; the caller cannot hold `&str` afterward. Return owned `String`, or borrow from the caller’s data ([Chapter 4](04_lifetimes.md)).
+The owner dies at the end of `broken`; the caller cannot hold `&str` afterward. Return owned `String`, or borrow from the caller’s data ([Chapter 5](05_lifetimes.md)).
 
 **6. `&mut` to one slice element vs whole `Vec`**
 
@@ -507,20 +507,19 @@ Borrowing **overlapping** parts of the same collection is the subtle case. Prefe
 
 Read errors **top to bottom** — the first note is usually the root cause; later notes are often follow-on noise.
 
-### Why this matters for automation
+### Why this matters for long-running programs
 
-Control loops and serial parsers often run for hours. **Stack allocation is essentially free**; heap allocation is fine when you need it, but freeing at a known scope avoids GC pauses and makes worst-case latency easier to reason about — the same theme as [ownership vs GC](#ownership-vs-garbage-collection) above.
+Control loops and serial parsers often run for hours. **Stack allocation is essentially free**. Heap allocation is fine when you need it, but freeing at a known scope avoids GC pauses and makes worst-case latency easier to reason about — the same theme as [ownership vs GC](#ownership-vs-garbage-collection) above.
 
 ## Go deeper
 
 - [Functional Rust — Option basics](https://hightechmind.io/rust/)
-- Archive: [CHAPTER_01 §2.1](../archive/CHAPTER_01_RUST_BASICS.md) (extended Python comparison)
 
 ## See also
 
-- [Chapter 3: Iterators](03_iterators.md) — `iter` vs `into_iter` and borrow errors in chains
-- [Chapter 4: Lifetimes](04_lifetimes.md) — when references must be named in types
-- [Chapter 10: Multithreading](10_multithreading.md)
+- [Chapter 4: Iterators](04_iterators.md) — `iter` vs `into_iter` and borrow errors in chains
+- [Chapter 5: Lifetimes](05_lifetimes.md) — when references must be named in types
+- [Chapter 14: Multithreading](14_multithreading.md)
 
 ### Afterparty: AI Lego blocks
 

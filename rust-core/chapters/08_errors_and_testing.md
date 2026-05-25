@@ -1,8 +1,8 @@
-# Chapter 7: Errors and Testing
+# Chapter 8: Errors and Testing
 
 ## Hook
 
-Java throws checked/unchecked exceptions. Python raises exceptions. Rust splits **recoverable** (`Result`) from **unrecoverable** (`panic!`). Automation code that runs unattended should treat errors as data, not surprises.
+Many languages use exceptions for control flow (**Java** checked/unchecked throws, **Python** `raise`, …). Rust splits **recoverable** (`Result`) from **unrecoverable** (`panic!`). Long-running code should treat errors as data, not surprises.
 
 **Why `panic!` / `unwrap()` in production is a bad idea**
 
@@ -14,7 +14,9 @@ A **panic** stops normal execution — the thread unwinds and the process often 
 | Return `Err` to caller — choose fallback port or safe state | No chance to enter **safe mode** or drain the queue |
 | Error is **typed and testable** in the signature | Failure is a **surprise** at a random `unwrap()` line |
 
-In Java/Python you might catch at the boundary; in Rust, **`unwrap` on a bad Modbus port or missing config file is not “like an exception you’ll handle later”** — it kills the process unless you built a catch-unwind boundary (rare in automation). Long-running services should **`match` / `?` `Result` at the edges**, log structured errors, and keep polling. Reserve `panic!` and `expect` for “this should never happen if the program is correct” — not for user input, network, or field hardware. See also [Chapter 5 — avoid `unwrap` in automation](05_types_enums_pattern_matching.md#option-edge-cases-and-compiler-traps).
+In Java/Python you might catch at the boundary. In Rust, **`unwrap` on a bad Modbus port or missing config file is not “like an exception you’ll handle later”** — it kills the process unless you built a catch-unwind boundary (rare in automation).
+
+Long-running services should **`match` / `?` `Result` at the edges**, log structured errors, and keep polling. Reserve `panic!` and `expect` for “this should never happen if the program is correct” — not for user input, network, or field hardware. See also [Chapter 6 — avoid `unwrap` in automation](06_types_enums_pattern_matching.md#option-edge-cases-and-compiler-traps).
 
 ## Panic, unwind, and why it is not `Result`
 
@@ -25,7 +27,7 @@ When Rust **panics** (`panic!`, failed `assert!`, `unwrap` on `Err`/`None`), the
 | **Unwind** (default on many hosts) | Walk the stack **backwards**; run **`Drop` on each frame**; then thread dies or error propagates | desktop, server |
 | **Abort** (`panic = "abort"`) | **Immediate process exit** — no `Drop`, no cleanup | embedded, some release builds |
 
-**Unwind** is Rust’s structured stack retreat — closer to C++ exceptions or Java unwinding than to returning `Err`. It is **not** “return an error value”:
+**Unwind** is Rust’s structured stack retreat — closer to C++ exceptions or Java unwinding than to returning `Err`. It is **not** “return an error value”.
 
 ```
 normal Result path:  open()?  →  Err(io::Error)  →  caller matches, logs, retries
@@ -36,9 +38,10 @@ panic path:          unwrap() →  panic!          →  unwind stack  →  threa
 
 1. **No typed error in the signature** — callers cannot `match` on what went wrong; the thread just stops.
 2. **`Drop` runs under panic** — destructors flush buffers, close handles, release locks. If **`Drop` also panics**, Rust **aborts the whole process** (double panic).
-3. **Partial cleanup story** — during unwind, some resources are dropped, some code never runs; invariants may be left mid-update unless you designed for it.
-4. **Unattended automation** — a Modbus poll loop that panics on one bad frame **stops all future polls**; a `Result` lets you log, skip, and continue.
-5. **`catch_unwind` is a niche tool** — it can catch unwinding panics in isolated blocks (e.g. foreign callbacks), but it **must not** replace `Result` for business logic; it misses **`abort` panics**, has **`UnwindSafe` bounds**, and adds complexity.
+
+3. **Partial cleanup story** — during unwind, some resources are dropped and some code never runs. Invariants may be left mid-update unless you designed for it.
+4. **Unattended automation** — a Modbus poll loop that panics on one bad frame **stops all future polls**. A `Result` lets you log, skip, and continue.
+5. **`catch_unwind` is a niche tool** — it can catch unwinding panics in isolated blocks (e.g. foreign callbacks). It **must not** replace `Result` for business logic. It misses **`abort` panics**, has **`UnwindSafe` bounds**, and adds complexity.
 
 ```rust
 // Playground — illustration only; not idiomatic error handling
@@ -56,7 +59,7 @@ For PLC gateways and serial bridges: **`Result` at boundaries**, **`panic` for p
 
 ## Error propagation
 
-[Chapter 5](05_types_enums_pattern_matching.md) introduced `Result<T, E>`. This section is the **railway**: each step returns `Result`; **`?`** exits early on `Err` and passes the success value forward — no unwind, no panic.
+[Chapter 6](06_types_enums_pattern_matching.md) introduced `Result<T, E>`. This section is the **railway**: each step returns `Result`; **`?`** exits early on `Err` and passes the success value forward. No unwind, no panic.
 
 ```mermaid
 flowchart LR
@@ -220,7 +223,7 @@ fn broken(s: &str) -> u32 {
 }
 ```
 
-**`?` on `Option` inside `fn -> Option`** ([Chapter 5](05_types_enums_pattern_matching.md)):
+**`?` on `Option` inside `fn -> Option`** ([Chapter 6](06_types_enums_pattern_matching.md)):
 
 ```rust
 // Playground
@@ -280,7 +283,7 @@ fn main() {
 
 ## Std library errors — fine for learning, weak for production
 
-Std error types are **correct** and **zero-dependency** — perfect for tutorials and tiny scripts. The pain in real automation is **ergonomics and maintainability**, not that `io::Error` is wrong.
+Std error types are **correct** and **zero-dependency** — perfect for tutorials and tiny scripts. Real automation pain comes from **ergonomics and maintainability**, not from `io::Error` being wrong.
 
 | Std type | Problem in production automation |
 |----------|----------------------------------|
@@ -295,7 +298,7 @@ Std error types are **correct** and **zero-dependency** — perfect for tutorial
 | **Library crate / gateway core** | **`enum` + `thiserror`** | derive `Error`, `#[from]`, `#[error("…")]` |
 | **Binary / CLI / service `main`** | **`anyhow::Result`** | `.context("while loading config")` chains |
 
-**Honest take:** count **`thiserror` in** for any library or long-lived automation core you expect to maintain. Use std errors directly while learning; switch before you ship.
+**Honest take:** count **`thiserror` in** for any library or long-lived automation core you expect to maintain. Use std errors directly while learning. Switch before you ship.
 
 ## Custom errors
 
@@ -374,7 +377,7 @@ fn set_port_from(s: &str) -> Result<u16, AppError> {
 
 ### `thiserror` in production — count it in
 
-For libraries and gateway cores, **`thiserror`** is the default choice: one derive replaces manual `Display` + `Error` + `From`.
+For libraries and gateway cores, **`thiserror`** is the default choice. One derive replaces manual `Display` + `Error` + `From`.
 
 **Cargo.toml:**
 
@@ -456,7 +459,7 @@ pub fn load_gateway_config(path: &str) -> Result<u16, AppError> {
 }
 ```
 
-With `#[from]` on `io::Error` variant you could shorten further — trade explicit context vs brevity.
+With `#[from]` on `io::Error` variant you could shorten further. Trade explicit context vs brevity.
 
 ### `anyhow` for binaries (sidebar)
 
@@ -480,7 +483,7 @@ fn main() -> anyhow::Result<()> {
 }
 ```
 
-**Pairing:** `thiserror` enum in **`lib`** → typed errors for callers; `anyhow` in **`bin`** → context chains at the top. See [errors and enums](#errors-and-enums) for matching variants at the boundary.
+**Pairing:** use a `thiserror` enum in **`lib`** for typed errors for callers. Use `anyhow` in **`bin`** for context chains at the top. See [errors and enums](#errors-and-enums) for matching variants at the boundary.
 
 ### Custom error edge cases
 
@@ -517,7 +520,7 @@ fn main() {
 
 ## Errors and enums
 
-Your error type **is an enum** — the same sum-type machinery as `Option`, `Result`, and domain enums in [Chapter 5](05_types_enums_pattern_matching.md). [Chapter 6](06_structs_traits_generics.md) applies too: **`match`** in helpers, **`#[derive(Error)]`** instead of hand-written trait impls.
+Your error type **is an enum** — the same sum-type machinery as `Option`, `Result`, and domain enums in [Chapter 6](06_types_enums_pattern_matching.md). [Chapter 7](07_structs_traits_generics.md) applies too: use **`match`** in helpers and **`#[derive(Error)]`** instead of hand-written trait impls.
 
 ### Variant shapes for errors
 
@@ -529,7 +532,7 @@ Your error type **is an enum** — the same sum-type machinery as `Option`, `Res
 | `#[from]` wrapper | `Serial(#[from] SerialError)` | transparent propagation |
 
 ```rust
-// Playground — error enum mirrors Ch5 enum shapes
+// Playground — error enum mirrors Ch6 enum shapes
 #[derive(Debug)]
 enum GatewayError {
     Timeout,                              // unit
@@ -545,7 +548,7 @@ enum GatewayError {
 | **`Command`** (domain) | what the PLC sends | dispatch behaviour |
 | **`AppError`** (error) | what went wrong | recovery / logging / exit codes |
 
-Do not fold `Command::Stop` and `AppError::Timeout` into one enum — different lifecycles, different exhaustiveness stories.
+Do not fold `Command::Stop` and `AppError::Timeout` into one enum. They have different lifecycles and different exhaustiveness stories.
 
 ### Recovery by variant
 
@@ -613,7 +616,7 @@ fn main() {
 }
 ```
 
-Same pattern as **struct-in-enum** in [Chapter 6](06_structs_traits_generics.md#enums-structs-and-traits-together).
+Same pattern as **struct-in-enum** in [Chapter 7](07_structs_traits_generics.md#enums-structs-and-traits-together).
 
 ### Errors-and-enums edge cases
 
@@ -635,9 +638,9 @@ fn describe(e: &AppError) -> &'static str {
 }
 ```
 
-**`source()` vs matching the enum** — match **`AppError` variants** for recovery policy; inspect **`source()`** only when you need the underlying `io::Error` kind for logging.
+**`source()` vs matching the enum** — match **`AppError` variants** for recovery policy. Inspect **`source()`** only when you need the underlying `io::Error` kind for logging.
 
-**`#[non_exhaustive]`** on public library error enums — allows adding variants without breaking downstream `match` exhaustiveness (downstream must keep a wildcard arm).
+**`#[non_exhaustive]`** on public library error enums allows adding variants without breaking downstream `match` exhaustiveness. Downstream must keep a wildcard arm.
 
 **Wrong — `Result` inside an enum variant** (usually an anti-pattern):
 
@@ -648,7 +651,7 @@ enum Messy {
 }
 ```
 
-Model outcomes with **`fn -> Result<T, E>`** or a dedicated domain enum — not `Result` nested in unrelated enums.
+Model outcomes with **`fn -> Result<T, E>`** or a dedicated domain enum. Do not nest `Result` inside unrelated enums.
 
 | Trap | Idiom |
 |------|-------|
@@ -707,7 +710,7 @@ impl Drop for Bad {
 // drop triggers panic; if already panicking → abort
 ```
 
-**Thread panic without handler** — spawned thread panics can **`join` as `Err`**, but if ignored the runtime may **abort the whole program** on drop of an unjoined panicking thread.
+**Thread panic without handler** — spawned thread panics can **`join` as `Err`**. If ignored, the runtime may **abort the whole program** on drop of an unjoined panicking thread.
 
 **`assert!` in production paths** — failed assert is a panic (unwind/abort), not a graceful `Result`. Prefer explicit checks returning `Err`.
 
@@ -771,7 +774,7 @@ mod tests {
 cargo test
 ```
 
-Also: **doc tests** in `///` examples; **integration tests** in `tests/*.rs` (external crate view of your API).
+Also: **doc tests** in `///` examples and **integration tests** in `tests/*.rs` (external crate view of your API).
 
 ### Testing edge cases
 
@@ -807,13 +810,12 @@ mod table {
 - [Result railway](https://hightechmind.io/rust/)
 - [Unit test patterns](https://hightechmind.io/rust/) — 744+
 - [thiserror docs](https://docs.rs/thiserror/latest/thiserror/)
-- Archive: [CHAPTER_02 §5](../archive/CHAPTER_02_AUTOMATION_AND_SYSTEM_PROGRAMMING.md)
 
 ## See also
 
-- [Chapter 5: Result enum](05_types_enums_pattern_matching.md)
-- [Chapter 6: Enums + traits](06_structs_traits_generics.md#enums-structs-and-traits-together) — same enum machinery for errors
-- [Chapter 15: I/O errors](15_io_processes_bits.md)
+- [Chapter 6: Result enum](06_types_enums_pattern_matching.md)
+- [Chapter 7: Enums + traits](07_structs_traits_generics.md#enums-structs-and-traits-together) — same enum machinery for errors
+- [Chapter 19: I/O errors](19_io_processes_bits.md)
 
 ### Afterparty: AI Lego blocks
 

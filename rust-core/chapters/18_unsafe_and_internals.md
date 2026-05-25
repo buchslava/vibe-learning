@@ -1,37 +1,35 @@
-# Chapter 14: Unsafe and When to Stop
+# Chapter 18: Unsafe and When to Stop
 
 ## Hook
 
-Java’s `sun.misc.Unsafe` and Python’s C extensions bypass safety for performance or FFI. Rust keeps the same power in **`unsafe` blocks** — but the **borrow checker is off inside**, and you must uphold invariants the compiler cannot verify.
+Every ecosystem has escape hatches for performance or FFI — **Java** `sun.misc.Unsafe`, **Python** C extensions, Rust **`unsafe` blocks**. Rust keeps the same power in **`unsafe` blocks** — but the **borrow checker is off inside**, and you must uphold invariants the compiler cannot verify.
 
 ## Scope — a brief tour, not the whole nomicon
 
-`unsafe` Rust is a **large** topic. This chapter is a **practical intro** — enough to read library internals, wrap a C SDK sketch, and know when to stop. It is **not** a guide to custom allocators, formal memory models, or authoring proc macros that emit `unsafe impl`.
+`unsafe` Rust is a large topic. This chapter is a practical intro — enough to read library internals, wrap a C SDK sketch, and know when to stop. It is not a guide to custom allocators, formal memory models, or authoring proc macros that emit `unsafe impl`. Use **Afterparty** prompts and **Go deeper** for invariant lists, JNI vs FFI, and gateway capstone designs.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
 | Four powers of `unsafe` + **why it exists** | Full [Rustonomicon](https://doc.rust-lang.org/nomicon/) |
 | **Soundness** vs **safety** | Custom allocators, `Pin` / `Unpin` formalism |
-| Safe wrappers over raw pointers | Lock-free data structures ([Chapter 11](11_atomics_and_lockfree.md)) |
-| `unsafe fn`, `unsafe trait`, `Send`/`Sync` proof sketch | Writing proc macros with `unsafe` traits ([Chapter 13](13_metaprogramming.md)) |
+| Safe wrappers over raw pointers | Lock-free data structures ([Chapter 15](15_atomics_and_lockfree.md)) |
+| `unsafe fn`, `unsafe trait`, `Send`/`Sync` proof sketch | Writing proc macros with `unsafe` traits ([Chapter 17](17_metaprogramming.md)) |
 | FFI orientation + checklist | Full `bindgen` / `cxx` walkthrough |
 | When **not** to use `unsafe` + Miri intro | Miri deep dives, fuzzing proc macros |
 
-Use **Afterparty** prompts and **Go deeper** for invariant lists, JNI vs FFI, and gateway capstone designs.
-
-This chapter builds on [Chapter 10](10_multithreading.md) (`Send`/`Sync`), [Chapter 11](11_atomics_and_lockfree.md) (`static mut` races), [Chapter 13](13_metaprogramming.md) (ecosystem `unsafe impl`), and points forward to [Chapter 15](15_io_processes_bits.md):
+This chapter builds on [Chapter 14](14_multithreading.md) (`Send`/`Sync`), [Chapter 15](15_atomics_and_lockfree.md) (`static mut` races), [Chapter 17](17_metaprogramming.md) (ecosystem `unsafe impl`), and points forward to [Chapter 19](19_io_processes_bits.md):
 
 ```mermaid
 flowchart LR
-  ch10[Ch10 Send Sync] --> ch14[Ch14 unsafe]
-  ch11[Ch11 atomics] --> ch14
-  ch13[Ch13 macros] --> ch14
-  ch14 --> ch15[Ch15 IO]
+  ch10[Ch14 Send Sync] --> ch14[Ch18 unsafe]
+  ch11[Ch15 atomics] --> ch14
+  ch13[Ch17 macros] --> ch14
+  ch14 --> ch15[Ch19 IO]
 ```
 
 ## Why `unsafe` exists — the aim
 
-Rust’s default contract: **if your code compiles and uses only safe Rust, it cannot cause undefined behavior (UB).** That promise is **soundness**. `unsafe` is how the language **implements** that promise under the hood and how **you** opt in when the compiler cannot see the full story.
+Rust’s default contract: **if your code compiles and uses only safe Rust, it cannot cause undefined behavior (UB).** That promise is **soundness**. `unsafe` is how the language implements that promise under the hood — and how **you** opt in when the compiler cannot see the full story.
 
 | Role | Plain language |
 |------|----------------|
@@ -210,7 +208,7 @@ fn main() {
 
 ### Level 4 — Hard: `unsafe impl Send` for an opaque handle
 
-[Chapter 10](10_multithreading.md): types moved into `thread::spawn` must be **`Send`**. Raw pointers are not `Send`; OS handles sometimes need a **manual proof**:
+[Chapter 14](14_multithreading.md): types moved into `thread::spawn` must be **`Send`**. Raw pointers are not `Send`; OS handles sometimes need a **manual proof**:
 
 ```rust
 // Playground
@@ -277,14 +275,14 @@ Calling C from Rust — needs `libc`, link flags, and ABI discipline:
 | **`cxx`** | Safe-ish C++ interop bridge |
 | **`libc`** | Common C types and functions |
 
-## Practical cases in automation
+## Practical cases in services and embedded
 
 | Situation | Typical approach |
 |-----------|------------------|
 | Serial / GPIO / async I/O | Use **`serialport`**, **`tokio`**, **`rppal`** — safe API, `unsafe` inside crate |
 | Parse JSON/TOML config | **`serde`** — no hand-written pointer tricks |
 | Vendor C PLC SDK | Thin safe Rust module; `extern "C"` + ownership docs; or ask for Rust bindings |
-| Shared-memory ring buffer | `unsafe` + atomics ([Chapter 11](11_atomics_and_lockfree.md)); Miri + tests |
+| Shared-memory ring buffer | `unsafe` + atomics ([Chapter 15](15_atomics_and_lockfree.md)); Miri + tests |
 | “Speed up JSON” | Profile → better algorithm → **`simd-json`** / `serde` features → `unsafe` last |
 
 **Decision flow:**
@@ -309,7 +307,7 @@ Hot path slow?
 - **`unsafe trait`:** `Send`, `Sync` — implementing asserts thread-safety the compiler cannot derive.
 - **Std library:** `Vec::push`, `String::from_utf8_unchecked` (in std internals) — pattern: **unsafe inside, safe outside**.
 
-Ecosystem [Chapter 13](13_metaprogramming.md) derives may emit `unsafe impl` in generated code — application authors rarely write those by hand.
+Ecosystem [Chapter 17](17_metaprogramming.md) derives may emit `unsafe impl` in generated code — application authors rarely write those by hand.
 
 ## FFI — checklist and pitfalls
 
@@ -346,12 +344,12 @@ Miri does not replace code review or fuzzing — it complements them. See Afterp
 
 | Bad reason | Better move |
 |------------|-------------|
-| “Borrow checker annoys me” | Restructure ownership ([Chapter 4](04_lifetimes.md)), `Arc`/`Mutex` ([Chapter 10](10_multithreading.md)) |
+| “Borrow checker annoys me” | Restructure ownership ([Chapter 5](05_lifetimes.md)), `Arc`/`Mutex` ([Chapter 14](14_multithreading.md)) |
 | “Faster without measuring” | `cargo bench`, flamegraph, fewer allocations |
 | “Avoid learning lifetimes” | Fix API shape; unsound shortcuts break production |
-| “Replace `Mutex` with raw pointers” | Data races → UB; use atomics or channels ([Chapter 11](11_atomics_and_lockfree.md)) |
+| “Replace `Mutex` with raw pointers” | Data races → UB; use atomics or channels ([Chapter 15](15_atomics_and_lockfree.md)) |
 
-Most automation and application code **never** needs `unsafe` in *your* crate — depend on maintained libraries instead.
+Most application code **never** needs `unsafe` in *your* crate — depend on maintained libraries instead.
 
 ## Edge cases and compiler traps
 
@@ -360,7 +358,7 @@ Most automation and application code **never** needs `unsafe` in *your* crate �
 | Dangling raw pointer | UB, Miri failure | Tie pointer to owner lifetime; copy if needed |
 | `from_raw_parts` wrong `len` | read past buffer | Assert `len <= cap`; test boundary |
 | Two `*mut` aliases + write | UB (stacked borrows) | `Mutex`, single owner, or proven uniqueness |
-| `static mut` + threads | data race UB | `Atomic*` or `Mutex` ([Chapter 11](11_atomics_and_lockfree.md)) |
+| `static mut` + threads | data race UB | `Atomic*` or `Mutex` ([Chapter 15](15_atomics_and_lockfree.md)) |
 | Unwinding into C | UB | `panic=abort` or no panic across FFI |
 | “Safe” API returns dangling ref | unsound library | code review + Miri |
 
@@ -381,11 +379,11 @@ Most automation and application code **never** needs `unsafe` in *your* crate �
 ## See also
 
 - [Chapter 1: Paradigm shift](01_paradigm_shift.md) — raw pointers vs references
-- [Chapter 7: Errors and testing](07_errors_and_testing.md) — no `panic` across unattended automation boundaries
-- [Chapter 10: Multithreading](10_multithreading.md) — `Send` / `Sync`
-- [Chapter 11: Atomics](11_atomics_and_lockfree.md) — `static mut` vs atomics
-- [Chapter 13: Metaprogramming](13_metaprogramming.md) — derive-generated `unsafe impl`
-- [Chapter 15: I/O](15_io_processes_bits.md) — `Read`/`Write`, processes, binary frames
+- [Chapter 8: Errors and testing](08_errors_and_testing.md) — no `panic` across unattended service boundaries
+- [Chapter 14: Multithreading](14_multithreading.md) — `Send` / `Sync`
+- [Chapter 15: Atomics](15_atomics_and_lockfree.md) — `static mut` vs atomics
+- [Chapter 17: Metaprogramming](17_metaprogramming.md) — derive-generated `unsafe impl`
+- [Chapter 19: I/O](19_io_processes_bits.md) — `Read`/`Write`, processes, binary frames
 
 ### Afterparty: AI Lego blocks
 
@@ -395,7 +393,7 @@ Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — qu
 
 1. **Invariant list** — “For raw pointer to buffer + length, list 5 invariants a safe wrapper must enforce.”
 2. **Soundness** — “Explain ‘safe Rust can’t cause UB’ vs `unsafe` — one paragraph; include unsound safe wrapper example.”
-3. **Scope honesty** — “List 6 topics Ch14 skips and where to learn each (nomicon, Miri, Pin, …).”
+3. **Scope honesty** — “List 6 topics Ch18 skips and where to learn each (nomicon, Miri, Pin, …).”
 4. **Aim table** — “Fill: why Vec needs `unsafe` internally while `push` stays safe for callers.”
 5. **Promise diagram** — “Draw safe API → unsafe block → invariants → caller cannot UB; label soundness.”
 
@@ -412,8 +410,8 @@ Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — qu
 11. **set_len contract** — “Document pre/post conditions for `set_len_unchecked`; what breaks `as_slice` if violated?”
 12. **Send proof** — “I claim `Rc<*mut u8>` is Send; you disprove with compiler error quote.”
 13. **SerialHandle Sync** — “When would `SerialHandle` need `unsafe impl Sync` vs `Arc<Mutex<...>>`? Two sentences each.”
-14. **Ch10 port** — “Rewrite Level 4 spawn example using only safe types — when is it impossible?”
-15. **Proc-macro boundary** — “Why do serde/tokio crates use `unsafe impl` you don’t write? Link Ch13.”
+14. **Ch14 port** — “Rewrite Level 4 spawn example using only safe types — when is it impossible?”
+15. **Proc-macro boundary** — “Why do serde/tokio crates use `unsafe impl` you don’t write? Link Ch17.”
 
 #### FFI and automation
 
@@ -435,7 +433,7 @@ Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — qu
 
 26. **Avoid** — “Review use case: speed up JSON — `unsafe` vs `simd-json` vs algorithm; pick with justification.”
 27. **Borrow checker fight** — “I paste fight-the-borrow-checker code; you refactor to safe Rust without `unsafe`.”
-28. **static mut** — “Compare `static mut` counter vs `AtomicUsize` from Ch11 — UB vs defined behavior.”
+28. **static mut** — “Compare `static mut` counter vs `AtomicUsize` from Ch15 — UB vs defined behavior.”
 
 #### Capstone
 
