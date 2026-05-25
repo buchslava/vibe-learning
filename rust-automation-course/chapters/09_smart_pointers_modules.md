@@ -77,7 +77,7 @@ Workspaces: multiple packages in one repo — each with its own `Cargo.toml`.
 ## See also
 
 - [Chapter 10: Threads + Arc](10_multithreading.md)
-- [Chapter 2: Cargo](02_toolchain_and_types.md)
+- [Chapter 0: Preface](00_preface.md) — rustup and Cargo setup
 
 ### Afterparty: AI Lego blocks
 

@@ -2,7 +2,7 @@
 
 ## Hook
 
-Python lists and dicts are the workhorses; Java has `ArrayList` and `HashMap`. Rust gives **`Vec`** and **`HashMap`** with ownership-aware APIs — and **iterators** that often replace manual loops with lazy, composable pipelines.
+Python lists and dicts are the workhorses; Java has `ArrayList` and `HashMap`. Rust gives **`Vec`** and **`HashMap`** with ownership-aware APIs. Iterator theory — lazy adapters, `iter` vs `into_iter`, consumers — is in [Chapter 3](03_iterators.md); this chapter focuses on **collections** and how to iterate them in practice.
 
 ## `Vec<T>`
 
@@ -16,7 +16,7 @@ fn main() {
 }
 ```
 
-Indexing panics out of bounds; use `.get(i)` for `Option`.
+Indexing panics out of bounds; use `.get(i)` for `Option`. Walk elements with `.iter()` / `.iter_mut()` / `.into_iter()` — see [Chapter 3](03_iterators.md#three-ways-to-walk-a-vec).
 
 ## `HashMap<K, V>`
 
@@ -35,7 +35,9 @@ fn main() {
 
 Keys need `Eq + Hash`; owned `String` keys are common.
 
-## Iterator basics
+## Iterators in practice
+
+Use [Chapter 3](03_iterators.md) for adapters (`map`, `filter`, `enumerate`) and consumers (`collect`, `sum`). Quick reminder:
 
 ```rust
 // Playground
@@ -47,14 +49,7 @@ fn main() {
 }
 ```
 
-| Method | Effect |
-|--------|--------|
-| `.iter()` | borrow elements |
-| `.iter_mut()` | mutable borrow |
-| `.into_iter()` | consume `Vec` |
-| `.map(f)` | transform |
-| `.filter(p)` | keep some |
-| `.collect()` | build collection |
+For sliding windows over samples (e.g. rising edges), use `.windows(2)` on a slice or `Vec` — pair with iterator chains from Chapter 3.
 
 ## Closures
 
@@ -67,7 +62,7 @@ fn main() {
 }
 ```
 
-Closures implement `Fn`, `FnMut`, or `FnOnce` depending on captures.
+Closures implement `Fn`, `FnMut`, or `FnOnce` depending on captures. They power `.map(|x| ...)` and `.filter(|x| ...)` in [Chapter 3](03_iterators.md).
 
 ## Idiom spotlight
 
@@ -80,7 +75,8 @@ Closures implement `Fn`, `FnMut`, or `FnOnce` depending on captures.
 
 ## See also
 
-- [Chapter 3: Slices](03_ownership_borrowing.md)
+- [Chapter 3: Iterators](03_iterators.md)
+- [Chapter 1: Borrowing](01_paradigm_shift.md#references-borrowing-and-dereferencing)
 - [Chapter 6: Generics](06_structs_traits_generics.md)
 
 ### Afterparty: AI Lego blocks

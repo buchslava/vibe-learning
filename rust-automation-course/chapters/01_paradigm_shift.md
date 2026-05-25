@@ -6,11 +6,13 @@ Java and Python let you **share** data freely: references, object graphs, mutabl
 
 ## Compiled vs interpreted
 
-| | Java | Python | Rust |
-|---|------|--------|------|
-| Execution | Bytecode on JVM | Interpreter / bytecode | Native machine code |
-| Type checks | Mostly compile-time | Runtime | Compile-time |
-| Memory | GC | GC (refcount + cycle GC) | Ownership + deterministic drop |
+
+|             | Java                | Python                   | Rust                           |
+| ----------- | ------------------- | ------------------------ | ------------------------------ |
+| Execution   | Bytecode on JVM     | Interpreter / bytecode   | Native machine code            |
+| Type checks | Mostly compile-time | Runtime                  | Compile-time                   |
+| Memory      | GC                  | GC (refcount + cycle GC) | Ownership + deterministic drop |
+
 
 Rust has **no GC**. When a value’s owner goes out of scope, `drop` runs immediately. No stop-the-world pauses — valuable for automation loops and low-latency tools.
 
@@ -34,6 +36,44 @@ fn main() {
 
 Think of a move as **renaming** the value, not copying.
 
+### Move edge cases (what the compiler catches)
+
+| Situation | Java / Python | Rust |
+|-----------|---------------|------|
+| Reassign name to new value | old object GC’d when unreachable | old owner **dropped** when `let s1 = ...` overwrites `s1` |
+| Pass to function by value | reference still in caller | **move** — caller binding dead unless returned |
+| Use after move | often still works | **compile error** |
+
+```rust
+// Playground — uncomment one failing line at a time
+fn main() {
+    let s1 = String::from("plc_a");
+    let s2 = s1; // move: s1 → s2
+    // println!("{}", s1); // ERROR: use of moved value: `s1`
+
+    let mut log = String::from("start");
+    log = String::from("replaced"); // drop old "start" buffer, bind new owner
+    println!("{}", log);
+}
+```
+
+**Wrong — use heap value after moving into a function:**
+
+```rust
+// Playground — does not compile
+fn consume(s: String) {
+    println!("{}", s);
+}
+
+fn main() {
+    let label = String::from("plc1");
+    consume(label);
+    println!("{}", label); // ERROR: borrow of moved value: `label`
+}
+```
+
+**Idiomatic fixes:** borrow for read (`consume_borrow(&label)`), take and return (`fn transform(s: String) -> String`), or `.clone()` when you truly need two owners (sparingly).
+
 ## Zero-cost abstractions
 
 Rust’s iterators, traits, and generics are designed to compile down to code as tight as hand-written C **when you use release builds** (`cargo build --release`). You do not pay for “elegant” APIs at runtime the way heavy OOP patterns can cost in Java.
@@ -46,17 +86,430 @@ The same borrow rules that prevent use-after-free also prevent **data races** in
 
 > **Let the type system carry intent.** Prefer `Result` and `Option` over sentinel values (`null`, `-1`, magic strings). You will formalize this in [Chapter 5](05_types_enums_pattern_matching.md) and [Chapter 7](07_errors_and_testing.md).
 
-## Playground: stack vs heap (conceptual)
+## Stack and heap
+
+Ownership makes more sense once you see **where** values live. Rust uses two main memory regions:
+
+- **Stack** — per-function frames, very fast allocate/deallocate (pointer bump). Size known at compile time.
+- **Heap** — shared pool for data whose size is unknown or may grow. Slower; requires an explicit allocator and later **free** (in Rust: `drop` when the owner leaves scope).
+
+In Java and Python you rarely think about this: the JVM or Python runtime puts almost everything on the heap and cleans up later with GC. Rust puts **small, fixed-size data on the stack by default** and uses the heap only when the type needs it (`String`, `Vec`, etc.).
+
+
+|                      | Java                                 | Python              | Rust                                     |
+| -------------------- | ------------------------------------ | ------------------- | ---------------------------------------- |
+| `int` / small number | often stack (local) or heap (object) | heap (`PyObject`)   | stack (`i32`, `Copy`)                    |
+| growable text        | heap (`String` object)               | heap (`str` object) | stack struct **pointing at** heap buffer |
+| who frees heap?      | GC                                   | GC                  | owner’s `drop` at end of scope           |
+| local variable cost  | reference push                       | name binding        | often zero-cost stack slot               |
+
+
+### Stack: fast and scoped
+
+Each function call gets a **stack frame**. Locals like `i32`, `bool`, and tuples of `Copy` types sit there. When the function returns, the frame is popped — no separate “free” step.
+
+```rust
+// Playground
+fn stack_demo() -> i32 {
+    let a: i32 = 10;
+    let b: i32 = 32;
+    a + b // a and b die when this function returns
+}
+
+fn main() {
+    println!("{}", stack_demo());
+}
+```
+
+Nested blocks shrink live ranges — useful for [borrowing](#references-borrowing-and-dereferencing) below:
 
 ```rust
 // Playground
 fn main() {
-    let x: i32 = 42;           // stack
-    let s = String::from("hi"); // heap, owned
-    let r = &s;                // borrow, no copy
-    println!("{} {}", x, r);
+    let outer = 1;
+    {
+        let inner = 2;
+        println!("{} {}", outer, inner);
+    } // inner dropped here
+    println!("outer still live: {}", outer);
 }
 ```
+
+### Heap: growable data with an owner
+
+Types like `String` and `Vec` store **metadata on the stack** (pointer, length, capacity) and **payload on the heap**. The stack part is small and fixed; the heap part can grow.
+
+Mental picture for `let s = String::from("hi")`:
+
+```
+stack                          heap
+┌──────────────┐              ┌───┬───┐
+│ s: String    │──ptr────────▶│ h │ i │
+│  len: 2      │              └───┴───┘
+│  cap: 2      │
+└──────────────┘
+```
+
+When `s` goes out of scope, Rust runs `drop` on `String`, which frees the heap buffer. No GC scan — cost is **predictable** and tied to scope.
+
+```rust
+// Playground
+fn main() {
+    let x: i32 = 42;            // entirely on stack
+    let s = String::from("hi"); // stack handle → heap bytes
+    let r = &s;                 // borrow: no heap copy — see [References](#references-borrowing-and-dereferencing)
+    println!("{} {}", x, r);
+} // s dropped here → heap "hi" freed
+```
+
+### Moves and the heap
+
+Assigning one `String` to another **moves** the stack handle (pointer/len/cap) to the new owner; the heap buffer is **not** copied. That is why `s1` becomes invalid after `let s2 = s1` — there is only one owner responsible for freeing that heap memory.
+
+```rust
+// Playground
+fn main() {
+    let s1 = String::from("hello");
+    let s2 = s1; // move handle; heap buffer stays in place
+    println!("{}", s2);
+    // println!("{}", s1); // error: s1 no longer owns the heap data
+}
+```
+
+Java would copy a **reference** (two refs, one object). Python would bind another name to the same object. Rust **transfers responsibility** — fewer copies, stricter rules.
+
+### `Copy` on stack vs heap-backed types
+
+#### *Why Rust splits the world this way*
+
+*Rust’s default is **move** (transfer ownership). **Copy** is a narrow, opt-in exception. That is not an arbitrary rule — it follows from a design principle:*
+
+> ***Every value has exactly one owner who is responsible for cleaning up any resources it holds.***
+
+*If assignment silently duplicated a* `String` *or* `Vec` *handle (pointer + length + capacity on the stack), you would get **two owners for one heap allocation**. When both go out of scope, Rust would try to free the same memory twice — a classic double-free bug. C and C++ leave that to discipline and conventions; Rust makes the dangerous case **illegal at compile time**.*
+
+`Copy` *is allowed only when a bitwise duplicate is **semantically identical** to the original: the type is entirely self-contained, has no destructor (*`Drop`*) that must run exactly once, and duplicating it never creates shared ownership of external memory. Integers and floats are just bits on the stack — copying them is cheap and safe. Heap-backed types **own** external memory, so the compiler forces a **move** unless you explicitly opt into a deep copy with* `.clone()`*.*
+
+*In other words: Rust treats ownership transfer as the normal case (like handing someone a key), and silent duplication as a special case reserved for values that cannot cause aliasing bugs. That is why assignment feels “strict” compared to Java (reference copy) or Python (name binding) — the language prefers **provable correctness** over implicit sharing.*
+
+#### Which types are `Copy` vs move?
+
+`**Copy` types** (assignment duplicates bits; both variables stay valid):
+
+
+| Category              | Examples                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| Integer scalars       | `i8`, `i16`, `i32`, `i64`, `i128`, `isize`, `u8`, `u16`, `u32`, `u64`, `u128`, `usize` |
+| Floating point        | `f32`, `f64`                                                                           |
+| Other scalars         | `bool`, `char`                                                                         |
+| Unit type             | `()`                                                                                   |
+| Fixed-size arrays     | `[T; N]` when `T: Copy` (e.g. `[u8; 4]`)                                               |
+| Tuples                | `(T1, T2, …)` when every element is `Copy`                                             |
+| References            | `&T`, `&mut T` (the reference itself is copied; it still *points to* the same data)    |
+| Raw pointers          | `*const T`, `*mut T`                                                                   |
+| Function pointers     | `fn(...) -> ...`                                                                       |
+| `NonNull`, `NonZero*` | Many niche std types that wrap a plain integer                                         |
+
+
+**Move types** (assignment transfers ownership; the source is invalid afterward unless you borrow):
+
+
+| Category                        | Examples                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| Growable / owned heap data      | `String`, `Vec<T>`, `Box<T>`, `HashMap<K, V>`, `HashSet<T>`, `BTreeMap`, … |
+| Shared / interior mutability    | `Rc<T>`, `Arc<T>`, `RefCell<T>`, `Mutex<T>`, `RwLock<T>`                   |
+| Most user-defined structs/enums | Unless you add `#[derive(Copy, Clone)]` **and** every field is `Copy`      |
+| Types with custom `Drop`        | File handles, network sockets, anything that must run cleanup once         |
+
+
+**Rules of thumb:**
+
+1. **Primitives on the stack → usually `Copy`.**
+2. **Anything that owns heap memory or runs `Drop` → move by default.**
+3. `**Copy` and `Drop` are mutually exclusive** — a type cannot implement both.
+4. `**.clone()`** is the explicit, potentially expensive deep copy when you truly need two independent heap values.
+
+You can check any type in the playground or docs: `Copy` is a trait; if a type implements it, assignment copies; otherwise it moves.
+
+```rust
+// Playground
+fn main() {
+    let a = 5;
+    let b = a; // Copy — two independent i32 on stack
+    println!("{} {}", a, b);
+
+    let v1 = vec![1, 2, 3];
+    let v2 = v1; // move — v1 invalid; one owner for heap array
+    println!("{:?}", v2);
+
+    let s1 = String::from("hi");
+    let s2 = s1.clone(); // explicit deep copy — both valid, two heap buffers
+    println!("{} {}", s1, s2);
+}
+```
+
+### References, borrowing, and dereferencing
+
+Moves and `.clone()` are not the only way to use data. A **reference** is a borrow: you get access without becoming the owner. Rust has two safe reference forms:
+
+| Type | Access | Alias rule (preview) |
+|------|--------|----------------------|
+| `&T` | read-only | many `&T` borrows at once |
+| `&mut T` | read + write | **one** `&mut` at a time, no overlapping `&T` |
+
+Use the **`&`** operator to **create** a reference from an owner:
+
+```rust
+// Playground
+fn main() {
+    let s = String::from("sensor_a");
+    let r = &s; // r: &String — borrow s; s still owns the heap buffer
+
+    let mut count = 0;
+    let m = &mut count; // m: &mut i32 — exclusive borrow for mutation
+    *m += 1;
+
+    println!("{} {}", r, count);
+}
+```
+
+**Java / Python:** copying a reference means two variables reach the same object; neither “owns” it in the Rust sense. **Rust:** the **owner** (`s`, `count`) is unchanged; `r` and `m` are temporary handles the compiler checks — they must not outlive what they borrow ([Chapter 4](04_lifetimes.md) formalizes this).
+
+References are **`Copy`** (see table above): `let r2 = r1` when both are `&T` copies the **pointer**, not the heap data. There is still **one owner** of the buffer; you just have two names for the same borrow.
+
+#### Dereferencing with `*`
+
+If `r: &i32`, then `*r` is the `i32` **at** that address. The unary **`*`** operator **dereferences** — it follows the reference to the underlying value.
+
+| Operator | Reads as | Example |
+|----------|----------|---------|
+| `&` | “borrow this” | `&s`, `&mut n` |
+| `*` | “value behind this reference” | `*m`, `*m += 1` |
+
+Rust **auto-derefs** in many everyday spots: `println!("{}", r)` works with `&i32`, and method calls like `r.abs()` reach through the reference for you. You still write explicit `*` when you need the **inner value** in an expression — especially **assigning or mutating through `&mut T`**:
+
+```rust
+// Playground
+fn bump(n: &mut i32) {
+    *n += 1; // without *, you would try to reassign the reference itself
+}
+
+fn main() {
+    let x = 10;
+    let r = &x;
+    let sum = x + *r; // explicit: add the i32 behind r
+    println!("{}", sum);
+
+    let mut ticks = 0;
+    bump(&mut ticks);
+    println!("ticks = {}", ticks);
+}
+```
+
+**Read-only borrow:** `*r` gives you a copy when `T: Copy` (like `i32`). You cannot write `*r = 5` if `r: &i32` — mutating requires `&mut`.
+
+**Wrong — mutate through `&`:**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let x = 10;
+    let r = &x;
+    // *r = 20; // ERROR: cannot assign to `*r`, which is behind a `&` reference
+    println!("{}", r);
+}
+```
+
+**Mutable borrow:** `*m = value` updates the **owner’s** data in place. That is how a function increments a caller’s counter or fills a buffer without taking ownership.
+
+```rust
+// Playground
+fn main() {
+    let mut frame = [0u8; 4];
+    let header = &mut frame[0..2];
+    header[0] = 0xDE; // slice methods auto-deref; index writes through &mut
+    header[1] = 0xAD;
+    println!("{:02X?}", frame);
+}
+```
+
+#### References vs raw pointers (name only)
+
+The type table above lists **raw pointers** `*const T` and `*mut T`. They also use `*` to dereference, but only inside **`unsafe`** code — common in embedded and FFI, not day-one automation Rust. Safe code uses `&T` / `&mut T`; the compiler enforces borrow rules instead of trusting you.
+
+**Rules of thumb:**
+
+1. **Need read-only access without moving?** → `&T`
+2. **Need in-place mutation of the owner?** → `&mut T` (one at a time)
+
+#### Move vs `&mut`: who keeps the value?
+
+These look similar in other languages — “pass something to a function and let it change” — but Rust splits them on **ownership**.
+
+| | **Move** (`fn f(s: String)`) | **Mutable borrow** (`fn f(s: &mut String)`) |
+|---|------------------------------|---------------------------------------------|
+| Ownership | Transfers to the callee | Stays with the caller |
+| Caller after the call | Original binding is **invalid** | Original binding is **still valid**, often changed |
+| Heap buffer | Same buffer, new owner | Same buffer, same owner |
+| Callee’s job | Own, transform, drop, or **return** the value | Temporarily mutate, then **give control back** |
+| Typical use | “Take this and finish with it” | “Tweak my value in place” |
+
+**Move:** the function becomes the owner. If it takes `String` by value, the caller’s `label` is gone after the call — like handing over the key. The callee may mutate and drop it, or return it to transfer ownership again.
+
+**`&mut`:** the caller keeps ownership. The function gets a **loan** — exclusive access for the duration of the call — to edit the existing data. When the call returns, the borrow ends and the caller reads the updated value.
+
+```rust
+// Playground
+fn consume(mut s: String) {
+    s.push('!'); // callee owns s; mutates its own local owner
+} // s dropped here unless returned
+
+fn append_bang(s: &mut String) {
+    s.push('!'); // mutates caller's buffer through the borrow
+}
+
+fn main() {
+    let label = String::from("plc1");
+
+    // Move path: ownership leaves main
+    let moved = label;
+    consume(moved);
+    // println!("{}", moved); // error: moved value
+
+    // Mut borrow path: caller keeps label
+    let mut label = String::from("plc1");
+    append_bang(&mut label); // lend exclusive access for one call
+    println!("{}", label);   // plc1! — same owner, updated heap data
+}
+```
+
+Why not always use `&mut`? Because sometimes the callee **should** take ownership — building a message and sending it on a channel, storing it in a struct field, or returning a transformed value. A move makes that transfer explicit: after `consume(moved)`, `main` no longer has responsibility for freeing that buffer.
+
+Why not always move? Because often the caller must **reuse** the same allocation — a `String` label in a loop, a reusable `Vec<u8>` frame buffer, a tick counter. `&mut` mutates in place with no handoff and no `.clone()`.
+
+For stack `Copy` types like `i32`, “move” is a bitwise copy — both sides can still use their copy. The distinction matters most for **heap-backed** owners (`String`, `Vec`, …) where move means the source name dies.
+
+5. **Need to assign or arithmetic on the pointee?** → often explicit `*`
+6. **Need an independent duplicate?** → `.clone()` or pass by value — not a longer-lived borrow
+
+### Borrow checker edge cases
+
+Rust’s alias rules are strict. These patterns look reasonable if you come from Java/Python; the compiler rejects them **before** run time.
+
+**1. Immutable borrow blocks mutation of the owner**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let mut s = String::from("plc");
+    let r = &s;           // shared read loan starts
+    s.push('!');          // ERROR: cannot borrow `s` as mutable while `r` is live
+    println!("{}", r);
+}
+```
+
+**Fix:** end the read borrow before mutating — nested block, or `println!` first so `r` is not used after `push`:
+
+```rust
+// Playground
+fn main() {
+    let mut s = String::from("plc");
+    {
+        let r = &s;
+        println!("{}", r);
+    } // r ends here
+    s.push('!');
+    println!("{}", s);
+}
+```
+
+**2. Only one `&mut` at a time**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let mut v = vec![1, 2, 3];
+    let a = &mut v;
+    let b = &mut v; // ERROR: cannot borrow `v` as mutable more than once
+    a.push(4);
+    println!("{:?}", b);
+}
+```
+
+**3. `&` and `&mut` cannot overlap**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let mut n = 0;
+    let r = &n;
+    let m = &mut n; // ERROR: cannot borrow as mutable while immutable borrow exists
+    println!("{} {}", r, m);
+}
+```
+
+**4. Cannot move while borrowed**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let s = String::from("plc");
+    let r = &s;
+    let moved = s; // ERROR: cannot move `s` because it is borrowed
+    println!("{}", r);
+}
+```
+
+References are `Copy`, but they **point at** an owner. Moving the owner while a borrow is active would leave a dangling `&` — same class of bug as use-after-free, ruled out at compile time.
+
+**5. Returning a reference to a local (preview)**
+
+```rust
+// Playground — does not compile
+fn broken() -> &str {
+    let s = String::from("tmp");
+    &s // ERROR: `s` does not live long enough — returned ref would dangle
+}
+```
+
+The owner dies at the end of `broken`; the caller cannot hold `&str` afterward. Return owned `String`, or borrow from the caller’s data ([Chapter 4](04_lifetimes.md)).
+
+**6. `&mut` to one slice element vs whole `Vec`**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let mut frame = vec![0u8; 4];
+    let a = &mut frame[0];
+    let b = &mut frame[1]; // usually ok — different elements
+    *a = 1;
+    *b = 2;
+
+    let whole = &mut frame; // ERROR if `a` still live: borrow of entire vec
+    // whole.push(5);
+    println!("{:?}", frame);
+}
+```
+
+Borrowing **overlapping** parts of the same collection is the subtle case. Prefer one `&mut` to the whole `Vec`, or index without holding two element borrows across a mutating call.
+
+### When the compiler says no (Chapter 1 checklist)
+
+| Error (typical wording) | You probably did | Smallest fix |
+|-------------------------|------------------|--------------|
+| use of moved value | `let s2 = s1`, or passed `String` by value | borrow `&s1`, or clone, or use return value |
+| borrow of moved value | used binding after `consume(s)` | `consume(&s)` or receive owned return |
+| cannot borrow as **mutable** more than once | two `&mut` to same value | one mut borrow; restructure loop |
+| cannot borrow as mutable while **immutable** borrow is active | `let r = &s` then `s.push` | shrink `r`’s scope with `{ }` |
+| cannot move out of … because it is borrowed | move owner while `&owner` exists | drop borrows first, then move |
+| cannot assign to `*r` behind `&` reference | `*r = 5` on `&i32` | use `&mut` |
+| `does not live long enough` | return `&` to local | return `String` or borrow from caller |
+
+Read errors **top to bottom** — the first note is usually the root cause; later notes are often follow-on noise.
+
+### Why this matters for automation
+
+Control loops and serial parsers often run for hours. **Stack allocation is essentially free**; heap allocation is fine when you need it, but freeing at a known scope avoids GC pauses and makes worst-case latency easier to reason about — the same theme as [ownership vs GC](#ownership-vs-garbage-collection) above.
 
 ## Go deeper
 
@@ -65,14 +518,87 @@ fn main() {
 
 ## See also
 
-- [Chapter 3: Ownership](03_ownership_borrowing.md)
+- [Chapter 3: Iterators](03_iterators.md) — `iter` vs `into_iter` and borrow errors in chains
+- [Chapter 4: Lifetimes](04_lifetimes.md) — when references must be named in types
 - [Chapter 10: Multithreading](10_multithreading.md)
 
 ### Afterparty: AI Lego blocks
 
-1. **GC quiz** — “Quiz me: for 8 snippets, say whether Java GC, Python refcount, or Rust drop applies; then explain Rust’s case.”
-2. **Move drill** — “Give 5 tiny Rust snippets; I predict compile error or ok; you reveal answers with one-line fixes.”
-3. **Latency story** — “Explain stop-the-world GC pauses vs Rust drop for a 1 kHz control loop — 200 words, no jargon pile-up.”
-4. **Java habit** — “I wrote `clone()` everywhere in Java; how should I think about `clone()` in Rust? When is `.clone()` idiomatic vs a smell?”
-5. **Paradigm essay** — “In 150 words: what does ‘fearless concurrency’ mean if I only know Python’s GIL?”
-6. **Refactor fantasy** — “Take this Python class with shared mutable list; sketch the Rust struct + ownership split without full code.”
+Rust-only drills aligned with this chapter. Copy a prompt into your AI tutor; answer out loud before reading the reply.
+
+#### Ownership, moves, and `drop`
+
+1. **Move drill** — “Give 6 tiny Rust snippets mixing `String`, `Vec`, and `i32`. I predict `ok` or compile error; you reveal answers, quote the error message, and give the smallest fix.”
+2. **Rename, don’t copy** — “In ≤100 words, explain why Rust authors say a move is like **renaming** a value. Use `let s2 = s1` with `String`; say what still exists on the heap and what becomes invalid.”
+3. **Use-after-move decoder** — “Show one `println!` after a move that fails to compile. I explain the error in plain English; you refine my explanation and show the three fixes: borrow, `.clone()`, or restructure scope.”
+4. **Return transfers ownership** — “Write a function `fn take(s: String) -> String` and a `main` that calls it. I trace who owns the heap buffer at each line, including after the return.”
+5. **Move into a call** — “Snippet: `process(build_label())` where `build_label() -> String`. Explain when the heap allocation happens, when ownership moves into `process`, and when `drop` runs if `process` takes `String` by value.”
+6. **Scope and drop** — “Give a nested-block snippet with two `String`s and one `Vec`. I mark the exact line where each heap buffer is freed vs where stack slots disappear; you correct and explain drop order.”
+7. **Single-owner principle** — “State Rust’s rule ‘every value has exactly one owner’ in one sentence, then give one `String` example where breaking that rule would double-free. Use the key-handoff metaphor.”
+
+#### Stack, heap, and memory layout
+
+8. **Stack vs heap quiz** — “For 10 declarations (`i32`, `bool`, `[u8; 4]`, `String`, `Vec<i32>`, `&str`, `&String`, `(i32, f64)`, `Box<i32>`, `()`), I say stack-only, heap involved, or both; you draw the pointer picture for any I miss.”
+9. **String layout sketch** — “For `let s = String::from("hi")`, I describe stack fields (ptr, len, cap) and heap bytes; you correct and extend to `let v = vec![1, 2, 3]`.”
+10. **Stack frame drill** — “I give a 3-function call chain with `i32` locals and one `String` passed by value. Trace stack frame push/pop, when each slot dies, and when the `String` heap buffer is dropped.”
+11. **Pointer bump story** — “In ≤150 words, explain stack allocation as a pointer bump inside a function frame; contrast with heap allocation through the global allocator. Use three `i32` locals as a numeric example.”
+12. **Compile-time size** — “Quiz me on 10 Rust types: is the **value’s** size fixed at compile time? For each wrong answer, say what part (if any) still lives on the heap.”
+13. **Nested block live ranges** — “Snippet with `{ let inner = ... }` inside `main`. I list which bindings are alive on each line; you explain why shorter live ranges matter for borrowing later.”
+14. **Borrow without heap copy** — “Show `let s = String::from("x"); let r = &s;` — I explain what is on stack vs heap and why `r` does not duplicate the buffer; you add one line that would fail because of move/borrow conflict.”
+
+#### References and dereferencing (`&` and `*`)
+
+15. **`&` vs `&mut` pick** — “Five tasks (log a label, increment a tick counter, parse into a temp struct, share read-only config, swap two buffers in place). I choose pass-by-value, `&T`, or `&mut T`; you explain owner count and alias rules.”
+16. **Create the borrow** — “Given `let mut n = 10;` and `let s = String::from(\"plc\");`, I write the types and expressions for one `&` and one `&mut` borrow; you verify the owner is still usable afterward.”
+17. **When is `*` required?** — “Four expressions mixing `&i32`, `&mut i32`, and `println!`. I mark where explicit `*r` is needed vs where auto-deref handles it; you correct with compiled examples.”
+18. **Mutate through `*`** — “Fill in `fn reset(n: &mut u32) { ... }` and a `main` that calls it. I must use `*` to zero the caller’s value; you show a broken version that tries to reassign `n` instead.”
+19. **Reference copy vs move** — “After `let r1 = &s; let r2 = r1;` vs `let s2 = s1;`: I compare heap owner count, which bindings stay valid, and whether heap data was copied.”
+20. **Type of `*r`** — “Bindings `r: &i32`, `m: &mut i32`, `b: Box<i32>`. I name the type of `*r`, `*m`, and whether `*m = 5` mutates the owner; you extend with one `&T` where `*r = 5` fails.”
+21. **Borrow blocks mutation** — “Snippet: immutable `let r = &s;` then `s.push('!')`. I explain the compile error; you fix by shrinking `r`’s scope with a nested block.”
+22. **Java ref vs Rust borrow** — “In ≤120 words, contrast Java object references with Rust `&T`: ownership, GC, aliased mutation, and what the compiler proves before run time.”
+23. **Automation counter** — “Sketch a 1 kHz loop with `ticks: u64` and a helper `fn maybe_rollover(t: &mut u64)`. I write the call site and one `*t` mutation inside the helper; you review without full thread code.”
+
+#### Move vs mutable borrow
+
+24. **Move or `&mut` quiz** — “Six tasks (append to a reusable log line, send a message on a channel, fill a frame `Vec<u8>` in a loop, store a device name in a struct, transform-and-return a label, increment a counter). I pick `fn take(T)` move vs `fn tweak(&mut T)`; you explain who owns the heap data after the call.”
+25. **After the call** — “Two functions: `consume(String)` and `append_bang(&mut String)`. I trace which bindings in `main` are valid **after** each call and whether the heap buffer was dropped, reused, or returned.”
+26. **Fix the signature** — “Show code that moves a `String` into a helper but then tries to `println!` it in `main`. I explain the error and choose the smallest fix: change to `&mut String`, restructure with a return value, or `.clone()` — you rank the idiomatic options.”
+27. **Loop reuse** — “A serial parser reuses `let mut buf = Vec::with_capacity(256)` every tick. I explain why `parse_frame(buf)` (move) is wrong and write `parse_frame(&mut buf)` instead; you add one line showing the caller reading updated length after parse.”
+28. **Transform-and-return** — “Task: uppercase a `String` and give it back. I write `fn upper(s: String) -> String` and call site; you contrast with an anti-pattern that takes `&mut String` when ownership should transfer.”
+29. **`i32` vs `String` move** — “Same pattern with `fn add_one(n: i32)` and `fn add_bang(s: String)`: I explain why the caller can still use `n` after the call but not `s`; you map each to Copy vs heap move.”
+30. **Call it twice** — “Snippet that needs to pass the same `String` to two helpers in one scope. I show why two by-value calls fail, then fix with `&str`/`&mut` borrows or one move plus `.clone()`; you flag the smell.”
+31. **Key handoff story** — “Retell `consume` vs `append_bang` using the key-handoff metaphor: who holds the key during the call, who holds it after, and when the heap buffer is freed.”
+32. **API design judgment** — “Five public function stubs for a PLC config crate. I choose `String` vs `&mut String` vs `&str` for each parameter and return; you review for ownership clarity and allocation cost.”
+
+#### `Copy`, move, and `.clone()`
+
+33. **Copy eligibility quiz** — “Quiz me on 12 types (`i32`, `String`, `&str`, `Vec<i32>`, `[u8; 8]`, `(i32, String)`, `Box<i32>`, `fn()`, `bool`, `char`, `Rc<i32>`, struct with only `i32` fields). Copy, move, or ‘Copy only if derived’? Cite the rule each time.”
+34. **Copy vs Drop paradox** — “Why can’t a type be both `Copy` and `Drop`? Use a `File` or socket handle: show what goes wrong if assignment bitwise-copies the handle.”
+35. **Semantic copy test** — “For `i32`, `&T`, and `String`: if I duplicate the stack bits, is the result always semantically identical? When does it fail, and what does Rust do instead?”
+36. **Double-free thought experiment** — “Hypothetical: `String` were `Copy`. Walk line-by-line through `let a = ...; let b = a; }` end of block — show both drops freeing the same address. Contrast with real move semantics.”
+37. **Key vs photocopy vs rebuild** — “Explain move vs `Copy` vs `.clone()` using key handoff, photocopying a sheet of paper, and building a second house. Map each to stack handle, heap buffer, and runtime cost.”
+38. **When to derive Copy** — “I put `#[derive(Copy, Clone)]` on a struct with a `String` field — explain the error. Then give three struct shapes: safe to derive `Copy`, must stay move-only, and where `.clone()` belongs in the public API.”
+39. **Reference is Copy** — “Four snippets: `let r2 = r1` for `&String` vs `let s2 = s1` for `String`, plus one with `&mut`. I predict ok/error; you count owners of the heap buffer after each line.”
+40. **`.clone()` judgment** — “Five scenarios (store config `String`, pass into fn twice, cache key in a map, loop append, return from fn). For each, say move, borrow, or `.clone()` — and flag when `.clone()` is a design smell.”
+
+#### Idioms, automation, and preview topics
+
+41. **Deterministic drop latency** — “200 words: why scope-bound `drop` helps a 1 kHz automation loop reason about worst-case latency compared to heap churn every tick. Rust only; mention stack `i32` vs fresh `String` per iteration.”
+42. **Heap owner trace** — “I paste a 15-line snippet with `String`, `Vec`, and one function call. Step through owner count, move vs borrow vs clone, and every `drop` point.”
+43. **Read the compiler** — “Give one classic Chapter 1 borrow/move error. I rewrite the message as a helpful hint; you show the idiomatic fix and one anti-pattern to avoid.”
+44. **Zero-cost check** — “Explain what ‘zero-cost abstraction’ means for a Rust iterator over a `Vec<i32>` in `--release`. What should I inspect if I want proof (conceptually, not full ASM)?”
+45. **Option over sentinels** — “Rewrite a C-style `fn find(port: u16) -> i32` returning `-1` on failure into idiomatic Rust with `Option`. Explain why the type system carries intent.”
+46. **Fearless concurrency tease** — “Without full thread code: in ≤120 words, link ownership/borrow rules to ‘no data races in safe Rust.’ Name one sync type I will see in Part II.”
+47. **Automation struct sketch** — “Sketch a `SerialParser` struct for a long-running loop: which fields are `Copy`, which are owned heap types, which might be `&str` borrows — and why. No full implementation.”
+48. **Release vs debug habit** — “When benchmarking an automation hot path, what changes between `cargo run` and `cargo run --release` for stack locals and inlined iterator code? Keep it practical.”
+
+#### Compile errors and borrow edge cases
+
+49. **Checklist drill** — “Match 8 compiler errors from the Chapter 1 table to a one-line broken snippet; I name the fix (`&`, `&mut`, scope, clone, return owned).”
+50. **r then push** — “Show `let r = &s; s.push(...)` failing; I fix with a nested block; you explain the borrow lifetime in plain English.”
+51. **Double `&mut`** — “Two `&mut` to the same `Vec` in one scope — I explain the error and rewrite with one borrow or index-based mutation.”
+52. **Move while borrowed** — “Snippet: `let r = &s; let t = s;` — I predict the error and contrast with Java reference assignment.”
+53. **Call twice by value** — “Pass the same `String` to two `fn take(String)` calls; show failure; fix with `&str`, `clone`, or reorder — rank idiomatic choices.”
+54. **Return `&` to local** — “Explain `fn bad() -> &str` with a local `String`; sketch three fixes without full lifetime syntax yet.”
+55. **Frame buffer loan** — “`Vec<u8>` parser: I hold `&mut frame[0]` and try `frame.push` — explain overlapping borrow; show one safe pattern for automation.”
+56. **Error translator** — “Paste one real `E0382` or borrow error from the playground; I rewrite it as a one-sentence rule for future me; you tighten the wording.”

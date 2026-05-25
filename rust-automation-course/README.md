@@ -17,7 +17,7 @@ Think of the prompts as LEGO bricks: each one snaps onto what you just learned a
 |------|----------|--------|
 | **I** | 0–7 | Paradigm, types, ownership, traits |
 | **II** | 8–14 | Collections, concurrency, async, macros |
-| **III** | 15–16 | I/O, processes, automation capstone |
+| **III** | 15 | I/O, processes, bits |
 
 Start with [CONTENTS.md](CONTENTS.md). After each chapter, use prompts from [appendix/AI_PROMPT_INDEX.md](appendix/AI_PROMPT_INDEX.md). Authors and contributors: see [STYLE_GUIDE.md](STYLE_GUIDE.md).
 
@@ -30,7 +30,7 @@ rust-automation-course/
 ├── README.md           ← you are here
 ├── CONTENTS.md         ← full table of contents
 ├── STYLE_GUIDE.md      ← voice, playground rules, prompt format
-├── chapters/           ← main text (00–16)
+├── chapters/           ← main text (00–15)
 ├── appendix/           ← prompt index, playground guide, cheat sheet
 └── archive/            ← original course chapters (reference only)
 ```

@@ -12,30 +12,58 @@ Automation engineers, backend developers, and curious systems programmers are al
 - Framework churn (Axum vs Actix debates)
 - Long proofs about memory models
 
-What you *will* find: tight chapters, playground snippets, and **Afterparty** prompts — copy-paste questions for an AI tutor that reinforce each section.
+## What you will find — and why it looks this way
 
-## How to use the Afterparty prompts
+AI is a genuine shift in how we work with code. Classical “programming” — sitting alone and typing every line from a blank file — is no longer the whole job. **Software engineering** is what remains, and in many ways it is stronger: you read implementations, review them critically, shape plans, and turn ideas into precise prompts that something else drafts first. Ex-programmers, in that sense, are now **code readers**, **reviewers**, and **idea implementers**. Success depends less on keystrokes and more on whether you **understand** what the machine is doing, whether you can **feel** when a design is wrong, and whether your **technological thinking** is sharp enough to steer the result.
 
-After each chapter, open your favourite AI assistant and paste one prompt at a time. Treat the model as a **sparring partner**:
+This book is written for that reality. Each chapter stays close to **fundamentals** — no long academic tours — and gives you **examples to read** (playground snippets you can run and stare at) rather than encyclopedic coverage. At the end of every chapter you will find **Afterparty**: copy-paste prompts for an AI tutor, designed to drill the same concepts from different angles.
 
-1. Read the chapter (20–40 minutes).
-2. Run the **Playground** example yourself.
-3. Do 2–3 Afterparty prompts — insist on compiler-accurate answers.
-4. Optionally follow **Go deeper** links on [Functional Rust](https://hightechmind.io/rust/).
+Afterparty is not a shortcut around learning Rust. It is practice for the skill you need most now: **interrogate** generated answers, **catch** ownership and type mistakes before they ship, and **build** mental models that prompts alone cannot replace. Use the model as a sparring partner; you stay responsible for correctness and idiomatic style. That combination — tight fundamentals, readable examples, and deliberate AI-assisted review — is why this book exists and why Afterparty is part of its spine, not an appendix gimmick.
 
-Prompts are numbered globally in [appendix/AI_PROMPT_INDEX.md](../appendix/AI_PROMPT_INDEX.md) (101 prompts, **P001–P101**).
+Prompts are numbered globally in [appendix/AI_PROMPT_INDEX.md](../appendix/AI_PROMPT_INDEX.md) (200 prompts, **P001–P200**).
 
 Quick references: [Playground Guide](../appendix/PLAYGROUND_GUIDE.md) · [Java/Python/Rust map](../appendix/JAVA_PYTHON_RUST_MAP.md)
 
-## Suggested pace
+## Toolchain: rustup and Cargo
 
-| Part | Chapters | Rough time |
-|------|----------|------------|
-| I | 0–7 | 12–18 h |
-| II | 8–14 | 14–20 h |
-| III | 15–16 | 6–10 h |
+Install Rust with **rustup** (toolchain manager) and build with **Cargo** (package manager, build system, test runner):
 
-Adjust for depth; concurrency chapters reward repetition.
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo new my_app --bin
+cd my_app && cargo run
+```
+
+| Concept | In Rust |
+|---------|---------|
+| Package manager | **Cargo** — deps, build, test, run |
+| Manifest | `Cargo.toml` — name, version, edition, dependencies |
+| Lockfile | `Cargo.lock` — pinned versions for reproducible builds |
+| Entry point | `fn main()` in `src/main.rs` |
+| Crate registry | [crates.io](https://crates.io) |
+
+Every binary crate follows the same shape: one `Cargo.toml`, one `src/main.rs`, commands through `cargo run` and `cargo test`. Prefer that workflow over invoking `rustc` directly.
+
+`env!("CARGO_PKG_NAME")` embeds a **compile-time** string from `Cargo.toml` into your binary — not the same as reading OS environment variables at runtime (`std::env::var`).
+
+**Cargo only** — first project locally:
+
+```toml
+# Cargo.toml
+[package]
+name = "hello_rust"
+version = "0.1.0"
+edition = "2021"
+```
+
+```rust
+// src/main.rs
+fn main() {
+    println!("Hello from {}", env!("CARGO_PKG_NAME"));
+}
+```
+
+> **One binary, one manifest.** Commit `Cargo.lock` for applications (automation tools, CLIs); library crates often omit it from version control.
 
 ## Conventions
 
@@ -46,11 +74,3 @@ Adjust for depth; concurrency chapters reward repetition.
 
 - [CONTENTS.md](../CONTENTS.md) — full map
 - [Chapter 1: Paradigm shift](01_paradigm_shift.md) — start here after this page
-
-### Afterparty: AI Lego blocks
-
-1. **Learning plan** — “I know Java and Python. Based on this preface, build me a 2-week study plan using only this book’s chapter list; 45 minutes per day.”
-2. **Gap check** — “Ask me five quick questions to see if I should skip straight to Chapter 3 (ownership) or read Chapters 1–2 first.”
-3. **Prompt practice** — “Give me one sample Afterparty-style question about ownership; I will answer; you grade like a Rust teacher.”
-4. **Motivation map** — “List three real projects (automation, CLI, service) where Rust’s ownership model wins over GC; no hype.”
-5. **Glossary seed** — “Define in one sentence each: ownership, borrow, trait, async, atomics — I will refine after reading Part I.”

@@ -1,9 +1,0 @@
-{
-  "data": {
-    "message": "Hello, Blockchain!",
-    "value": 42
-  },
-  "encrypted": false,
-  "timestamp": 1753638518,
-  "block": "50ae719ffea8301f886dd737433254eb14589a2fc19d1ebda2fe4f71099319d0"
-}

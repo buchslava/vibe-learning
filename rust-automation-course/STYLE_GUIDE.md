@@ -58,11 +58,11 @@ Format:
 
 Prompts should be **active**: quiz, refactor, explain error, compare three approaches, design mini-API.
 
-Every chapter’s prompts are catalogued in [appendix/AI_PROMPT_INDEX.md](appendix/AI_PROMPT_INDEX.md) as **P001–P101**.
+Every chapter’s prompts are catalogued in [appendix/AI_PROMPT_INDEX.md](appendix/AI_PROMPT_INDEX.md) as **P001–P200**.
 
 ## Crosslinks
 
-Use relative paths: `[Chapter 3](chapters/03_ownership_borrowing.md#borrowing)`
+Use relative paths: `[Chapter 1](chapters/01_paradigm_shift.md#references-borrowing-and-dereferencing)`
 
 ## Archival material
 

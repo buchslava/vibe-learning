@@ -12,7 +12,7 @@ One-page orientation. Details live in linked chapters.
 | Exceptions | `throw` / `catch` | `raise` | `Result` + `panic!` |
 | Immutability default | fields optional | variables rebind | `let` immutable |
 
-→ [Ch 1 Paradigm](../chapters/01_paradigm_shift.md), [Ch 3 Ownership](../chapters/03_ownership_borrowing.md)
+→ [Ch 1 Paradigm](../chapters/01_paradigm_shift.md#ownership-vs-garbage-collection)
 
 ## Types and polymorphism
 
@@ -34,7 +34,7 @@ One-page orientation. Details live in linked chapters.
 | Loop style | indexed for | `for x in` | `for x in iter` / iterators |
 | Comprehensions | streams (Java 8+) | list comp | iterator adapters |
 
-→ [Ch 8 Collections](../chapters/08_collections_iterators.md)
+→ [Ch 3 Iterators](../chapters/03_iterators.md) · [Ch 8 Collections](../chapters/08_collections_iterators.md) (`Vec`, `HashMap`)
 
 ## Concurrency
 
@@ -55,7 +55,7 @@ One-page orientation. Details live in linked chapters.
 | Subprocess | `ProcessBuilder` | `subprocess` | `Command` |
 | Binary data | `ByteBuffer` | `bytes`, `struct` | `u8`, slices, `to_be_bytes` |
 
-→ [Ch 15–16](../chapters/15_io_processes_bits.md)
+→ [Ch 15](../chapters/15_io_processes_bits.md)
 
 ## Package management
 
@@ -63,7 +63,7 @@ One-page orientation. Details live in linked chapters.
 |------|--------|------|
 | Maven / Gradle | pip / poetry | Cargo + crates.io |
 
-→ [Ch 2 Toolchain](../chapters/02_toolchain_and_types.md)
+→ [Ch 2 Types](../chapters/02_types.md)
 
 ## Habits to unlearn
 
