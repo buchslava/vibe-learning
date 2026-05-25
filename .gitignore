@@ -23,14 +23,6 @@ Cargo.toml.bak
 ehthumbs.db
 Thumbs.db
 
-# Project-specific data directories
-/blockchain/
-/storage/
-/keys/
-/test_blockchain*/
-/test_storage/
-/test_keys/
-
 # Logs
 *.log
 
