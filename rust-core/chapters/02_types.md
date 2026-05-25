@@ -2,7 +2,7 @@
 
 ## Hook
 
-Rust’s type system is not ceremony. The compiler uses it to check ownership, catch bugs, and keep your code predictable **before** you run anything. This chapter maps the built-in types, how inference works, and the expression-style control flow you will see in every idiomatic crate.
+Rust’s type system is not ceremony. The compiler uses it to check ownership, catch bugs, and keep code predictable **before** you run anything. This chapter covers built-in types, inference, and expression-style control flow.
 
 ## Integer types
 
@@ -96,7 +96,7 @@ fn main() {
 }
 ```
 
-Growable `Vec<T>` and ownership rules for slices come back in [Chapter 1](01_paradigm_shift.md#references-borrowing-and-dereferencing) and [Chapter 11](11_collections.md).
+Growable `Vec<T>` and slice ownership return in [Chapter 1](01_paradigm_shift.md#references-borrowing-and-dereferencing) and [Chapter 11](11_collections.md).
 
 ## Slices
 
@@ -128,7 +128,7 @@ fn main() {
 
 **Indexing:** `[i]` on a slice is a direct access. Out-of-range indices **panic** at runtime.
 
-Prefer `.get(i) -> Option<&T>` when the index comes from user input, parsed fields, or loop math you have not proven safe.
+Prefer `.get(i) -> Option<&T>` when the index comes from user input, parsed fields, or unproven loop math.
 
 ```rust
 // Playground
@@ -205,7 +205,7 @@ fn main() {
 
 Rust **coerces** `&String` to `&str` at call sites. So `fn f(s: &str)` is the default for read-only string parameters.
 
-Take `String` when the function must **own** the data — for example, to store in a struct, spawn a thread, or insert into a map keyed by owned text.
+Take `String` when the function must **own** the data — to store it, spawn a thread, or key a map.
 
 ### Length, iteration, and slicing text
 
@@ -354,9 +354,7 @@ fn main() {
 - [Chapter 4: Iterators](04_iterators.md)
 - [Chapter 6: Enums and pattern matching](06_types_enums_pattern_matching.md)
 
-### Afterparty: AI Lego blocks
-
-Rust-only drills aligned with this chapter. Copy a prompt into your AI tutor; answer out loud before reading the reply.
+### Afterparty
 
 #### Scalars and inference
 

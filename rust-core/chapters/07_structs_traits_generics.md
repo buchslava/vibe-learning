@@ -31,13 +31,7 @@ fn main() {
 
 ## Traits — interfaces done right
 
-If you know **Java** or **Python**, a **trait** may feel unfamiliar at first — and it is often the most useful piece.
-
-**What it is.** A trait names a **capability** or **contract**: a set of methods any type can opt into. `Reading`, `Alarm`, and a third struct do not need a common base class. Each implements `Summary` (or not) in its own `impl` block.
-
-**Aim.** Traits let unrelated types share behaviour **without inheritance**. You write `fn print_summary(item: &impl Summary)` once. Anything that implements `Summary` can be passed in — like a Java interface parameter or a Python function that “just calls `.summarize()`”. Rust checks that at **compile time**.
-
-**Motivation.** Rust deliberately has no subclassing. Traits replace “extend a base class to get polymorphism” with **composition**: small data types (`struct` / `enum`) plus explicit `impl Trait for Type`. When the protocol grows, you add a method to the trait. The compiler lists every type that must be updated — no silent runtime `AttributeError`, no forgotten override in a distant subclass.
+If you know **Java** or **Python**, a **trait** names a **capability** any type can opt into — shared behaviour **without inheritance**, checked at compile time. The table below maps the habit; then the examples.
 
 **Why traits are a win**
 
@@ -538,11 +532,11 @@ Use integer fixed-point, ordered floats (`ordered-float`), or derive only `Parti
 
 ### Idiom spotlight (enums + traits)
 
-> **Model closed protocol/state sets as `enum`, not strings.** Put heavy data in named **struct** variants; implement **traits** with exhaustive `match`.
+> **Model closed sets as `enum`, not strings.** Put data in struct variants; implement traits with exhaustive `match`.
 >
-> **Add a variant → compiler updates your checklist.** That is Rust replacing inheritance: no forgotten `else` when the PLC adds fault code 0x07.
+> **New variant → compiler updates your checklist** — no forgotten `else` when the PLC adds a fault code.
 >
-> **Prefer `&self` methods on enums** unless consuming the value is intentional — avoids partial-move footguns when composing helpers.
+> **Prefer `&self` on enums** unless you intentionally consume the value.
 
 ## Generics
 
@@ -580,7 +574,9 @@ fn main() {
 
 ## Trait objects (`dyn Trait`)
 
-**Generics and `impl Trait`** pick the concrete type at **compile time**. The compiler monomorphizes — one machine-code copy per type. A **`dyn Trait`** value is **runtime polymorphism**: one variable, many concrete types, resolved through a **vtable** (virtual method table). Java `Interface` references and Python “anything with `.greet()`” at runtime are closer to this model.
+**Generics and `impl Trait`** pick the concrete type at **compile time** — monomorphized, no vtable.
+
+**`dyn Trait`** is runtime polymorphism through a vtable — like Java interface references or Python duck typing at runtime. Prefer `impl Trait` when types are known at compile time; use `dyn Trait` for mixed-type collections.
 
 ### What you actually store
 
@@ -983,9 +979,9 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 
 ## Idiom spotlight
 
-> **Default: `impl Trait` / generics (static dispatch).** Use **`dyn Trait`** for runtime plug-in lists, factories that erase type, or FFI-style extension points — and prefer **`enum`** when the variant set is closed and owned by your crate.
+> **Default: `impl Trait` / generics (static dispatch).** Use **`dyn Trait`** for runtime plug-in lists or return-type erasure — and **`enum`** when the variant set is closed.
 >
-> **`&dyn Trait`** when callers own the concrete values; **`Box<dyn Trait>`** when you need an owning homogeneous collection or return type erasure.
+> **`&dyn Trait`** when callers own values; **`Box<dyn Trait>`** for owning heterogeneous collections.
 
 ## Go deeper
 
@@ -998,9 +994,7 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 - [Chapter 11: Collections](11_collections.md)
 - [Chapter 16: Async traits](16_async_tokio.md) (advanced)
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — quote error text, show fixed code, and say *why*.
+### Afterparty
 
 #### Structs and inherent `impl`
 

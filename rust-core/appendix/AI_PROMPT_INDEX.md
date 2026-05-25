@@ -1,6 +1,6 @@
 # AI Prompt Index
 
-All **Afterparty: AI Lego blocks** from the book, numbered for reuse. Paste into any AI assistant after reading the linked chapter.
+All **Afterparty** prompts from the book, numbered for reuse. Paste into any AI assistant after reading the linked chapter.
 
 ## How to use Afterparty
 

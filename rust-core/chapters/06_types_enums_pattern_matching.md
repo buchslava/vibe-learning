@@ -411,7 +411,7 @@ Long chains of `if let` on the same value are a smell — switch to `match` for 
 | Stringly-typed states | `"IDLE"`, `"RUN"` | `enum Mode { Idle, Run }` |
 | Unchecked union | `isinstance` ladders | one `match` on `enum` |
 
-**Python `match` (3.10+)** looks similar to Rust but is structural on objects; Rust `match` is tied to **algebraic types** and ownership (moves from patterns).
+**Python `match` (3.10+)** looks like Rust but matches object structure; Rust `match` ties to **algebraic types** and ownership.
 
 ## Service-shaped example
 
@@ -441,7 +441,7 @@ Adding `ReadOutcome::Disconnected` later without updating `handle` → **compile
 
 ## Advanced patterns
 
-These patterns tighten real parsers and config loaders — same domain as the service example above.
+Patterns for parsers and config loaders — same domain as the service example above.
 
 ### Slice patterns — split a command line
 
@@ -577,7 +577,9 @@ fn main() {
 }
 ```
 
-## When the compiler says no (enum / match checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -612,9 +614,7 @@ fn main() {
 - [Chapter 7: Traits](07_structs_traits_generics.md) — traits on enums, `impl` blocks
 - [Chapter 17: Metaprogramming](17_metaprogramming.md) — `matches!` macro
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor. Insist on compiler-accurate answers.
+### Afterparty
 
 #### `Option` and null habits
 

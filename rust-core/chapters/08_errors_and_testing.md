@@ -6,7 +6,7 @@ Many languages use exceptions for control flow (**Java** checked/unchecked throw
 
 **Why `panic!` / `unwrap()` in production is a bad idea**
 
-A **panic** stops normal execution — the thread unwinds and the process often **exits**. That is acceptable for bugs you truly cannot continue past (broken invariant, prototype code, tests). It is a poor default for **expected** failures: bad config, device offline, corrupt frame, timeout.
+A **panic** stops the thread — often the whole process. Use it for bugs, not for expected failures like bad config or offline devices.
 
 | Expected failure (data) | Panic (crash) |
 |-------------------------|---------------|
@@ -14,9 +14,7 @@ A **panic** stops normal execution — the thread unwinds and the process often 
 | Return `Err` to caller — choose fallback port or safe state | No chance to enter **safe mode** or drain the queue |
 | Error is **typed and testable** in the signature | Failure is a **surprise** at a random `unwrap()` line |
 
-In Java/Python you might catch at the boundary. In Rust, **`unwrap` on a bad Modbus port or missing config file is not “like an exception you’ll handle later”** — it kills the process unless you built a catch-unwind boundary (rare in automation).
-
-Long-running services should **`match` / `?` `Result` at the edges**, log structured errors, and keep polling. Reserve `panic!` and `expect` for “this should never happen if the program is correct” — not for user input, network, or field hardware. See also [Chapter 6 — avoid `unwrap` in automation](06_types_enums_pattern_matching.md#option-edge-cases-and-compiler-traps).
+At service boundaries, use **`?` on `Result`** — not `unwrap` on ports, config, or field I/O. Full panic mechanics below; see also [Chapter 6 — avoid `unwrap` in automation](06_types_enums_pattern_matching.md#option-edge-cases-and-compiler-traps).
 
 ## Panic, unwind, and why it is not `Result`
 
@@ -298,7 +296,7 @@ Std error types are **correct** and **zero-dependency** — perfect for tutorial
 | **Library crate / gateway core** | **`enum` + `thiserror`** | derive `Error`, `#[from]`, `#[error("…")]` |
 | **Binary / CLI / service `main`** | **`anyhow::Result`** | `.context("while loading config")` chains |
 
-**Honest take:** count **`thiserror` in** for any library or long-lived automation core you expect to maintain. Use std errors directly while learning. Switch before you ship.
+**Honest take:** add **`thiserror`** to any library or gateway core you will maintain. Use std errors while learning; switch before you ship.
 
 ## Custom errors
 
@@ -355,7 +353,7 @@ impl fmt::Display for AppError {
 impl std::error::Error for AppError {}
 ```
 
-Add `source()` when wrapping `io::Error` — another ~10 lines per variant. Fine once; tedious at scale.
+Add `source()` when wrapping `io::Error` — another ~10 lines per variant. **`thiserror` generates this for you.**
 
 **Chaining with `?` across error types** — implement `From`:
 
@@ -377,7 +375,7 @@ fn set_port_from(s: &str) -> Result<u16, AppError> {
 
 ### `thiserror` in production — count it in
 
-For libraries and gateway cores, **`thiserror`** is the default choice. One derive replaces manual `Display` + `Error` + `From`.
+For libraries and gateway cores, **`thiserror`** replaces manual `Display` + `Error` + `From` with one derive.
 
 **Cargo.toml:**
 
@@ -520,7 +518,7 @@ fn main() {
 
 ## Errors and enums
 
-Your error type **is an enum** — the same sum-type machinery as `Option`, `Result`, and domain enums in [Chapter 6](06_types_enums_pattern_matching.md). [Chapter 7](07_structs_traits_generics.md) applies too: use **`match`** in helpers and **`#[derive(Error)]`** instead of hand-written trait impls.
+Your error type **is an enum** — same machinery as `Option`, `Result`, and domain enums in [Chapter 6](06_types_enums_pattern_matching.md). Use **`match`** in helpers and **`#[derive(Error)]`** instead of hand-written trait impls ([Chapter 7](07_structs_traits_generics.md)).
 
 ### Variant shapes for errors
 
@@ -548,7 +546,7 @@ enum GatewayError {
 | **`Command`** (domain) | what the PLC sends | dispatch behaviour |
 | **`AppError`** (error) | what went wrong | recovery / logging / exit codes |
 
-Do not fold `Command::Stop` and `AppError::Timeout` into one enum. They have different lifecycles and different exhaustiveness stories.
+Do not merge domain commands and error variants into one enum — they have different lifecycles.
 
 ### Recovery by variant
 
@@ -817,9 +815,7 @@ mod table {
 - [Chapter 7: Enums + traits](07_structs_traits_generics.md#enums-structs-and-traits-together) — same enum machinery for errors
 - [Chapter 19: I/O errors](19_io_processes_bits.md)
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers and quote panic vs `Result` behaviour.
+### Afterparty
 
 #### Error propagation
 

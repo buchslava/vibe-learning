@@ -2,15 +2,11 @@
 
 ## Hook
 
-Lists and maps are workhorses in most languages (**Python** lists/dicts, **Java** `ArrayList`/`HashMap`, …).
-
-Rust’s standard collections are **generic**, **ownership-aware**, and pair naturally with iterator pipelines from [Chapter 4](04_iterators.md).
-
-Closures in collection methods (`.sort_by`, `.retain`) are covered in [Chapter 12](12_closures.md).
+Lists and maps are workhorses in most languages (**Python** lists/dicts, **Java** `ArrayList`/`HashMap`, …). Rust’s standard collections are **generic**, **ownership-aware**, and pair with iterator pipelines from [Chapter 4](04_iterators.md). Closures in `.sort_by` and `.retain` appear in [Chapter 12](12_closures.md).
 
 ## Scope — a brief tour
 
-This chapter covers **`std` collections** you will use daily — not every crate (`indexmap`, `smallvec`, etc.) or custom allocators.
+Daily `std` collections — not third-party crates or custom allocators.
 
 | This chapter covers | Deferred |
 |---------------------|----------|
@@ -121,7 +117,7 @@ fn main() {
 }
 ```
 
-**Why:** `push` may reallocate — the old reference would dangle. Finish using `r` before mutating.
+**Why:** `push` may reallocate. The old reference would dangle. Finish using `r` before mutating.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
@@ -229,7 +225,7 @@ fn bump(m: &mut HashMap<String, i32>, key: &str) {
 
 **Idiomatic:** `*m.entry(key.to_string()).or_insert(0) += 1;`
 
-**Borrow while iterating:** you cannot mutably insert while iterating the same map — iterator invalidation. Collect keys first, or use `entry` outside the loop body without holding an iterator borrow.
+**Borrow while iterating:** you cannot mutably insert while iterating the same map. Collect keys first, or use `entry` outside the loop.
 
 | Error / symptom | Cause | Fix |
 |-----------------|-------|-----|
@@ -429,7 +425,9 @@ fn main() {
 
 Building `HashMap<String, i32>` from owned strings requires **`into_iter`** or cloning keys.
 
-## When the compiler says no (checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -462,9 +460,7 @@ Building `HashMap<String, i32>` from owned strings requires **`into_iter`** or c
 - [Chapter 1: Borrowing](01_paradigm_shift.md#references-borrowing-and-dereferencing)
 - [Chapter 7: Generics](07_structs_traits_generics.md)
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor after running the Playground examples.
+### Afterparty
 
 #### Choosing and comparing collections
 

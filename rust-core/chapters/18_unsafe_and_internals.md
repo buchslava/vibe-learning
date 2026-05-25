@@ -2,11 +2,11 @@
 
 ## Hook
 
-Every ecosystem has escape hatches for performance or FFI — **Java** `sun.misc.Unsafe`, **Python** C extensions, Rust **`unsafe` blocks**. Rust keeps the same power in **`unsafe` blocks** — but the **borrow checker is off inside**, and you must uphold invariants the compiler cannot verify.
+Every ecosystem has escape hatches — **Java** `sun.misc.Unsafe`, **Python** C extensions, Rust **`unsafe` blocks**. Inside `unsafe`, the borrow checker is off. You must uphold invariants the compiler cannot verify.
 
-## Scope — a brief tour, not the whole nomicon
+## Scope — a brief tour
 
-`unsafe` Rust is a large topic. This chapter is a practical intro — enough to read library internals, wrap a C SDK sketch, and know when to stop. It is not a guide to custom allocators, formal memory models, or authoring proc macros that emit `unsafe impl`. Use **Afterparty** prompts and **Go deeper** for invariant lists, JNI vs FFI, and gateway capstone designs.
+Practical intro to reading `unsafe`, wrapping FFI, and knowing when to stop — not the full Nomicon.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -17,19 +17,9 @@ Every ecosystem has escape hatches for performance or FFI — **Java** `sun.misc
 | FFI orientation + checklist | Full `bindgen` / `cxx` walkthrough |
 | When **not** to use `unsafe` + Miri intro | Miri deep dives, fuzzing proc macros |
 
-This chapter builds on [Chapter 14](14_multithreading.md) (`Send`/`Sync`), [Chapter 15](15_atomics_and_lockfree.md) (`static mut` races), [Chapter 17](17_metaprogramming.md) (ecosystem `unsafe impl`), and points forward to [Chapter 19](19_io_processes_bits.md):
-
-```mermaid
-flowchart LR
-  ch10[Ch14 Send Sync] --> ch14[Ch18 unsafe]
-  ch11[Ch15 atomics] --> ch14
-  ch13[Ch17 macros] --> ch14
-  ch14 --> ch15[Ch19 IO]
-```
-
 ## Why `unsafe` exists — the aim
 
-Rust’s default contract: **if your code compiles and uses only safe Rust, it cannot cause undefined behavior (UB).** That promise is **soundness**. `unsafe` is how the language implements that promise under the hood — and how **you** opt in when the compiler cannot see the full story.
+Rust’s default contract: **safe Rust that compiles cannot cause undefined behavior (UB).** That promise is **soundness**. `unsafe` implements that promise under the hood. It is also how **you** opt in when the compiler cannot see the full story.
 
 | Role | Plain language |
 |------|----------------|
@@ -44,7 +34,7 @@ Rust’s default contract: **if your code compiles and uses only safe Rust, it c
 | **Python** | C extension modules | Extension author; CPython users trust maintainers |
 | **Rust** | `unsafe` blocks / fns / traits | **You** document invariants; safe API must still be **sound** |
 
-**Key idea:** `unsafe` does **not** turn off all rules. Safe functions that call `unsafe` must still uphold Rust’s global soundness — callers of your safe `open_port()` must never get UB from correct use.
+**Key idea:** `unsafe` does **not** turn off all rules. Safe functions that call `unsafe` must uphold Rust’s global soundness. Callers of your safe `open_port()` must never get UB from correct use.
 
 ## What `unsafe` allows
 
@@ -57,7 +47,7 @@ Four operations only possible inside `unsafe` (or in an `unsafe fn` body):
 | `unsafe impl` trait | `Send` / `Sync` for custom handles | `@GuardedBy` — manual proof |
 | Mutable `static` | global state (avoid in app code) | `static` fields; module-level globals |
 
-Safe Rust **around** `unsafe` must still be **sound**: a safe public API must not let callers trigger UB through normal use.
+Safe Rust **around** `unsafe` must still be **sound**. A safe public API must not let callers trigger UB through normal use.
 
 ### Soundness vs safety
 
@@ -154,7 +144,7 @@ fn main() {
 }
 ```
 
-**What happened:** works here because `data` is stack-allocated and lives for `'static` in this toy — **misleading** `-> &'static` in real code. Production wrappers return `&[u8]` tied to an **owner** lifetime, or **copy** into `Vec`.
+**What happened:** works here because `data` is stack-allocated and lives for `'static` in this toy. **`-> &'static`** is **misleading** in real code. Production wrappers return `&[u8]` tied to an **owner** lifetime, or **copy** into `Vec`.
 
 **Wrong (UB — do not run):** use `p` after `data` is dropped → dangling deref. Afterparty drills invariant lists.
 
@@ -204,7 +194,7 @@ fn main() {
 }
 ```
 
-**What happened:** prints **`[170, 187]`** (`0xAA`, `0xBB`). `set_len_unchecked` is `unsafe` because a wrong `len` would make `as_slice()` read **uninitialized** or **out-of-bounds** memory — same idea as `Vec`’s internal length updates.
+**What happened:** prints **`[170, 187]`** (`0xAA`, `0xBB`). `set_len_unchecked` is `unsafe` because a wrong `len` makes `as_slice()` read **uninitialized** or **out-of-bounds** memory. Same idea as `Vec`’s internal length updates.
 
 ### Level 4 — Hard: `unsafe impl Send` for an opaque handle
 
@@ -242,7 +232,7 @@ fn main() {
 }
 ```
 
-**What happened:** both threads print **`fd=3 ok`**. Without `unsafe impl Send`, `thread::spawn(move || h2...)` would **not compile**. Production code often uses crates like `serialport` (safe API, `unsafe` inside) so you rarely write this — but you may **read** it in driver wrappers.
+**What happened:** both threads print **`fd=3 ok`**. Without `unsafe impl Send`, `thread::spawn(move || h2...)` would **not compile**. Production code often uses crates like `serialport` (safe API, `unsafe` inside). You rarely write this yourself — but you may **read** it in driver wrappers.
 
 `Sync` is a separate proof (sharing `&T` across threads) — often `Arc<Mutex<...>>` instead of hand-rolled `unsafe impl Sync`.
 
@@ -299,7 +289,7 @@ Hot path slow?
   └─ then SIMD crate or expert-reviewed unsafe
 ```
 
-**CRC / Modbus example:** prefer Rust `crc` crate or pure-Rust protocol code over pasting C `unsafe` unless the C library is **required** by hardware vendor and already audited.
+**CRC / Modbus example:** prefer the Rust `crc` crate or pure-Rust protocol code over pasting C `unsafe`. Use C only when a hardware vendor **requires** it and the library is audited.
 
 ## `unsafe fn` and `unsafe trait`
 
@@ -321,7 +311,7 @@ Ecosystem [Chapter 17](17_metaprogramming.md) derives may emit `unsafe impl` in 
 | Threads | Is the C API thread-safe? Match with `Send`/`Sync` proofs |
 | Errors | `errno` vs return codes — map to `Result` in safe wrapper |
 
-**Java JNI parallel:** local/global refs, exception checking, and “who owns the buffer” mirror Rust’s pointer + lifetime discipline — Rust catches more at compile time in safe code, but **FFI is still manual proof**.
+**Java JNI parallel:** local/global refs, exception checking, and “who owns the buffer” mirror Rust’s pointer + lifetime discipline. Rust catches more at compile time in safe code. **FFI is still manual proof**.
 
 ## Miri — when to run it
 
@@ -385,9 +375,7 @@ Most application code **never** needs `unsafe` in *your* crate — depend on mai
 - [Chapter 17: Metaprogramming](17_metaprogramming.md) — derive-generated `unsafe impl`
 - [Chapter 19: I/O](19_io_processes_bits.md) — `Read`/`Write`, processes, binary frames
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers — quote UB vs compile errors, show fixed code, and say *why*.
+### Afterparty
 
 #### Why unsafe and soundness
 

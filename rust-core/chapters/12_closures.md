@@ -2,11 +2,11 @@
 
 ## Hook
 
-You already used closures in [Chapter 4](04_iterators.md) — `|x| x * 2` inside `.map()`. A **closure** is an anonymous function that can **capture** variables from its surrounding scope. Rust classifies captures as **`Fn`**, **`FnMut`**, or **`FnOnce`**, which controls where you can store and call them.
+You already used closures in [Chapter 4](04_iterators.md) — `|x| x * 2` inside `.map()`. A **closure** is an anonymous function that can **capture** variables from its scope. Rust classifies captures as **`Fn`**, **`FnMut`**, or **`FnOnce`**. That controls where you can store and call them.
 
 ## Scope — a brief tour
 
-Closures show up everywhere in Rust — iterator adapters, sort hooks, thread callbacks. This chapter covers capture modes, the `Fn*` traits, storage, and common traps. It is not a full treatment of async closures or thread pools — those live in [Chapter 16](16_async_tokio.md) and [Chapter 14](14_multithreading.md).
+Capture modes, `Fn*` traits, storage, and traps — not async closures or thread pools.
 
 | This chapter covers | Deferred |
 |---------------------|----------|
@@ -98,7 +98,7 @@ fn main() {
 
 ## Closures and iterator adapters
 
-`.map`, `.filter`, `.for_each` take closures. The iterator holds the closure and calls it for each item — so the closure must match the adapter’s trait bound:
+`.map`, `.filter`, and `.for_each` take closures. The iterator holds the closure and calls it per item. The closure must match the adapter’s trait bound:
 
 ```rust
 // Playground
@@ -185,7 +185,7 @@ fn main() {
 }
 ```
 
-`Box<dyn Fn(...)>` homogenizes closures into one type for a `Vec`. Each closure may capture different data, but the **signature** must match. Prefer `impl Fn` in helpers that do not need storage — boxing adds heap allocation and dynamic dispatch.
+`Box<dyn Fn(...)>` homogenizes closures into one type for a `Vec`. Each closure may capture different data, but the **signature** must match. Prefer `impl Fn` in helpers that do not need storage. Boxing adds heap allocation and dynamic dispatch.
 
 ## Sort and filter with closures
 
@@ -305,11 +305,11 @@ fn main() {
 }
 ```
 
-Without `move`, the closure would borrow `label` — but the thread may outlive the stack frame. `move` transfers ownership into the closure.
+Without `move`, the closure would borrow `label`. The thread may outlive the stack frame. `move` transfers ownership into the closure.
 
 ## Async closure note
 
-Tokio and async code often use `async move { ... }` blocks — closures that return futures. Same capture rules apply: `move` when the task outlives the current scope. Full async trait and `Pin` details are in [Chapter 16](16_async_tokio.md); here the habit is identical to sync closures.
+Tokio and async code often use `async move { ... }` blocks. Same capture rules apply: use `move` when the task outlives the current scope. Full async trait and `Pin` details are in [Chapter 16](16_async_tokio.md).
 
 ```rust
 // Cargo only — needs tokio in Cargo.toml: tokio = { version = "1", features = ["rt", "macros"] }
@@ -329,7 +329,9 @@ Tokio and async code often use `async move { ... }` blocks — closures that ret
 | Capture | effectively final | full closure | borrow / move checked |
 | Store in field | functional interface type | any callable | `Box<dyn Fn()>` or generic `F: Fn()` |
 
-## When the compiler says no (closure checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -358,7 +360,7 @@ Tokio and async code often use `async move { ... }` blocks — closures that ret
 - [Chapter 7: Traits](07_structs_traits_generics.md) — trait bounds on generics
 - [Chapter 14: Multithreading](14_multithreading.md) — `move` + `spawn`
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
 #### Capture and traits
 

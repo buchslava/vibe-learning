@@ -2,11 +2,11 @@
 
 ## Hook
 
-Rust’s standard library is built on **traits** — shared behaviour you opt into with `impl` or `#[derive]`.
-
-This chapter covers formatting, comparison, conversion, and flexible-argument traits you see in almost every crate. Deep mechanics (`dyn`, object safety) stay in [Chapter 7](07_structs_traits_generics.md). Here the focus is **idioms**.
+Rust’s standard library is built on **traits** — shared behaviour you opt into with `impl` or `#[derive]`. This chapter covers formatting, comparison, conversion, and flexible-argument traits you see in almost every crate. Deep mechanics (`dyn`, object safety) stay in [Chapter 7](07_structs_traits_generics.md). Here the focus is **idioms**.
 
 ## Scope — a brief tour
+
+Formatting, comparison, and conversion traits — not custom `Formatter` depth or Serde derives.
 
 | This chapter covers | Deferred |
 |---------------------|----------|
@@ -167,7 +167,7 @@ fn main() {
 | `{:04}` | width 4, zero-pad | register ids |
 | `{:X}` / `{:02X}` | hex | byte dumps (`HexBytes` above) |
 
-For file paths in CLI tools, accept `impl AsRef<Path>` — path formatting in user messages is in [Chapter 19](19_io_processes_bits.md#cli-utility--paths-env-and-time).
+For CLI path helpers, accept `impl AsRef<Path>`. User-facing path formatting is in [Chapter 19](19_io_processes_bits.md#cli-utility--paths-env-and-time).
 
 ## Default
 
@@ -307,7 +307,7 @@ fn main() {
 
 Std library is full of `From`: `String::from("text")`, `Vec::from([1, 2])`, etc.
 
-**`?` and `From`:** error conversion in `?` uses `From` ([Chapter 8](08_errors_and_testing.md)) — implement `From<ParseIntError> for MyError` once, then `parse()?` works inside `fn -> Result<_, MyError>`.
+**`?` and `From`:** `?` converts errors via `From` ([Chapter 8](08_errors_and_testing.md)). Implement `From<ParseIntError> for MyError` once. Then `parse()?` works in `fn -> Result<_, MyError>`.
 
 ## TryFrom, TryInto, and FromStr
 
@@ -367,7 +367,7 @@ fn main() {
 | `TryFrom` / `try_into()` | value needing check | associated `Error` |
 | `str::parse()` / `FromStr` | text | `FromStr::Err` |
 
-**When to use which:** `s.parse::<u16>()` for plain numbers; custom `FromStr` when parsing a **domain type** (`Port`, `HostPort`) with rules beyond one integer.
+**When to use which:** use `s.parse::<u16>()` for plain numbers. Use custom `FromStr` for **domain types** (`Port`, `HostPort`) with extra rules.
 
 ### TryFrom edge cases
 
@@ -405,7 +405,7 @@ fn main() {
 }
 ```
 
-**Why `HashMap<String, V>` accepts `get(&str)`:** keys implement `Borrow<str>` — lookup by substring without allocating an owned `String`.
+**Why `HashMap<String, V>` accepts `get(&str)`:** keys implement `Borrow<str>`. You can look up with `&str` without allocating a `String`.
 
 ```rust
 // Playground
@@ -458,7 +458,7 @@ fn main() {
 
 Call `.into_owned()` when the caller must keep an owned value after the function returns.
 
-**API pattern:** accept `Cow<'a, str>` when you might normalize or pass through unchanged — common in parsers and HTTP header helpers.
+**API pattern:** accept `Cow<'a, str>` when you might normalize or pass through unchanged. Common in parsers and HTTP header helpers.
 
 ## Common derive sets (cheat sheet)
 
@@ -481,7 +481,9 @@ Do not derive `Clone` on unique handles. Do not derive `Debug` on secrets withou
 | parsing | constructors, `valueOf` | `int(s)` | `FromStr`, `TryFrom`, `.parse()` |
 | flexible param | overloads | duck typing | `AsRef`, `impl Trait` |
 
-## When the compiler says no (checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -515,9 +517,7 @@ Do not derive `Clone` on unique handles. Do not derive `Debug` on secrets withou
 - [Chapter 3: Functions](03_functions.md) — flexible parameters
 - [Chapter 19: I/O](19_io_processes_bits.md) — `AsRef<Path>`, CLI path/env patterns
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor after running the Playground examples.
+### Afterparty
 
 #### Debug, Display, Default
 

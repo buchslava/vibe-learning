@@ -2,13 +2,13 @@
 
 ## Hook
 
-You already know how to call functions. Rust does too — but every signature is a **contract** about ownership and types. A parameter is not “just a reference”; it tells you whether the callee **borrows**, **mutably borrows**, or **takes** the value.
+You already know how to call functions. In Rust, every signature is a **contract** about ownership and types. A parameter is not “just a reference”; it tells you whether the callee **borrows**, **mutably borrows**, or **takes** the value.
 
-This chapter covers standalone functions, methods on types, and the return-type patterns that show up in every later chapter.
+This chapter covers standalone functions, methods, and return-type patterns you will reuse everywhere.
 
 ## Scope — a brief tour
 
-Functions and methods are the glue between every other chapter. This one covers signatures, receivers, and return patterns — not full generics or async.
+Function signatures, receivers, and return patterns — not full generics or async.
 
 | This chapter covers | Deferred |
 |---------------------|----------|
@@ -272,7 +272,7 @@ fn main() {
 }
 ```
 
-Inside a `fn -> Result<...>` body, **`?`** propagates errors upward — but only once you have seen `Result` in [Chapter 6](06_types_enums_pattern_matching.md) and errors in Chapter 8.
+Inside a `fn -> Result<...>` body, **`?`** propagates errors upward. You will use it after [Chapter 6](06_types_enums_pattern_matching.md) and [Chapter 8](08_errors_and_testing.md).
 
 ## `impl Trait` in return position
 
@@ -293,7 +293,7 @@ fn main() {
 }
 ```
 
-Every return path must produce the **same** concrete type. A second arm returning a different iterator type fails to compile — use `Box<dyn Iterator<Item = f64>>` or an enum when branches differ.
+Every return path must produce the **same** concrete type. Different iterator types in each arm fail to compile. Use `Box<dyn Iterator<Item = f64>>` or an enum instead.
 
 ## Draining with `mem::take`
 
@@ -361,7 +361,9 @@ fn pick(_use_a: bool) -> impl Iterator<Item = i32> {
 
 **`const fn` preview:** Rust can evaluate some functions at compile time (`const fn add(a: i32, b: i32) -> i32 { a + b }`). Full const evaluation rules are in [Chapter 17](17_metaprogramming.md).
 
-## When the compiler says no (function checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -387,7 +389,7 @@ fn pick(_use_a: bool) -> impl Iterator<Item = i32> {
 - [Chapter 7: Structs, traits, and generics](07_structs_traits_generics.md) — `impl`, traits, generics
 - [Chapter 8: Errors and testing](08_errors_and_testing.md) — `Result` and `?`
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
 #### Signatures and ownership
 

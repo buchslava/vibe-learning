@@ -2,7 +2,7 @@
 
 ## Hook
 
-In many GC-managed languages (**Java**, **Python**, C#, …), a garbage collector (or refcounting) keeps heap objects alive while any reference can reach them. You rarely ask whether a pointer is still valid.
+In GC-managed languages (**Java**, **Python**, C#, …), a collector keeps heap objects alive while any reference can reach them. You rarely ask whether a pointer is still valid.
 
 Rust has no GC. Every `&T` must not outlive the value it borrows. **Lifetimes** are the compiler’s way of proving that — usually without you writing any syntax.
 
@@ -83,9 +83,9 @@ fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
 }
 ```
 
-Read this as: “The returned `&str` is only valid while **both** `x` and `y` are valid — and those two borrows share one lifetime `'a`.”
+Read this as: “The returned `&str` is valid while **both** `x` and `y` are valid.” Those borrows share one lifetime `'a`.
 
-If `s1` is dropped while something still holds the return value from `longest(&s1, &s2)`, the program must not compile.
+If `s1` is dropped while something still holds the return from `longest(&s1, &s2)`, the program must not compile.
 
 ### What if you omit `<'a>`?
 
@@ -99,7 +99,7 @@ fn longest(x: &str, y: &str) -> &str {  // does not compile
 
 Rust rejects this with **missing lifetime specifier** (or similar).
 
-Reason: the return might point into `x` **or** into `y`, and those borrows can come from **different owners** with **different lifetimes**. The compiler will not guess.
+Reason: the return might point into `x` **or** `y`. Those borrows can come from **different owners** with **different lifetimes**. The compiler will not guess.
 
 | With lifetimes | Without lifetimes |
 |----------------|-------------------|
@@ -107,7 +107,7 @@ Reason: the return might point into `x` **or** into `y`, and those borrows can c
 | Caller must keep **both** `s1` and `s2` alive while using the result | No check that you drop the wrong `String` too early |
 | Elision cannot help: **two** reference inputs + **one** reference output | Signature is incomplete |
 
-Compare `first_word(s: &str) -> &str`: **one** borrowed input and one returned reference — elision can assume “output lives as long as `s`.”
+Compare `first_word(s: &str) -> &str`: one borrowed input, one returned reference. Elision can assume “output lives as long as `s`.”
 
 `longest` has **two** borrowed inputs, so elision stops. You must write `'a` (or `'long`, etc.) yourself.
 
@@ -152,7 +152,7 @@ fn first_word(s: &str) -> &str
 
 Three **elision rules** cover most everyday signatures.
 
-When they do not apply — several references in and out, ambiguous return — write `'a` / `'b` explicitly, with any names you like:
+When elision fails — several references in and out, or an ambiguous return — write `'a` / `'b` explicitly. Any name works.
 
 ```rust
 fn longest<'long>(x: &'long str, y: &'long str) -> &'long str {
@@ -164,7 +164,7 @@ fn longest<'long>(x: &'long str, y: &'long str) -> &'long str {
 
 You have not met **structs** in depth yet ([Chapter 7](07_structs_traits_generics.md) covers `struct`, `impl`, and traits). For lifetimes, you only need this much:
 
-A **struct** groups named fields into one type — like a tuple with labels, or a small Java/Python class that holds data:
+A **struct** groups named fields into one type — like a labeled tuple or a small Java/Python data class:
 
 ```rust
 struct Point {
@@ -195,7 +195,7 @@ fn main() {
 } // `e` and `first` dropped here; then `novel` can be dropped
 ```
 
-Read `Excerpt<'a>` like `longest<'a>`: **`'a` is the lifetime of the borrow stored in `text`.** The struct instance may not outlive the data `text` points into — here, `novel`.
+Read `Excerpt<'a>` like `longest<'a>`: **`'a` is the lifetime of the borrow in `text`.** The struct may not outlive the data `text` points into — here, `novel`.
 
 | Piece | Role |
 |-------|------|
@@ -211,7 +211,7 @@ struct Excerpt {   // does not compile
 }
 ```
 
-Same idea as `fn longest(x: &str, y: &str) -> &str` without lifetimes: the compiler sees a reference inside the type but **no contract** for how long it is valid.
+Same idea as `fn longest(x: &str, y: &str) -> &str` without lifetimes. The compiler sees a reference inside the type but **no contract** for how long it is valid.
 
 Error: **missing lifetime specifier** on `text`.
 
@@ -327,6 +327,8 @@ fn main() {
 
 ## When the compiler says no
 
+Common errors in this chapter:
+
 Typical fixes:
 
 - Return an **owned** `String` instead of `&str`.
@@ -349,7 +351,7 @@ Typical fixes:
 
 ## Playground: two inputs, one shared lifetime
 
-When the return must be valid for **either** argument, both references share one lifetime parameter (here `'a`; any name works):
+When the return must be valid for **either** argument, both references share one lifetime parameter. Any name works — here `'a`.
 
 ```rust
 // Playground
@@ -374,7 +376,7 @@ fn main() {
 - [Chapter 4: Iterators](04_iterators.md) — `.iter()` borrows reinforce lifetime thinking
 - [Chapter 7: Structs, traits, and generics](07_structs_traits_generics.md) — full `struct` / `impl` coverage (this chapter only needs borrowed fields + `'a`)
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
 1. **Error archaeology** — “I paste a ‘lifetime may not live long enough’ error; walk me through owner vs reference diagram.”
 2. **Return type choice** — “For API `fn title(book: &Book) -> ???` compare `&str` vs `String` trade-offs for a library.”

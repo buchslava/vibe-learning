@@ -30,15 +30,13 @@ These are **lecture notes**, not a textbook. Treat each chapter like dense slide
 - a hand-holding tutorial that explains every keyword in order
 - a substitute for the official book or compiler documentation
 
-AI changes how we work with code. Typing every line from a blank file is no longer the whole job. **Software engineering** is what remains: read implementations, review critically, shape plans, and turn ideas into precise prompts that something else drafts first.
-
-In that world you are a **code reader**, **reviewer**, and **idea implementer**. Success depends on three skills:
+AI drafts code; you still read, review, and steer. Success depends on three skills:
 
 - you **understand** what the machine is doing
 - you **feel** when a design is wrong
 - your **technological thinking** is sharp enough to steer the result
 
-These notes are written for that reality.
+These notes are written for that workflow.
 
 ## Try it in the Rust Playground
 
@@ -65,7 +63,15 @@ Rules for playground snippets: one file with `fn main()`, **`std` only**, no fil
 
 ## Afterparty: aim, importance, and how to use
 
-At the end of every chapter you will find **Afterparty: AI Lego blocks** — numbered, copy-paste prompts for an AI tutor.
+At the end of every chapter you will find **Afterparty** — numbered, copy-paste prompts for an AI tutor.
+
+These notes give you a **map**, not an encyclopedia. No book — not even a full reference — can hold everything Rust can do or everything you might need in production. The space of possible knowledge is larger than any single track. Memorizing it all is neither required nor realistic.
+
+**Afterparty** is how you choose your depth. Each prompt is a Lego block for **practice**: one angle on the chapter — a quiz, an error to decode, a comparison, a mini-design. Paste it, push back, verify in the playground, stop when it clicks — or keep going until it sticks. **You** set the pace; the book does not pretend to exhaust the topic.
+
+Compare that to **Skills Lego blocks** — capability you assemble over time outside any one chapter: reading a crate, wrapping FFI safely, designing an error enum for a gateway, tuning Tokio under load. Those skills are **optional extensions**. They stack from prompts, side projects, and real code — not from reading cover to cover. Afterparty starts the stack; Skills blocks are what you add when a job or curiosity demands more.
+
+This track ships **prompts**, not a fixed skill tree. That is intentional: the capacity available to you (AI tutor, docs, crates, production code) is greater than what fits in these pages. Prompts are the interface. Depth is your decision.
 
 ### Aim
 
@@ -83,15 +89,14 @@ Use the model as a sparring partner. You stay responsible for correctness and id
 
 ### How to use
 
-**One chapter, one chat.** Start a **fresh conversation** when you begin a new chapter. Keep every Afterparty prompt and micro-question for that chapter in the **same thread** so the model remembers what you just read. When you move to the next chapter, open a new chat — old context about ownership will confuse async, and vice versa.
+**One chapter, one chat.** Start a fresh conversation for each chapter. Keep Afterparty prompts in that thread; open a new chat when you move on — old ownership context will confuse async topics.
 
-**Session flow** (after you [read the chapter and run the examples](#how-to-work-through-a-chapter)):
+**Session flow** (after [reading and running examples](#how-to-work-through-a-chapter)):
 
-1. Paste the **starter context** below into a new chat for this chapter.
-2. Paste **one** Afterparty prompt — read the answer, run any code, ask follow-ups in the same thread, and do not send the next prompt until you understand this one.
-3. Push back if the reply is vague or wrong; ask for the exact compiler error or a fixed snippet.
-4. Verify every code sample in [play.rust-lang.org](https://play.rust-lang.org/) or `cargo check` before you trust it.
-5. When ready, repeat from step 2 with another prompt — still **one at a time**, same chapter chat.
+1. Paste the **starter context** below once.
+2. Paste **one** Afterparty prompt; verify any code before the next.
+3. Push back on vague answers; ask for exact compiler errors.
+4. Repeat step 2 in the same chat until done.
 
 **Starter context — paste once at the top of each chapter chat:**
 
@@ -109,8 +114,6 @@ Answer rules:
 Current chapter: [number and title — e.g. Chapter 1 Paradigm shift]
 Topics I just read: [one line from the chapter hook, or paste a section heading]
 ```
-
-Then paste **one** Afterparty prompt from the chapter (or a micro-prompt from mid-read). Stay on it until you understand the answer — verify code in the playground before you paste the next prompt.
 
 **When to start a new chat instead of continuing:**
 
@@ -191,7 +194,7 @@ How the notes are formatted — not Rust syntax itself.
 | Convention | Meaning |
 |------------|---------|
 | **Playground** / **Cargo only** | Every code block is tagged. **Playground** = one `fn main()`, `std` only, [play.rust-lang.org](https://play.rust-lang.org/). **Cargo only** = needs `Cargo.toml`, filesystem, subprocess, or external crates. Details: [STYLE_GUIDE.md](../STYLE_GUIDE.md), [Playground Guide](../appendix/PLAYGROUND_GUIDE.md). |
-| **Chapter shape** | Hook → sections with examples → **Idiom spotlight** → **Go deeper** → **See also** → **Afterparty: AI Lego blocks**. |
+| **Chapter shape** | Hook → sections with examples → **Idiom spotlight** → **Go deeper** → **See also** → **Afterparty**. |
 | **Levels** | Many chapters label examples **Level 1 … N**. Run the snippet, then read **What happened** before the next level. |
 | **Crosslinks** | Relative paths (`08_errors_and_testing.md`). Chapter numbers match [CONTENTS.md](../CONTENTS.md). |
 | **Java / Python columns** | Optional in tables — skip if you do not need the analogy. |

@@ -2,13 +2,13 @@
 
 ## Hook
 
-Packages and modules group code by namespace in **Java**, **Python**, and many other stacks. Rust uses **modules** inside a **crate** (one compiled unit). The module tree is how you split a real project across files, control visibility, and expose a public API.
+Packages and modules group code by namespace in **Java**, **Python**, and many other stacks. Rust uses **modules** inside a **crate** — one compiled unit. The module tree splits projects across files, controls visibility, and exposes a public API.
 
 Most of this chapter is **Cargo only** — you need a filesystem and `cargo build`. Playground snippets show the syntax in a single file; multi-file layout is the production pattern.
 
 ## Scope — a brief tour
 
-This chapter covers how Rust splits code into modules and crates — the layout you use every day in Cargo projects. It is not a publishing or semver guide.
+Module tree, `pub`, and Cargo layout — not publishing or semver policy.
 
 | This chapter covers | Deferred |
 |---------------------|----------|
@@ -45,7 +45,7 @@ my_lib/
     config.rs    # submodule file
 ```
 
-Run `cargo build` from the package directory. The **crate name** in `Cargo.toml` is the root for `use crate_name::...` from other packages that depend on you.
+Run `cargo build` from the package directory. The **crate name** in `Cargo.toml` is the root for `use crate_name::...` in dependent packages.
 
 ## Declaring modules
 
@@ -275,7 +275,7 @@ pub mod serial_io {
 }
 ```
 
-Build with `cargo build --features serial` to compile the real backend. Without the flag, the stub stays in the binary — but the API path is identical.
+Build with `cargo build --features serial` to compile the real backend. Without the flag, the stub stays in the binary. The API path stays identical.
 
 ### Common `cfg` attributes
 
@@ -374,7 +374,7 @@ workspace/
     src/main.rs    # depends on core via path dependency
 ```
 
-Each member has its own crate graph. Shared versions live in the workspace `Cargo.lock`. Start with a single package; split when a library clearly deserves reuse.
+Each member has its own crate graph. Shared versions live in the workspace `Cargo.lock`. Start with one package. Split when a library clearly deserves reuse.
 
 ## Orphan rule (crate boundary)
 
@@ -402,7 +402,9 @@ fn main() {
 Use `# Examples`, `# Errors`, and `# Panics` sections for items callers depend on. Hide internal helpers with `#[doc(hidden)]` when re-exporting.
 
 
-## When the compiler says no (module checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -428,7 +430,7 @@ Use `# Examples`, `# Errors`, and `# Panics` sections for items callers depend o
 - [Chapter 10: Smart pointers](10_smart_pointers_interior_mutability.md) — `Arc` across modules
 - [Chapter 7: Traits](07_structs_traits_generics.md) — orphan rule
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
 #### Layout and paths
 

@@ -2,15 +2,13 @@
 
 ## Hook
 
-Some languages treat almost everything as heap references (**Python** names, typical **Java** objects). Rust defaults to **stack + unique ownership**.
-
-When you need heap indirection, shared ownership, or mutation through a shared borrow, reach for **smart pointers** — deliberately, not by default.
+Some languages treat almost everything as heap references (**Python** names, typical **Java** objects). Rust defaults to **stack + unique ownership**. Reach for **smart pointers** only when you need heap indirection, shared ownership, or mutation through a shared borrow.
 
 Module layout for splitting code across files is [Chapter 9](09_modules_paths_crates.md). This chapter is about **memory patterns**.
 
 ## Scope — a brief tour
 
-Smart pointers are a large topic. This chapter covers the **std patterns** you will see in real crates — not every allocator API or custom smart pointer type.
+Std smart-pointer patterns — not custom allocators or every `NonNull` API.
 
 | This chapter covers | Deferred |
 |---------------------|----------|
@@ -21,7 +19,7 @@ Smart pointers are a large topic. This chapter covers the **std patterns** you w
 
 ## `Box<T>` — heap, single owner
 
-`Box` allocates on the heap but keeps **one owner** — like a unique pointer with known size for the type system:
+`Box` allocates on the heap but keeps **one owner** — a unique pointer with known size for the type system:
 
 ```rust
 // Playground
@@ -150,7 +148,7 @@ fn main() {
 }
 ```
 
-Parent/child trees often use `Rc` parent + `Weak` back-pointer to child or parent.
+Parent/child trees often use `Rc` for the parent and `Weak` for the back-pointer to child or parent.
 
 ### Rc / Arc edge cases
 
@@ -254,7 +252,7 @@ fn bump_twice(cell: &RefCell<i32>) {
 
 **Fix:** finish one mutation, drop the guard, then borrow again — or use a single `borrow_mut` block.
 
-**Compile-time vs runtime:** the borrow checker catches overlapping `&mut` at compile time. `RefCell` moves that check to **runtime** and **panics** on violation — same logic, different moment you find the bug.
+**Compile-time vs runtime:** the borrow checker catches overlapping `&mut` at compile time. `RefCell` moves that check to **runtime** and **panics** on violation. Same logic, different moment you find the bug.
 
 | Pattern | Compile-time borrow | `RefCell` |
 |---------|----------------------|-----------|
@@ -342,7 +340,7 @@ fn main() {
 // prints: running, then drop b, then drop a
 ```
 
-**Rc drop:** inner `T` drops only when the **last** `Rc`/`Arc` handle goes away — not when one clone is dropped.
+**Rc drop:** inner `T` drops only when the **last** `Rc`/`Arc` handle goes away — not when one clone drops.
 
 ```rust
 // Playground
@@ -374,7 +372,9 @@ fn main() {
 | mutate across threads | `Arc<Mutex<T>>` or channels |
 | break `Rc` cycles | `Weak<T>` |
 
-## When the compiler says no (checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical) | Cause | Fix |
 |-----------------|-------|-----|
@@ -407,9 +407,7 @@ fn main() {
 - [Chapter 7: Trait objects](07_structs_traits_generics.md) — `Box<dyn Trait>`
 - [Chapter 1: Ownership](01_paradigm_shift.md) — drop and move
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor after running the Playground examples. Insist on compiler-accurate answers.
+### Afterparty
 
 #### Box and heap ownership
 

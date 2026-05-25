@@ -2,13 +2,15 @@
 
 ## Hook
 
-Async/await shows up in many stacks (**Java** `CompletableFuture`, **Python** `asyncio`, JavaScript promises, …). Rust async will feel familiar in shape but different in mechanics. The headline difference: **`async fn` returns a Future** — a lazy state machine that an **executor polls**; until you `.await` (or spawn), that work does not run. **Tokio** is the runtime most Rust services use for networking and concurrent I/O.
+Async/await shows up in many stacks (**Java** `CompletableFuture`, **Python** `asyncio`, JavaScript promises, …). Rust feels familiar in shape, different in mechanics.
 
-## Scope — a brief tour, not 100% of async Rust
+`async fn` returns a **Future** — lazy work until you `.await` or spawn it.
 
-Async Rust is a large ecosystem. This chapter is a practical intro — enough to read Tokio services and avoid executor footguns. It is not a runtime internals course or web-framework guide. Use **Afterparty** prompts and **Go deeper** for echo servers, cancellation details, and async traits.
+**Tokio** is the usual runtime for network and concurrent I/O.
 
-The table below splits what you get here from what to pick up later:
+## Scope — a brief tour
+
+Practical Tokio intro — not runtime internals or web-framework guides.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -17,16 +19,6 @@ The table below splits what you get here from what to pick up later:
 | Blocking footgun + `spawn_blocking` | `block_in_place`, worker thread counts |
 | Async I/O overview (`TcpListener`, `fs`) | Production TCP/Modbus stacks — [Chapter 19](19_io_processes_bits.md) |
 | Shutdown via `Arc<AtomicBool>` ([Ch15 L6](15_atomics_and_lockfree.md)) | `axum`, `tonic`, stream combinators |
-
-This chapter builds on [Chapter 14](14_multithreading.md) (threads) and [Chapter 15](15_atomics_and_lockfree.md) (atomics), and points forward to sync I/O in [Chapter 19](19_io_processes_bits.md):
-
-```mermaid
-flowchart LR
-  ch10[Ch14 OS threads] --> ch12[Ch16 async tasks]
-  ch11[Ch15 atomics] --> ch12
-  ch12 --> ch15[Ch19 sync IO]
-  ch12 --> afterparty[Afterparty deep dives]
-```
 
 ## What async is
 
@@ -486,9 +478,9 @@ Related chapters — read these when you need threads, atomics, errors, sync I/O
 - [Chapter 19: I/O](19_io_processes_bits.md) — sync I/O and processes
 - [Chapter 7: Traits](07_structs_traits_generics.md) — async traits (advanced)
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
-Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these for topics deliberately shortened above.
+Use these for runtime internals and web-framework topics not covered above.
 
 #### Concepts and mental model
 

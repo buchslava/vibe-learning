@@ -2,7 +2,9 @@
 
 ## Hook
 
-Many mainstream languages let you **share** data freely: references, object graphs, mutable globals — **Java** and **Python** are familiar examples. Rust says: **one owner at a time**, checked at compile time. That single rule replaces a garbage collector *and* most data races — but only if you learn to read the compiler as a collaborator, not an adversary.
+Many mainstream languages let you **share** data freely: references, object graphs, mutable globals — **Java** and **Python** are familiar examples. Rust says: **one owner at a time**, checked at compile time.
+
+That rule replaces a GC and prevents most data races. Learn to read compiler errors as hints, not obstacles.
 
 ## Compiled vs interpreted
 
@@ -81,10 +83,6 @@ Rust’s iterators, traits, and generics are designed to compile down to code as
 ## Fearless concurrency (preview)
 
 The same borrow rules that prevent use-after-free also prevent **data races** in safe Rust: you cannot mutate shared state from two threads without synchronization (`Mutex`, channels, atomics — Part II). The compiler enforces this; you do not rely on discipline alone.
-
-## Idiom spotlight
-
-> **Let the type system carry intent.** Prefer `Result` and `Option` over sentinel values (`null`, `-1`, magic strings). You will formalize this in [Chapter 6](06_types_enums_pattern_matching.md) and [Chapter 8](08_errors_and_testing.md).
 
 ## Stack and heap
 
@@ -273,9 +271,9 @@ fn main() {
 }
 ```
 
-**Java / Python:** copying a reference means two variables reach the same object; neither “owns” it in the Rust sense. **Rust:** the **owner** (`s`, `count`) is unchanged; `r` and `m` are temporary handles the compiler checks — they must not outlive what they borrow ([Chapter 5](05_lifetimes.md) formalizes this).
+**Java / Python:** two variables can reach the same object; neither owns it in the Rust sense. **Rust:** the **owner** (`s`, `count`) stays put; `r` and `m` are temporary handles the compiler checks ([Chapter 5](05_lifetimes.md)).
 
-References are **`Copy`** (see table above): `let r2 = r1` when both are `&T` copies the **pointer**, not the heap data. There is still **one owner** of the buffer; you just have two names for the same borrow.
+References are **`Copy`**: `let r2 = r1` copies the **pointer**, not the heap data. There is still **one owner** of the buffer.
 
 #### Dereferencing with `*`
 
@@ -493,7 +491,9 @@ fn main() {
 
 Borrowing **overlapping** parts of the same collection is the subtle case. Prefer one `&mut` to the whole `Vec`, or index without holding two element borrows across a mutating call.
 
-### When the compiler says no (Chapter 1 checklist)
+### When the compiler says no
+
+Common errors in this chapter:
 
 | Error (typical wording) | You probably did | Smallest fix |
 |-------------------------|------------------|--------------|
@@ -511,6 +511,10 @@ Read errors **top to bottom** — the first note is usually the root cause; late
 
 Control loops and serial parsers often run for hours. **Stack allocation is essentially free**. Heap allocation is fine when you need it, but freeing at a known scope avoids GC pauses and makes worst-case latency easier to reason about — the same theme as [ownership vs GC](#ownership-vs-garbage-collection) above.
 
+## Idiom spotlight
+
+> **Let the type system carry intent.** Prefer `Result` and `Option` over sentinel values (`null`, `-1`, magic strings). Formalized in [Chapter 6](06_types_enums_pattern_matching.md) and [Chapter 8](08_errors_and_testing.md).
+
 ## Go deeper
 
 - [Functional Rust — Option basics](https://hightechmind.io/rust/)
@@ -521,9 +525,7 @@ Control loops and serial parsers often run for hours. **Stack allocation is esse
 - [Chapter 5: Lifetimes](05_lifetimes.md) — when references must be named in types
 - [Chapter 14: Multithreading](14_multithreading.md)
 
-### Afterparty: AI Lego blocks
-
-Rust-only drills aligned with this chapter. Copy a prompt into your AI tutor; answer out loud before reading the reply.
+### Afterparty
 
 #### Ownership, moves, and `drop`
 

@@ -12,11 +12,9 @@ Metaprogramming varies by ecosystem — **Java** annotations and reflection, **P
 | Rust `macro_rules!` / derive | Compile time | No runtime overhead |
 | Rust `const fn` / `const` | Compile time | Baked into binary |
 
-## Scope — a brief tour, not a proc-macro authoring course
+## Scope — a brief tour
 
-Metaprogramming in Rust is a **large** topic. This chapter is a **practical intro** — enough to read derive-heavy automation code, write small `macro_rules!` helpers, and know when **not** to macro.
-
-It is **not** a guide to authoring proc macros with `syn`/`quote`.
+Intro to `macro_rules!`, derive, and `const` — not proc-macro authoring with `syn`/`quote`.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -24,19 +22,6 @@ It is **not** a guide to authoring proc macros with `syn`/`quote`.
 | How `#[derive]` works, std derives, **Clone/Copy**, ecosystem (`serde`, `thiserror`, `clap`) | Full DSL design, `build.rs` codegen |
 | `const` / `const fn` / `env!` / `include_str!` | `generic_const_exprs`, advanced const traits |
 | Forbidden matcher clauses, **edge cases**, **why macros are hard to trace** | Miri, macro fuzzing, proc-macro testing |
-
-Use **Afterparty** prompts and **Go deeper** for `cargo expand` drills, serde field attrs, and capstone DSL sketches.
-
-This chapter builds on [Chapter 7](07_structs_traits_generics.md) (traits, derive usage), [Chapter 8](08_errors_and_testing.md) (`thiserror`), and [Chapter 16](16_async_tokio.md) (Tokio attribute macros):
-
-```mermaid
-flowchart LR
-  ch6[Ch7 traits and derive] --> ch13[Ch17 metaprogramming]
-  ch7[Ch8 thiserror] --> ch13
-  ch12[Ch16 tokio attrs] --> ch13
-  ch13 --> ch14[Ch18 unsafe traits]
-  ch13 --> afterparty[Afterparty drills]
-```
 
 ## Compile-time pipeline
 
@@ -183,9 +168,9 @@ Conceptual `cargo expand` on `#[derive(Debug)]` for `Point` emits an `impl Debug
 
 The macro matcher is a **separate, weaker parser** that must stay **unambiguous today and in future Rust editions** ([follow-set rules](https://doc.rust-lang.org/reference/macros-by-example.html#follow-set-ambiguity-restrictions)).
 
-**Important nuance:** `for`, `let`, and `while` are **not** banned from macro **output**. You can generate `for` loops in the expanded code — and you often should.
+**Important nuance:** follow-set rules limit what can follow `$e:expr` in a **matcher** — not what a macro can **emit**. You can still generate `for` loops in expanded code.
 
-What *is* restricted is (1) using those keywords **after `$e:expr` / `$s:stmt` in a matcher**, and (2) expanding **multiple statements** (including `let` + `for`) where Rust expects a **single expression**.
+What is restricted: (1) keywords **after** `$e:expr` / `$s:stmt` in a matcher, and (2) expanding **multiple statements** where Rust expects a **single expression**.
 
 ### Follow-set: keywords after `expr` / `stmt`
 
@@ -600,7 +585,7 @@ macro_rules! bad_impl {
 
 ### Follow-set: `for`, `let`, and expression position
 
-These traps come from the same rules as [Syntax forbidden](#syntax-forbidden-or-restricted-in-macros--and-why) — collected here as a **wrong vs right** ladder you can paste into a Playground or Cargo project.
+Same rules as [Syntax forbidden](#syntax-forbidden-or-restricted-in-macros--and-why) — wrong vs right examples below.
 
 #### Edge 1 — `$e:expr` then `for` in the **matcher** (illegal)
 
@@ -868,9 +853,9 @@ macro_rules! my_vec {
 - [Chapter 18: Unsafe](18_unsafe_and_internals.md)
 - [Chapter 19: I/O](19_io_processes_bits.md) — config files
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
-Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these for topics deliberately shortened above.
+Use these for proc-macro authoring and advanced DSL topics not covered above.
 
 #### Concepts and mental model
 

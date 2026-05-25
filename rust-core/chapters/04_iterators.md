@@ -2,7 +2,7 @@
 
 ## Hook
 
-**Iterators are a shared pattern, not a Rust quirk.** Across languages and stacks you see the same idea: walk a sequence once, transform or filter each step, then produce a result — without hand-rolling index math every time.
+**Iterators are a shared pattern, not a Rust quirk.** Walk a sequence once, transform or filter each step, then produce a result — without index loops.
 
 | Stack | How the pattern shows up |
 |-------|--------------------------|
@@ -14,13 +14,7 @@
 | **Unix** | pipes — one program’s output is the next program’s input stream |
 | **Rust** | `Iterator` trait — lazy adapters + consumers |
 
-The names differ; the habit transfers: **describe the pipeline, not the loop variable.** This chapter sits early in Part I because you will meet the same style in logs, configs, protocol parsing, and [Chapter 11](11_collections.md) collections work.
-
-**Rust’s version:** the **`Iterator`** trait in `std` — a **lazy** sequence you extend with `.map()`, `.filter()`, and finish with `.collect()`, `.sum()`, and friends.
-
-Nothing in the chain runs until you ask for a result. That differs from eager Python list comprehensions that build intermediate lists. In `--release` builds, these pipelines often compile to the same machine code as a hand-written loop ([Chapter 1](01_paradigm_shift.md#zero-cost-abstractions)).
-
-You will use `Vec` and `HashMap` heavily in [Chapter 11](11_collections.md). This chapter is the **iteration machinery** for those types, plus ranges, strings, and slices.
+**Rust’s version:** the **`Iterator`** trait — lazy `.map()` / `.filter()` chains that run only when you `.collect()` or call another consumer. See [Chapter 11](11_collections.md) for the collection types these pipelines walk.
 
 ## `for` is syntax sugar
 
@@ -469,7 +463,9 @@ fn main() {
 
 **`IntoIterator` vs `Iterator`:** collections implement `IntoIterator` so `for x in vec` works. Your type can implement both — `Iterator` for `.next()`, and `IntoIterator` with `type Item = Self; type IntoIter = Self` when consuming `self` in a `for` loop is natural.
 
-## When the compiler says no (iterator checklist)
+## When the compiler says no
+
+Common errors in this chapter:
 
 | Error message (typical) | Likely cause | Smallest fix |
 |-------------------------|--------------|--------------|
@@ -493,7 +489,7 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 
 ## Idiom spotlight
 
-> **Iterator chains over index loops.** `for i in 0..v.len()` plus `v[i]` is a smell when `.iter()`, `.enumerate()`, or `.windows(2)` states intent. Sliding pairs over samples live in [Chapter 11](11_collections.md).
+> **Prefer iterator chains over index loops.** Use `.iter()`, `.enumerate()`, or `.windows(2)` instead of `for i in 0..v.len()` with `v[i]`. Sliding windows: [Chapter 11](11_collections.md).
 
 ## Go deeper
 
@@ -509,9 +505,7 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 - [Chapter 11: Collections](11_collections.md) — `Vec`, `HashMap`, `.windows`
 - [Chapter 12: Closures](12_closures.md) — `Fn` traits for adapters
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor after running the Playground examples. Insist on compiler-accurate answers.
+### Afterparty
 
 #### Cross-language and mental model
 

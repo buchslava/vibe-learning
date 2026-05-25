@@ -2,11 +2,11 @@
 
 ## Hook
 
-Lock-free primitives appear in many runtimes (**Java** `java.util.concurrent.atomic.*`, **Python** atomics hidden behind the GIL in CPython, …). Rust exposes **`std::sync::atomic`** for lock-free counters and flags when mutex overhead is too high — but **memory ordering** is part of the contract.
+Lock-free primitives appear in many runtimes (**Java** `java.util.concurrent.atomic.*`, **Python** atomics behind the GIL in CPython, …). Rust exposes **`std::sync::atomic`** for lock-free counters and flags when mutex overhead is too high. **Memory ordering** is part of the contract.
 
-## Scope — a brief tour, not 100% of the topic
+## Scope — a brief tour
 
-Atomics and lock-free programming is a deep field. This chapter is a practical intro — enough for metrics, shutdown flags, and reading real code. It is not a full memory-model course or lock-free data-structure tutorial. Use **Afterparty** prompts and **Go deeper** for ABA, fences, and custom lock-free structures.
+Practical atomics for counters and flags — not lock-free data structures or formal memory-model proofs.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -16,16 +16,9 @@ Atomics and lock-free programming is a deep field. This chapter is a practical i
 | Shared flags/counters in **threads and async** | `crossbeam`, hand-rolled lock-free DS |
 | When **not** to use atomics | SIMD atomics, `portable-atomic` edge cases |
 
-```mermaid
-flowchart LR
-  ch10[Ch14 threads Mutex] --> ch11[Ch15 atomics]
-  ch11 --> ch12[Ch16 async tasks]
-  ch11 --> afterparty[Afterparty deep dives]
-```
-
 ## Where atomics fit — threads, async, and Chapter 14
 
-Atomics solve **concurrent read/write of one machine word** without taking a **`Mutex` lock**. They show up in both **OS-thread** code ([Chapter 14](14_multithreading.md)) and **async** services ([Chapter 16](16_async_tokio.md)) — same types, same rules.
+Atomics solve **concurrent read/write of one machine word** without a **`Mutex` lock**. They appear in **OS-thread** code ([Chapter 14](14_multithreading.md)) and **async** services ([Chapter 16](16_async_tokio.md)). Same types, same rules.
 
 | Context | Shared pattern | Atomics role |
 |---------|----------------|--------------|
@@ -38,9 +31,9 @@ Ch14:  thread::spawn ──► Arc<AtomicUsize> fetch_add
 Ch16:  tokio::spawn   ──► Arc<AtomicBool>  load/store
 ```
 
-**Key message:** Async does **not** remove concurrency — tasks on a thread pool still share memory. Atomics are **`Send` + `Sync`**; wrap in **`Arc`** when many tasks or threads need the same counter or flag.
+**Key message:** Async does **not** remove concurrency. Tasks on a thread pool still share memory. Atomics are **`Send` + `Sync`**. Wrap them in **`Arc`** when many tasks or threads need the same counter or flag.
 
-Atomics do **not** replace [channels](14_multithreading.md) (message streams) or **`Mutex`** (multi-field invariants). One atomic word ≠ “lock-free entire struct.”
+Atomics do **not** replace [channels](14_multithreading.md) (message streams) or **`Mutex`** (multi-field invariants). One atomic word is not a lock-free entire struct.
 
 ## Data races — why atomics exist
 
@@ -253,7 +246,7 @@ writer:  *config = 8080  ──►  version Release+1  ──►  reader Acquire
 
 **Wrong — `Relaxed` on version only (visibility bug story):**
 
-Using **`Relaxed`** for both version load and store can allow the reader to observe the new version **without** seeing the config write on some architectures — **Release/Acquire** fixes the handoff. Metrics-only atomics do not need this; **publish patterns do**.
+Using **`Relaxed`** for both version load and store can let the reader see a new version **without** the config write on some architectures. **Release/Acquire** fixes the handoff. Metrics-only atomics do not need this; **publish patterns do**.
 
 ### Level 5 — Hard: when `Relaxed` lies — ordering footgun
 
@@ -281,7 +274,7 @@ struct BadHandoff {
 
 Fix: **`Release`** after writing `port`, **`Acquire`** before reading `port` — or protect both under **`Mutex`** ([Chapter 14](14_multithreading.md)).
 
-**What happened (conceptually):** the atomic op itself is well-defined; **your program logic** is wrong if ordering does not establish happens-before between the flag and other fields.
+**What happened (conceptually):** the atomic op is well-defined. **Your program logic** is wrong if ordering does not establish happens-before between the flag and other fields.
 
 ### Level 6 — Hard: gateway sketch
 
@@ -339,7 +332,7 @@ fn main() {
 
 **When `Relaxed` is wrong:** any atomic that **guards other memory** (config version, shutdown + shared buffer) needs **Release/Acquire** (or **`Mutex`**).
 
-**ABA (one line):** `compare_exchange` on **pointers** can succeed spuriously if the same bit pattern reappears after free/realloc — relevant for lock-free queues; use Afterparty for depth, not production queues in this chapter.
+**ABA (one line):** `compare_exchange` on **pointers** can succeed spuriously if the same bit pattern reappears after free/realloc. Relevant for lock-free queues. Use Afterparty for depth — not production queues here.
 
 ## Atomics vs `Mutex`
 
@@ -359,7 +352,7 @@ stream of messages / commands?         → channel (Ch14)
 custom lock-free queue?                → crate or Afterparty — not hand-roll
 ```
 
-**Port exercise:** [Ch14 Level 4 `Arc<Mutex<usize>>`](14_multithreading.md) → [Level 2](#level-2--elementary-fetch_add-counter) `AtomicUsize` when profiling shows lock contention on a hot path.
+**Port exercise:** swap [Ch14 Level 4 `Arc<Mutex<usize>>`](14_multithreading.md) for [Level 2](#level-2--elementary-fetch_add-counter) `AtomicUsize` when profiling shows lock contention on a hot path.
 
 ## Edge cases and compiler traps
 
@@ -421,9 +414,9 @@ Use **`Mutex<Vec<_>>`**, a **channel**, or a dedicated concurrent crate — not 
 - [Chapter 16: Async](16_async_tokio.md) — tasks sharing `Arc<AtomicBool>`
 - [Chapter 8: Errors and panic](08_errors_and_testing.md) — `join()` after panic vs race bugs
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
-Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these for topics deliberately shortened above.
+Use these for lock-free structures and formal memory-model topics not covered above.
 
 #### Concepts and placement
 

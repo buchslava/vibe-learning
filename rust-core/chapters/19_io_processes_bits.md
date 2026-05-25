@@ -2,11 +2,11 @@
 
 ## Hook
 
-I/O APIs differ by language (**Python** `open()`/`subprocess`, **Java** `Files`/`ProcessBuilder`, …). Rust unifies files, sockets, serial ports, and pipes behind **`Read`** and **`Write`** traits — and uses **`Command`** for subprocesses with explicit error types. CLIs, services, and protocol code all live here.
+I/O APIs differ by language (**Python** `open()`/`subprocess`, **Java** `Files`/`ProcessBuilder`, …). Rust unifies files, sockets, serial ports, and pipes behind **`Read`** and **`Write`**. It uses **`Command`** for subprocesses with explicit error types. CLIs, services, and protocol code all live here.
 
-## Scope — a brief tour, not a systems programming textbook
+## Scope — a brief tour
 
-I/O and binary protocols are broad. This chapter is a practical capstone — enough to build CLIs, parse frames, spawn tools, and read Tokio I/O with context. It is not a kernel, networking, or embedded-HAL course. Use **Afterparty** prompts for pipelines, capstone gateway design, and serial debug checklists.
+Practical capstone for files, processes, and binary frames — not kernel or embedded-HAL depth.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -17,19 +17,9 @@ I/O and binary protocols are broad. This chapter is a practical capstone — eno
 | Serial orientation (`serialport`) | GPIO/MCU bare-metal |
 | Sync vs async I/O choice | Tokio tuning ([Chapter 16](16_async_tokio.md)) |
 
-This chapter closes Part III. It builds on [Chapter 8](08_errors_and_testing.md) (`Result`, `?`), [Chapter 16](16_async_tokio.md) (async I/O contrast), and [Chapter 18](18_unsafe_and_internals.md) (FFI drivers):
-
-```mermaid
-flowchart LR
-  ch7[Ch8 errors] --> ch15[Ch19 sync IO]
-  ch12[Ch16 async IO] --> ch15
-  ch14[Ch18 FFI] --> ch15
-  ch15 --> afterparty[Afterparty capstone]
-```
-
 ## Why `Read` and `Write` — the aim
 
-Application code reads the same patterns everywhere: **pull bytes in**, **push bytes out**, **handle errors**, **don't panic on bad input**.
+Application code follows the same patterns: **pull bytes in**, **push bytes out**, **handle errors**, **don't panic on bad input**.
 
 | Medium | Rust surface | Same trait? |
 |--------|--------------|-------------|
@@ -40,7 +30,7 @@ Application code reads the same patterns everywhere: **pull bytes in**, **push b
 | Serial port | `serialport` open handle | yes |
 | Async TCP | `tokio::net::TcpStream` | `.await` variants ([Chapter 16](16_async_tokio.md)) |
 
-**Aim:** write **one** `fn process<R: Read, W: Write>(...)` and reuse it for files, pipes, and test buffers. Java `InputStream`/`OutputStream` and Python file objects play the same role, but Rust encodes errors in **`io::Result`** instead of exceptions.
+**Aim:** write **one** `fn process<R: Read, W: Write>(...)` and reuse it for files, pipes, and test buffers. Java `InputStream`/`OutputStream` and Python file objects play the same role. Rust encodes errors in **`io::Result`** instead of exceptions.
 
 ## `Read` and `Write` essentials
 
@@ -245,7 +235,7 @@ fn process_file(input: &str, output: &str) -> std::io::Result<()> {
 | `BufWriter` + `write_all` | Many small writes |
 | `main() -> io::Result<()>` | CLI tools — map to exit code at boundary |
 
-**Boundary discipline** ([Chapter 8](08_errors_and_testing.md)): internal `fn load_config() -> Result<Config, Error>`; `main` prints `eprintln!("{e}")` and exits `1` — never `unwrap` on user-supplied paths in unattended services.
+**Boundary discipline** ([Chapter 8](08_errors_and_testing.md)): use internal `fn load_config() -> Result<Config, Error>`. In `main`, print `eprintln!("{e}")` and exit `1`. Never `unwrap` on user-supplied paths in unattended services.
 
 ## Bitwise and binary protocols
 
@@ -270,7 +260,7 @@ Use **unsigned** types (`u8`, `u16`, `u32`) for shifts — signed shifts are a f
 | Many TCP connections, one process | **async** Tokio ([Chapter 16](16_async_tokio.md)) |
 | Blocking `read` inside `async fn` | **Bad** — stalls executor; `tokio::fs` or `spawn_blocking` |
 
-Same **traits** mentally; async adds `.await` and a runtime. [Chapter 16](16_async_tokio.md) defers production protocol code here.
+Same **traits** mentally. Async adds `.await` and a runtime. [Chapter 16](16_async_tokio.md) covers production protocol code.
 
 ## Practical I/O scenarios
 
@@ -305,7 +295,7 @@ Same **traits** mentally; async adds `.await` and a runtime. [Chapter 16](16_asy
 // }
 ```
 
-Poll loops: set **read timeout**, log port name on error, **retry with backoff** (Afterparty P102) — do not spin tight on failure.
+Poll loops: set **read timeout**, log the port on error, and **retry with backoff** (Afterparty P102). Do not spin tight on failure.
 
 ## CLI utility — paths, env, and time
 
@@ -439,9 +429,7 @@ Interactive CLI tools sometimes need a **pseudo-terminal** (line discipline, ech
 - [Chapter 17: Metaprogramming](17_metaprogramming.md) — `include_str!`, config derives
 - [Chapter 18: Unsafe](18_unsafe_and_internals.md) — FFI and safe wrappers over I/O handles
 
-### Afterparty: AI Lego blocks
-
-Copy a prompt into your AI tutor. Insist on **compiler-accurate** answers and quote `io::ErrorKind` where relevant.
+### Afterparty
 
 #### Read / Write and buffering
 

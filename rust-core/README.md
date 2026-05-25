@@ -9,7 +9,7 @@ A Rust language track for developers **already comfortable programming in anothe
 1. **Paradigm-first** — ownership, traits, and idioms before application frameworks.
 2. **Optional comparison lens** — where helpful, hard ideas are mapped via **Java** and **Python** (GC, interfaces, duck typing, GIL). Know C++, Go, or C# instead? The Rust column still stands on its own.
 3. **Playground-friendly** — most examples are one-file **Playground** snippets.
-4. **Afterparty: AI Lego blocks** — copy-paste prompts at the end of each chapter; one fresh AI chat per chapter — see [Preface](chapters/preface.md#afterparty-aim-importance-and-how-to-use).
+4. **Afterparty** — copy-paste prompts at each chapter end. Use one fresh AI chat per chapter. See [Preface](chapters/preface.md#afterparty-aim-importance-and-how-to-use).
 
 ## How to read
 

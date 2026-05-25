@@ -2,11 +2,11 @@
 
 ## Hook
 
-Concurrency models differ by language. **Python** threads fight the GIL for CPU work; **Java** threads share the heap with locks. Rust threads are **OS threads**, but **safe Rust** prevents many data races at compile time via `Send` and `Sync` — plus channels and mutexes when sharing is real.
+Concurrency models differ by language. **Python** threads fight the GIL for CPU work. **Java** threads share the heap with locks. Rust threads are **OS threads**. **Safe Rust** blocks many data races at compile time via `Send` and `Sync`. Use channels and mutexes when sharing is real.
 
-## Scope — a brief tour, not 100% of the topic
+## Scope — a brief tour
 
-Multithreading is a large field. This chapter is an introductory ladder — enough to read real code and spot the main patterns. It is not a complete reference. Use **Afterparty** prompts and linked chapters to go deeper; treat this as a map and first steps.
+Intro to OS threads, channels, and `Arc<Mutex<T>>` — not pools, IPC, or lock-free depth.
 
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
@@ -17,13 +17,6 @@ Multithreading is a large field. This chapter is an introductory ladder — enou
 | One worker sketch (poll + channel) | `rayon`, custom thread pools, cross-process IPC |
 | — | Lock-free atomics → [Chapter 15](15_atomics_and_lockfree.md) |
 | — | Async concurrency → [Chapter 16](16_async_tokio.md) |
-
-```mermaid
-flowchart LR
-  ch14[Ch14 brief threads] --> ch15[Ch15 atomics]
-  ch14 --> ch16[Ch16 async]
-  ch14 --> afterparty[Afterparty deep dives]
-```
 
 ## What multithreading is
 
@@ -61,7 +54,7 @@ Most types you write are both `Send` and `Sync`. Common exceptions:
 
 \*Moving `RefCell` to another thread is allowed; sharing `&RefCell` across threads is not.
 
-`thread::spawn` requires the closure be **`Send`** and **`'static`** — captured data must outlive the spawn and be safe to transfer. That is why `Rc` inside a spawned thread fails but `Arc` works ([Chapter 10](10_smart_pointers_interior_mutability.md)).
+`thread::spawn` requires a **`Send`** closure with **`'static`** captures. Captured data must outlive the spawn and be safe to transfer. That is why `Rc` inside a spawned thread fails but `Arc` works ([Chapter 10](10_smart_pointers_interior_mutability.md)).
 
 ## Examples: elementary → hard
 
@@ -125,7 +118,7 @@ fn main() {
 }
 ```
 
-Fix: **`msg.clone()`** before spawn if both sides need a copy — that **duplicates the `String` data** on the heap (can be costly for large buffers). Cheaper patterns: pass data back via **`join()`** / a **channel**, or share with **`Arc`** (Level 4) when many threads need the same allocation.
+Fix: **`msg.clone()`** before spawn if both sides need a copy. That **duplicates the `String` on the heap**. Large buffers can get costly. Cheaper patterns: return data via **`join()`** or a **channel**, or share with **`Arc`** (Level 4) when many threads need one allocation.
 
 ### Level 3 — Medium: `mpsc` channel
 
@@ -196,7 +189,7 @@ fn main() {
 | **`Arc::clone(&counter)`** | Pointer + atomic ref-count only — same heap `Mutex` | **Cheap** — O(1), no data duplicate |
 | **`(*counter.lock().unwrap()).clone()`** | The **inner** `T` when `T: Clone` (e.g. whole `String`, `Vec`) | **Expensive** — full deep copy of protected data |
 
-In the loop, **`Arc::clone(&counter)`** gives each thread a **handle** to the **one** shared counter. Calling **`.clone()` on the inner value** would copy the data under the lock — wrong tool for “many threads, one counter.” See also [Chapter 10 — `Arc` vs deep clone](10_smart_pointers_interior_mutability.md).
+In the loop, **`Arc::clone(&counter)`** gives each thread a **handle** to the **one** shared counter. Calling **`.clone()` on the inner value** copies the data under the lock. That is the wrong tool for “many threads, one counter.” See [Chapter 10 — `Arc` vs deep clone](10_smart_pointers_interior_mutability.md).
 
 **What happened:**
 
@@ -437,9 +430,9 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 - [Chapter 15: Atomics](15_atomics_and_lockfree.md) — lock-free counters, `OnceLock` vs hand-rolled init
 - [Chapter 16: Async](16_async_tokio.md) — when threads are not the right tool
 
-### Afterparty: AI Lego blocks
+### Afterparty
 
-Copy a prompt into your AI tutor. This chapter is a **brief tour** — use these to fill gaps intentionally left out above.
+Use these for worker pools and topics not covered above.
 
 #### Concepts and when to use threads
 

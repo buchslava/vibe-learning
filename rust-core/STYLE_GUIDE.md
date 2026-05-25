@@ -50,25 +50,53 @@ Every snippet starts with a line comment or bold label:
 ## Chapter skeleton
 
 1. Hook (prior-language habits → Rust reality; optional Java/Python tables when helpful)
-2. Core sections with examples
-3. **Idiom spotlight** (one boxed habit)
-4. **Afterparty: AI Lego blocks** (5–8 numbered prompts, copy-paste ready)
+2. Optional **Scope — a brief tour** (one boundary sentence + deferred table — see below)
+3. Core sections with examples
+4. **Idiom spotlight** (one boxed habit)
 5. **Go deeper** (1–3 hightechmind.io links)
 6. **See also** (crosslinks to other chapters)
+7. **Afterparty** (5–8 numbered prompts, copy-paste ready)
+
+## Scope sections
+
+Use when a chapter cannot cover the whole topic. **One sentence** states what you get and what is deferred; then the deferred table. Do not repeat the Hook or pitch Afterparty/Go deeper — those sections always follow.
+
+```markdown
+## Scope — a brief tour
+Intro to [topic] — not [deferred area].
+
+| This chapter covers | Deferred to See also / Afterparty |
+| ... | ... |
+```
+
+Skip mermaid “chapter map” diagrams in Scope when the same links appear in **See also**.
 
 ## Afterparty prompts
+
+Workflow (starter context, one chat per chapter) lives in [Preface](chapters/preface.md) only. Chapters do **not** repeat tutor instructions.
 
 Format:
 
 ```markdown
-### Afterparty: AI Lego blocks
+### Afterparty
 
 1. **Prompt title** — Full sentence the reader can paste into an AI chat. Reference chapter section if helpful.
 ```
 
+Optional: one short line after the heading if the chapter deliberately skipped a topic (e.g. “Use these for worker pools — not covered above.”). No generic “copy into your AI tutor” prose.
+
 Prompts should be **active**: quiz, refactor, explain error, compare three approaches, design mini-API.
 
 Every chapter’s prompts are catalogued in [appendix/AI_PROMPT_INDEX.md](appendix/AI_PROMPT_INDEX.md) (**P001** onward).
+
+## Compiler error checklists
+
+Keep the error table; intro is one line:
+
+```markdown
+## When the compiler says no
+Common errors in this chapter:
+```
 
 ## Crosslinks
 
