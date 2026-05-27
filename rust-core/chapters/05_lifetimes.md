@@ -113,6 +113,10 @@ Compare `first_word(s: &str) -> &str`: one borrowed input, one returned referenc
 
 ```rust
 // Playground
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() >= y.len() { x } else { y }
+}
+
 fn main() {
     let s1 = String::from("long");
     let s2 = String::from("x");
@@ -143,11 +147,12 @@ Do not slap `'static` on normal borrows to silence errors.
 Often the compiler infers the contract above — **lifetime elision**. You write the short form; Rust fills in `'a` for you:
 
 ```rust
-fn len(s: &str) -> usize
-// means: fn len<'a>(s: &'a str) -> usize  — no return reference, so no tie needed
-
-fn first_word(s: &str) -> &str
-// means: return borrows from `s` (elision ties input and output)
+// Playground — elision expansion (signatures only; not runnable alone)
+// fn len(s: &str) -> usize
+// // means: fn len<'a>(s: &'a str) -> usize  — no return reference, so no tie needed
+//
+// fn first_word(s: &str) -> &str
+// // means: return borrows from `s` (elision ties input and output)
 ```
 
 Three **elision rules** cover most everyday signatures.

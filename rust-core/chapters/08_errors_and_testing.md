@@ -361,6 +361,12 @@ Add `source()` when wrapping `io::Error` — another ~10 lines per variant. **`t
 // Playground
 use std::num::ParseIntError;
 
+#[derive(Debug)]
+enum AppError {
+    Parse(String),
+    OutOfRange(u32),
+}
+
 impl From<ParseIntError> for AppError {
     fn from(_: ParseIntError) -> Self {
         AppError::Parse("invalid integer".into())
@@ -369,7 +375,15 @@ impl From<ParseIntError> for AppError {
 
 fn set_port_from(s: &str) -> Result<u16, AppError> {
     let p: u16 = s.parse()?; // `?` converts via From
-    if p < 1024 { Err(AppError::OutOfRange(p as u32)) } else { Ok(p) }
+    if p < 1024 {
+        Err(AppError::OutOfRange(p as u32))
+    } else {
+        Ok(p)
+    }
+}
+
+fn main() {
+    println!("{:?}", set_port_from("8080"));
 }
 ```
 
@@ -469,6 +483,11 @@ Use **`anyhow`** in **`main`** and binary crates — not in library public APIs:
 
 use anyhow::Context;
 
+fn load_gateway_config(_path: &str) -> Result<u16, std::io::Error> {
+    // stand-in for lib helper from the thiserror example above
+    Ok(8080)
+}
+
 fn run() -> anyhow::Result<()> {
     let port = load_gateway_config("config.toml")
         .context("loading gateway config")?;
@@ -507,6 +526,23 @@ fn bad(s: &str) -> Result<u16, AppError> {
 
 ```rust
 // Playground
+#[derive(Debug)]
+enum AppError {
+    Parse(String),
+    OutOfRange(u32),
+}
+
+fn set_port(s: &str) -> Result<u16, AppError> {
+    let p: u16 = s
+        .parse()
+        .map_err(|_| AppError::Parse(s.into()))?;
+    if p < 1024 {
+        Err(AppError::OutOfRange(p as u32))
+    } else {
+        Ok(p)
+    }
+}
+
 fn main() {
     match set_port("80") {
         Ok(p) => println!("listening on {}", p),
@@ -780,6 +816,11 @@ Also: **doc tests** in `///` examples and **integration tests** in `tests/*.rs` 
 
 ```rust
 // Playground
+fn parse_port(s: &str) -> Result<u16, String> {
+    let p: u16 = s.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+    Ok(p)
+}
+
 #[cfg(test)]
 mod table {
     use super::parse_port;
@@ -791,6 +832,8 @@ mod table {
         }
     }
 }
+
+fn main() {}
 ```
 
 **Testing `Result` errors** — use `match`, `.unwrap_err()`, or crates like `assert_matches` instead of panicking on unexpected `Ok`.

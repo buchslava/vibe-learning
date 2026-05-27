@@ -317,6 +317,7 @@ Std library is full of `From`: `String::from("text")`, `Vec::from([1, 2])`, etc.
 // Playground
 use std::convert::TryFrom;
 
+#[derive(Debug)]
 struct Port(u16);
 
 impl TryFrom<i32> for Port {

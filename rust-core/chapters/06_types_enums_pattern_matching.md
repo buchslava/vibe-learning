@@ -293,11 +293,17 @@ fn bad_label(m: Mode) -> &str {
 
 ```rust
 // Playground
+enum Mode { Auto, Manual }
+
 fn label_owned(m: Mode) -> String {
     match m {
         Mode::Auto => "auto".to_string(),
         Mode::Manual => "manual".to_string(),
     }
+}
+
+fn main() {
+    println!("{}", label_owned(Mode::Auto));
 }
 ```
 
@@ -341,6 +347,20 @@ fn severity(code: u16) -> &'static str {
 
 ```rust
 // Playground
+enum Status {
+    Idle,
+    Running { rpm: u32 },
+    Fault { code: u8 },
+}
+
+fn describe(s: &Status) -> String {
+    match s {
+        Status::Idle => "idle".into(),
+        Status::Running { rpm } => format!("running at {}", rpm),
+        Status::Fault { code } => format!("fault {}", code),
+    }
+}
+
 fn main() {
     let s = Status::Running { rpm: 100 };
     match &s {
@@ -509,16 +529,19 @@ Parse `host:port` from a config line:
 // Playground
 fn parse_endpoint(line: &str) -> Option<(&str, u16)> {
     let mut parts = line.split(':');
-    if let Some(host) = parts.next()
-        && !host.is_empty()
-        && let Some(port_str) = parts.next()
-        && let Ok(port) = port_str.parse::<u16>()
-        && port > 0
-    {
-        Some((host, port))
-    } else {
-        None
+    let host = parts.next()?.trim();
+    if host.is_empty() {
+        return None;
     }
+    let port_str = parts.next()?;
+    if parts.next().is_some() {
+        return None; // reject host:port:extra
+    }
+    let port: u16 = port_str.parse().ok()?;
+    if port == 0 {
+        return None;
+    }
+    Some((host, port))
 }
 
 fn main() {

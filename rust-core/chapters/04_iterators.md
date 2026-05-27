@@ -343,7 +343,7 @@ Owned collection after parsing is the safe default: `.map(|s| s.clone())` or col
 // Playground
 fn main() {
     let ports: Vec<u16> = vec![];
-    let ok = ports.iter().all(|&&p| p >= 1 && p <= 65535);
+    let ok = ports.iter().all(|&p| p >= 1 && p <= 65535);
     println!("all in range? {}", ok); // true on empty — know your domain rule
 
     let logs = vec!["ok", "ERROR: timeout"];
@@ -431,6 +431,24 @@ State lives in the struct fields. `next` returns `None` when the inner iterator 
 
 ```rust
 // Playground
+struct PortScan {
+    next_port: u16,
+    end: u16,
+}
+
+impl Iterator for PortScan {
+    type Item = u16;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_port > self.end {
+            return None;
+        }
+        let p = self.next_port;
+        self.next_port += 1;
+        Some(p)
+    }
+}
+
 fn main() {
     let scan = PortScan { next_port: 502, end: 501 };
     let n = scan.count();

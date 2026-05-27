@@ -156,11 +156,21 @@ Equivalent without the macro:
 
 ```rust
 // Playground
+enum SensorReading {
+    Temp,
+    Press,
+    Skipped { reason: String },
+}
+
 fn is_valid_longhand(r: &SensorReading) -> bool {
     match r {
         SensorReading::Skipped { .. } => false,
         _ => true,
     }
+}
+
+fn main() {
+    println!("{}", is_valid_longhand(&SensorReading::Temp));
 }
 ```
 
@@ -229,8 +239,12 @@ Unlike a single `struct`, an `enum` trait body almost always uses `match self` (
 // Playground
 trait HasCode {
     fn code(&self) -> u8;
-    fn label(&self) -> String {
+    /// Shared default formatting — call this from overrides to avoid recursion.
+    fn default_label(&self) -> String {
         format!("code {}", self.code())
+    }
+    fn label(&self) -> String {
+        self.default_label()
     }
 }
 
@@ -250,7 +264,7 @@ impl HasCode for Fault {
     fn label(&self) -> String {
         match self {
             Fault::CommLost => "communication lost".into(),
-            other => HasCode::label(other), // default for OverTemp
+            other => other.default_label(), // trait default body, not this override
         }
     }
 }
@@ -263,13 +277,15 @@ fn main() {
 
 #### Calling the trait’s default method from your override
 
-Yes — `HasCode::label(other)` deliberately calls the **default body written on the trait**, not your override. That is how you reuse the trait’s fallback for some cases (here, `OverTemp`) while customising others (`CommLost`).
+Yes — `other.default_label()` deliberately calls the **default body written on the trait**, not your override. That is how you reuse the trait’s fallback for some cases (here, `OverTemp`) while customising others (`CommLost`).
+
+**Footgun:** `HasCode::label(other)` or `other.label()` inside `impl HasCode for Fault` still dispatches to **this override** and can recurse forever. Extract the default into a separate trait method (here `default_label`) or inline `format!("code {}", other.code())`.
 
 
 | Call                     | What runs                                                                                             |
 | ------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `fault.label()`          | **Dynamic dispatch on the impl** — always the overridden `label` in `impl HasCode for Fault`          |
-| `HasCode::label(&fault)` | **Default trait body** — `format!("code {}", self.code())`, which still uses your overridden `code()` |
+| `fault.default_label()` | **Default trait body** — `format!("code {}", self.code())`, which still uses your overridden `code()` |
 
 
 **Not Java overloading.** Rust has **no** method overloading (same name, different parameter lists). There is only one `label(&self) -> String` here. What looks like “pick another version” is **explicit qualified call syntax**: `Trait::method(receiver)`. This is sometimes called UFCS (universal function call syntax).
@@ -304,7 +320,7 @@ impl HasCode for Fault {
 }
 ```
 
-Use `HasCode::label(other)` when you want the **trait default**; use `other.label()` only when you intend the **full override path** (including for `CommLost`).
+Use `other.default_label()` (or duplicate the default logic) when you want the **trait default**; use `other.label()` only when you intend the **full override path** (including for `CommLost`).
 
 #### One `impl` block per trait (not `impl A, B for T`)
 
@@ -680,6 +696,22 @@ Borrowed `&dyn AlarmSink` avoids heap allocation when callers already own `LogSi
 
 ```rust
 // Playground
+trait Greeter {
+    fn greet(&self) -> String;
+}
+struct En;
+struct Fr;
+impl Greeter for En {
+    fn greet(&self) -> String {
+        "Hello".into()
+    }
+}
+impl Greeter for Fr {
+    fn greet(&self) -> String {
+        "Bonjour".into()
+    }
+}
+
 fn greeter_for(lang: &str) -> Box<dyn Greeter> {
     match lang {
         "fr" => Box::new(Fr),
@@ -802,11 +834,31 @@ Use `Box<dyn Greeter>`, `&dyn Greeter`, etc.
 
 ```rust
 // Playground — OK inside one function: `en`/`fr` live long enough
+trait Greeter {
+    fn greet(&self) -> String;
+}
+struct En;
+struct Fr;
+impl Greeter for En {
+    fn greet(&self) -> String {
+        "Hello".into()
+    }
+}
+impl Greeter for Fr {
+    fn greet(&self) -> String {
+        "Bonjour".into()
+    }
+}
+
 fn pick_in_place(use_fr: bool) {
     let en = En;
     let fr = Fr;
     let g: &dyn Greeter = if use_fr { &fr } else { &en };
     println!("{}", g.greet());
+}
+
+fn main() {
+    pick_in_place(true);
 }
 ```
 
@@ -899,7 +951,10 @@ impl Summarizable for PressReading {
     }
 }
 
-fn log_reading(r: &impl Summarizable) {
+fn log_reading<T: Summarizable>(r: &T)
+where
+    T::Output: std::fmt::Display,
+{
     println!("{}", r.summarize());
 }
 

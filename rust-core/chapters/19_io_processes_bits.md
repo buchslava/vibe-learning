@@ -344,7 +344,7 @@ Check `metadata().len()` before allocating a huge buffer — cheap guard for unt
 ### Stdin prompt alongside args
 
 ```rust
-// Playground
+// Playground — stdin blocks until Enter (compile-only in CI)
 use std::io::{self, Write};
 
 fn main() -> io::Result<()> {
@@ -372,7 +372,7 @@ Args for scripts; stdin for interactive runs — same binary, two entry paths.
 use std::time::Duration;
 
 fn retry_delay(attempt: u32) -> Duration {
-    let secs = std::env::var("RETRY_SECS")
+    let secs: u64 = std::env::var("RETRY_SECS")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(2);
