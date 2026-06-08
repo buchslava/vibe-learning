@@ -466,36 +466,35 @@ Common errors in this chapter:
 
 1. **Pick collection** — “Five tasks (dedup, sorted range scan, FIFO queue, index by id, min-key lookup) — I pick Vec/HashMap/BTree/VecDeque/HashSet each.”
 2. **Hash vs BTree** — “Same 10k insert + range scan workload — when HashMap wins vs BTreeMap; one sentence each.”
-[-]3. **Java map** — “Translate `LinkedHashMap` access-order need — what Rust std type fits, what does not?”
-4. **Queue anti-pattern** — “Review `while !v.is_empty() { v.remove(0) }` — cost and fix with `VecDeque`.”
+3. **Queue anti-pattern** — “Review `while !v.is_empty() { v.remove(0) }` — cost and fix with `VecDeque`.”
 
 #### Vec drills
 
-5. **Loop port** — “Rewrite C-style indexed loop as iterator chain; preserve behavior.”
-6. **get vs index** — “Four access patterns — I pick `[i]` vs `.get(i)` vs `.get_mut` vs `if let Some`.”
-7. **sort dedup** — “Dedup `[3,1,4,1,5]` wrong vs right — show sort + dedup pipeline.”
-8. **retain vs filter** — “Remove evens in-place vs new `Vec` — compare `retain` and `filter().collect()`.”
-9. **Borrow push trap** — “Explain `let r = &v[0]; v.push(1)` error; fix with scope.”
+4. **Loop port** — “Rewrite C-style indexed loop as iterator chain; preserve behavior.”
+5. **get vs index** — “Four access patterns — I pick `[i]` vs `.get(i)` vs `.get_mut` vs `if let Some`.”
+6. **sort dedup** — “Dedup `[3,1,4,1,5]` wrong vs right — show sort + dedup pipeline.”
+7. **retain vs filter** — “Remove evens in-place vs new `Vec` — compare `retain` and `filter().collect()`.”
+8. **Borrow push trap** — “Explain `let r = &v[0]; v.push(1)` error; fix with scope.”
 
 #### HashMap and HashSet
 
-10. **entry drill** — “Word frequency from `Vec<&str>` using only `.entry` — no double lookup.”
-11. **or_insert_with** — “Lazy cache: expensive `Vec` built once per key — sketch with `or_insert_with`.”
-12. **HashMap merge** — “Two maps of scores — merge by max per key; iterator + entry style.”
-13. **insert overwrite** — “Track old value on port remap `502 -> 503` using `insert` return.”
-14. **Set ops** — “Tags on two records — union, intersection, difference with `HashSet`.”
-15. **Stable dedup** — “Unique `String` lines preserving first-seen order — no `HashSet`-only collect.”
+9. **entry drill** — “Word frequency from `Vec<&str>` using only `.entry` — no double lookup.”
+10. **or_insert_with** — “Lazy cache: expensive `Vec` built once per key — sketch with `or_insert_with`.”
+11. **HashMap merge** — “Two maps of scores — merge by max per key; iterator + entry style.”
+12. **insert overwrite** — “Track old value on port remap `502 -> 503` using `insert` return.”
+13. **Set ops** — “Tags on two records — union, intersection, difference with `HashSet`.”
+14. **Stable dedup** — “Unique `String` lines preserving first-seen order — no `HashSet`-only collect.”
 
 #### BTree, windows, collect
 
-16. **BTree range** — “List keys in `BTreeMap<u32, _>` between 100 and 200 inclusive.”
-17. **Windows** — “Detect rising edges in `Vec<f64>` with `.windows(2)`; extend to `.windows(3)` for slope.”
-18. **chunks vs windows** — “Parse byte stream into 4-byte frames — `chunks(4)` vs `windows(4)` when?”
-19. **collect types** — “Three `collect()` calls that need type hints — fix with turbofish.”
-20. **Duplicate keys** — “`collect` to HashMap from duplicate-key pairs — predict final map; explain overwrite rule.”
+15. **BTree range** — “List keys in `BTreeMap<u32, _>` between 100 and 200 inclusive.”
+16. **Windows** — “Detect rising edges in `Vec<f64>` with `.windows(2)`; extend to `.windows(3)` for slope.”
+17. **chunks vs windows** — “Parse byte stream into 4-byte frames — `chunks(4)` vs `windows(4)` when?”
+18. **collect types** — “Three `collect()` calls that need type hints — fix with turbofish.”
+19. **Duplicate keys** — “`collect` to HashMap from duplicate-key pairs — predict final map; explain overwrite rule.”
 
 #### Performance and capstone
 
-21. **Performance myth** — “Do Rust iterators optimize to loops? When might they not?”
-22. **Capacity hint** — “Read 1M lines into `Vec` — when `with_capacity` matters; rough sizing rule.”
-23. **Capstone** — “Design in-memory store: register id `u16` → last reading `f64`, need range scan by id — pick map type, list three API methods, no impl.”
+20. **Performance myth** — “Do Rust iterators optimize to loops? When might they not?”
+21. **Capacity hint** — “Read 1M lines into `Vec` — when `with_capacity` matters; rough sizing rule.”
+22. **Capstone** — “Design in-memory store: register id `u16` → last reading `f64`, need range scan by id — pick map type, list three API methods, no impl.”

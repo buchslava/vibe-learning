@@ -434,51 +434,41 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 
 Use these for worker pools and topics not covered above.
 
-[-]#### Concepts and when to use threads
-
-[-]1. **GIL vs OS threads** — “Same CPU-bound task in Python `threading` vs Rust OS threads — who runs in parallel?”
-[-]2. **Parallelism vs concurrency** — “Define both; classify Modbus poll + HTTP publish as one or both.”
-[-]3. **Threads vs async** — “Gateway with 200 idle TCP connections — argue threads vs async; link Ch16.”
-[-]4. **Scope honesty** — “List 5 multithreading topics Ch14 deliberately skips and where to learn each.”
-
 #### Spawn, move, join
 
-5. **Race quiz** — “Which snippets are data races in C++ but rejected by Rust compiler?”
-6. **Move fix** — “Show spawn without `move` that fails; fix with `move` or `clone`.”
-7. **Join panic** — “Worker panics; rewrite main to `match join()` and keep supervisor alive.”
-8. **Detached threads** — “Why is `mem::forget(handle)` after spawn dangerous? Better pattern?”
-[-]9. **Python GIL** — “Compare this Python threading example to Rust for same I/O-bound task.”
+1. **Race quiz** — “Which snippets are data races in C++ but rejected by Rust compiler?”
+2. **Move fix** — “Show spawn without `move` that fails; fix with `move` or `clone`.”
+3. **Join panic** — “Worker panics; rewrite main to `match join()` and keep supervisor alive.”
+4. **Detached threads** — “Why is `mem::forget(handle)` after spawn dangerous? Better pattern?”
 
 #### Channels
 
-10. **Channel design** — “Worker pool with mpsc: I describe throughput; sketch thread count + channel shape.”
-11. **Drop tx footgun** — “Main exits before worker sends — diagram who holds `tx`/`rx`.”
-12. **Multiple producers** — “Clone `tx` to two workers; main receives merged stream — sketch code.”
-13. **Bounded vs unbounded** — “When does unbounded `mpsc` blow memory in automation? Bounded alternative?”
-[-]14. **Backpressure** — “Sensor flood faster than logger — channel + drop policy in 80 words.”
+5. **Channel design** — “Worker pool with mpsc: I describe throughput; sketch thread count + channel shape.”
+6. **Drop tx footgun** — “Main exits before worker sends — diagram who holds `tx`/`rx`.”
+7. **Multiple producers** — “Clone `tx` to two workers; main receives merged stream — sketch code.”
+8. **Bounded vs unbounded** — “When does unbounded `mpsc` blow memory in automation? Bounded alternative?”
 
 #### Mutex and shared state
 
-15. **Mutex vs RwLock** — “Read-heavy sensor cache — pick primitive and why.”
-16. **Hold lock briefly** — “Refactor bad code that calls network I/O while holding `Mutex` lock.”
-17. **Deadlock sketch** — “Two mutexes, lock order A then B vs B then A — show hang scenario.”
-18. **Poison recovery** — “Thread panics holding lock; show `PoisonError` and `into_inner()` recovery.”
-19. **Send fix** — “I try to move `Rc` into thread; show fix with `Arc`.”
-20. **RefCell trap** — “Why `Arc<RefCell<T>>` is not `Sync`; fix pattern for shared mutation.”
+9. **Mutex vs RwLock** — “Read-heavy sensor cache — pick primitive and why.”
+10. **Hold lock briefly** — “Refactor bad code that calls network I/O while holding `Mutex` lock.”
+11. **Deadlock sketch** — “Two mutexes, lock order A then B vs B then A — show hang scenario.”
+12. **Poison recovery** — “Thread panics holding lock; show `PoisonError` and `into_inner()` recovery.”
+13. **Send fix** — “I try to move `Rc` into thread; show fix with `Arc`.”
+14. **RefCell trap** — “Why `Arc<RefCell<T>>` is not `Sync`; fix pattern for shared mutation.”
 
 #### Production and automation
 
-21. **PLC gateway layout** — “Sketch poll thread + command channel + main supervisor; no code over 40 lines.”
-22. **Lock latency** — “Modbus cycle 20 ms — max time holding mutex for register cache update?”
-[-]23. **Capstone audit** — “Mark 6 snippets: UB/data race in C++ vs Rust compile error vs safe pattern.”
-24. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”
+15. **PLC gateway layout** — “Sketch poll thread + command channel + main supervisor; no code over 40 lines.”
+16. **Lock latency** — “Modbus cycle 20 ms — max time holding mutex for register cache update?”
+17. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”
 
 #### RwLock, OnceLock, and scope
 
-16. **RwLock cache** — "Read-heavy sensor map — sketch `Arc<RwLock<HashMap>>`; when does write starve readers?"
-17. **Mutex vs RwLock** — "Same cache with 50% writes — pick Mutex or RwLock and justify in two sentences."
-18. **OnceLock init** — "`get_or_init` fails second init with different value — show `OnceLock` behaviour."
-19. **Scope borrow** — "Parallel sum over `Vec<[u8;512]>` with `thread::scope` — why plain `spawn` fails on `&chunk`."
-20. **Poison recovery** — "Writer thread panics holding `RwLock` — show poisoned `read()` error and recovery options."
-21. **Capstone sync** — "Design: lazy config (`OnceLock`), shared cache (`RwLock`), scoped batch workers — list types only."
+18. **RwLock cache** — "Read-heavy sensor map — sketch `Arc<RwLock<HashMap>>`; when does write starve readers?"
+19. **Mutex vs RwLock** — "Same cache with 50% writes — pick Mutex or RwLock and justify in two sentences."
+20. **OnceLock init** — "`get_or_init` fails second init with different value — show `OnceLock` behaviour."
+21. **Scope borrow** — "Parallel sum over `Vec<[u8;512]>` with `thread::scope` — why plain `spawn` fails on `&chunk`."
+22. **Poison recovery** — "Writer thread panics holding `RwLock` — show poisoned `read()` error and recovery options."
+23. **Capstone sync** — "Design: lazy config (`OnceLock`), shared cache (`RwLock`), scoped batch workers — list types only."
 

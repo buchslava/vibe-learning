@@ -395,32 +395,29 @@ Common errors in this chapter:
 
 1. **Parameter audit** — “Five function signatures for logging: `&str`, `String`, `&String`, `Cow<str>`, `impl AsRef<str>`. I pick one per use case; you explain ownership cost.”
 2. **Move vs borrow** — “Snippet calls `process(s)` then uses `s` again. I explain the error and show two fixes (`&s`, clone).”
-[-]3. **Java map** — “Map Java method `void consume(List<String> xs)` to idiomatic Rust — owned vs borrowed slice of strings.”
 
 #### Methods and impl
 
-4. **impl block** — “Struct `Timer` with `start`, `elapsed`, `reset`. I write `impl`; you check `&self` vs `&mut self`.”
-5. **Associated fn** — “When is `Type::new()` idiomatic vs `Default::default()`? One example each.”
-6. **Consume self** — “Method `fn into_inner(self) -> Vec<u8>` — why must it take `self` by value?”
+3. **impl block** — “Struct `Timer` with `start`, `elapsed`, `reset`. I write `impl`; you check `&self` vs `&mut self`.”
+4. **Associated fn** — “When is `Type::new()` idiomatic vs `Default::default()`? One example each.”
+5. **Consume self** — “Method `fn into_inner(self) -> Vec<u8>` — why must it take `self` by value?”
 
 #### Returns and control flow
 
-7. **Semicolon trap** — “Three tiny functions: one returns `i32` correctly, two fail due to `;`. I fix them.”
-8. **Early return** — “Rewrite nested `if` in a parser as early `return None` / `?` style.”
-9. **Unit vs value** — “Which functions should return `()` vs `bool` vs `Option<T>`? Three CLI helper names, I choose.”
+6. **Semicolon trap** — “Three tiny functions: one returns `i32` correctly, two fail due to `;`. I fix them.”
+7. **Early return** — “Rewrite nested `if` in a parser as early `return None` / `?` style.”
+8. **Unit vs value** — “Which functions should return `()` vs `bool` vs `Option<T>`? Three CLI helper names, I choose.”
 
 #### Generics and errors preview
 
-10. **Generic bounds** — “Fix `fn max(a: T, b: T)` without bounds; add `T: Ord` or `PartialOrd`.”
-11. **Result signature** — “Design `fn read_config(path: &str) -> Result<Config, ...>`; list error variants, no body.”
-[-]12. **Capstone** — “Split a 40-line `main` into 4 functions with clear signatures; list names and params only, I implement.”
+9. **Generic bounds** — “Fix `fn max(a: T, b: T)` without bounds; add `T: Ord` or `PartialOrd`.”
+10. **Result signature** — “Design `fn read_config(path: &str) -> Result<Config, ...>`; list error variants, no body.”
 
 #### impl Trait and drain
 
-13. **impl Iterator return** — "Write `top_n(vals: &[f64], n: usize) -> impl Iterator<Item = f64>` — explain why two different iterator types in `if` arms fail."
-14. **mem take drain** — "Buffer struct drains `Vec<u8>` to caller via `mem::take` — show before/after inner field."
-15. **where clause** — "Rewrite cluttered `fn f<T: A + B + C>(x: T)` with `where` block — same behaviour."
-16. **Self return** — "Method `fn into_inner(self) -> Vec<u8>` on wrapper — why `Self` not concrete type name?"
-17. **const fn** — "One `const fn` port validator `fn is_valid(p: u16) -> bool` — what can and cannot run at compile time?"
-[-]18. **Capstone signatures** — "CLI tool: four functions `load_config`, `parse_port`, `run`, `main` — list signatures with ownership only."
+11. **impl Iterator return** — "Write `top_n(vals: &[f64], n: usize) -> impl Iterator<Item = f64>` — explain why two different iterator types in `if` arms fail."
+12. **mem take drain** — "Buffer struct drains `Vec<u8>` to caller via `mem::take` — show before/after inner field."
+13. **where clause** — "Rewrite cluttered `fn f<T: A + B + C>(x: T)` with `where` block — same behaviour."
+14. **Self return** — "Method `fn into_inner(self) -> Vec<u8>` on wrapper — why `Self` not concrete type name?"
+15. **const fn** — "One `const fn` port validator `fn is_valid(p: u16) -> bool` — what can and cannot run at compile time?"
 

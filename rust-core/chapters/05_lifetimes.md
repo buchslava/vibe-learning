@@ -387,17 +387,15 @@ fn main() {
 2. **Return type choice** — “For API `fn title(book: &Book) -> ???` compare `&str` vs `String` trade-offs for a library.”
 3. **Struct lifetime** — “Design `ConfigParser` holding `&str` slices into input buffer — when is it sound vs use owned `String`?”
 4. **Elision quiz** — “Add explicit lifetimes to 4 function signatures where elision fails.”
-[-]5. **Java analogy** — “Compare Rust lifetimes to Java stack locals vs heap references — 120 words, accurate only.”
-6. **Fix mine** — “I return `&String` built inside function; show three idiomatic fixes ranked by simplicity.”
+5. **Fix mine** — “I return `&String` built inside function; show three idiomatic fixes ranked by simplicity.”
 
 #### Lifetimes in practice
 
-7. **static trap** — "Function returns `&str` from `format!` — show error and owned fix."
-8. **two lifetimes** — "Write `fn first<'a,'b>(x: &'a str, y: &'b str) -> &'a str` — drop `y` while result lives."
-9. **Config struct** — "Parse `host:port` into `Config<'a>` — when must caller keep `line` alive?"
-10. **Owned refactor** — "Same parser returning owned `Config { host: String, port: u16 }` — tradeoffs in 3 bullets."
-11. **T: 'a bound** — "Explain `struct Holder<'a, T: 'a> { value: &'a T }` — what fails if `T` is shorter-lived?"
-12. **Elision fail** — "Four signatures where elision works vs fails — I label each."
-13. **Iterator borrow** — "Collect `Vec<&str>` from `String` lines — why drop order matters (link Ch 4)."
-[-]14. **Capstone API** — "Design public config loader: borrowed view vs owned config — pick one and defend."
+6. **static trap** — "Function returns `&str` from `format!` — show error and owned fix."
+7. **two lifetimes** — "Write `fn first<'a,'b>(x: &'a str, y: &'b str) -> &'a str` — drop `y` while result lives."
+8. **Config struct** — "Parse `host:port` into `Config<'a>` — when must caller keep `line` alive?"
+9. **Owned refactor** — "Same parser returning owned `Config { host: String, port: u16 }` — tradeoffs in 3 bullets."
+10. **T: 'a bound** — "Explain `struct Holder<'a, T: 'a> { value: &'a T }` — what fails if `T` is shorter-lived?"
+11. **Elision fail** — "Four signatures where elision works vs fails — I label each."
+12. **Iterator borrow** — "Collect `Vec<&str>` from `String` lines — why drop order matters (link Ch 4)."
 

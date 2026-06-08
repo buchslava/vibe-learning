@@ -20,6 +20,22 @@ Practical Tokio intro — not runtime internals or web-framework guides.
 | Async I/O overview (`TcpListener`, `fs`) | Production TCP/Modbus stacks — [Chapter 19](19_io_processes_bits.md) |
 | Shutdown via `Arc<AtomicBool>` ([Ch15 L6](15_atomics_and_lockfree.md)) | `axum`, `tonic`, stream combinators |
 
+### What this chapter skips — and where to learn it
+
+The table above is honest scope, not a teaser list. Each deferred row is safe to ignore until you hit the trigger in the right column:
+
+| Deferred topic | Learn it when… | Start here |
+|----------------|----------------|------------|
+| **Pin / Unpin** | You implement a manual `Future`, build self-referential async state, or read compiler errors mentioning `Pin` | [Rustonomicon — Pin](https://doc.rust-lang.org/nomicon/pin.html); return here after [Chapter 7](07_structs_traits_generics.md) traits |
+| **`async fn` in traits** | A gateway trait needs async methods (`connect`, `poll_device`) | [Chapter 7](07_structs_traits_generics.md) — `async fn` in traits, `Send` bounds, `dyn` limits |
+| **Other runtimes / tuning** | Tokio defaults starve your workload or you target `no_std` / embedded | [`async-std`](https://docs.rs/async-std) for API comparison; [Embassy](https://embassy.dev/) for embedded; [Tokio tuning](https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html) for worker thread counts |
+| **`block_in_place`** | CPU-heavy or blocking work must run *on* an async worker thread, not the blocking pool | [Tokio — `block_in_place`](https://docs.rs/tokio/latest/tokio/task/fn.block_in_place.html) after you have measured executor latency (Level 5) |
+| **Production TCP / Modbus stacks** | One echo connection works; you need timeouts, retry, framing, and logging in production | [Chapter 19](19_io_processes_bits.md) sync I/O first, then port the poll loop async |
+| **`axum`, `tonic`, streams** | Raw `TcpListener` + `spawn` is understood; you want HTTP/gRPC routes or stream pipelines | [axum](https://docs.rs/axum), [tonic](https://github.com/hyperium/tonic), [`tokio_stream`](https://docs.rs/tokio-stream) combinators |
+| **`tokio::sync::mpsc` + cancellation hygiene** | Tasks need async message passing, or `select!` drops work mid-flight | Tokio sync docs; Level 4 caveat + **Cancellation hygiene** in Afterparty |
+
+You do **not** need every row to ship a Level 6 supervisor. Add depth when a concrete project forces the question.
+
 ## What async is
 
 **Async** is cooperative concurrency: one OS thread hosts many **tasks**, each pausing at `.await` so the executor runs others. Unlike [Chapter 14](14_multithreading.md) threads (OS-preempted), async tasks **yield voluntarily** — which makes blocking calls inside them dangerous.
@@ -489,60 +505,55 @@ Prompts to solidify how futures, polling, and scope fit together:
 1. **Future diagram** — “Draw state machine for `async fn` with two `.await` points.”
 2. **Poll vs await** — “Who polls the Future — caller, executor, or Tokio runtime?”
 3. **Executor vs thread** — “One paragraph: cooperative async vs preemptive OS threads.”
-[+]4. **Scope honesty** — “List 5 async topics Ch16 skips and where to learn each.”
-5. **Forgotten await** — “Show unused Future bug; fix with `.await` or `spawn`.”
+4. **Forgotten await** — “Show unused Future bug; fix with `.await` or `spawn`.”
 
 #### Tokio basics
 
 Runtime setup, spawn lifecycle, and error boundaries:
 
-6. **Tokio scaffold** — “Minimal `#[tokio::main]` + `spawn` + join handle — explain each line.”
-7. **Spawn vs await** — “What if `main` drops join handle without `.await`?”
-8. **Join handle `??`** — “Explain the `??` on `handle.await` in Level 6 — outer join `Result` vs inner `run_worker` `Result`.”
+5. **Tokio scaffold** — “Minimal `#[tokio::main]` + `spawn` + join handle — explain each line.”
+6. **Spawn vs await** — “What if `main` drops join handle without `.await`?”
+7. **Join handle `??`** — “Explain the `??` on `handle.await` in Level 6 — outer join `Result` vs inner `run_worker` `Result`.”
 
 #### Level 5–6 drills
 
 Reinforce blocking vs yielding and the async gateway supervisor:
 
-9. **Bad join timing** — “Walk through Level 5 bad path: why does a 10 ms task wait ~100 ms when paired with `thread::sleep`?”
-10. **Ch15 port** — “Compare Level 6 to [Ch15 L6](15_atomics_and_lockfree.md) — what changes with `tokio::spawn`, what stays the same?”
-11. **Supervisor timeline** — “Trace Level 6 step by step: when does the worker stop, and why must it use `tokio::time::sleep` not `thread::sleep`?”
+8. **Bad join timing** — “Walk through Level 5 bad path: why does a 10 ms task wait ~100 ms when paired with `thread::sleep`?”
+9. **Ch15 port** — “Compare Level 6 to [Ch15 L6](15_atomics_and_lockfree.md) — what changes with `tokio::spawn`, what stays the same?”
+10. **Supervisor timeline** — “Trace Level 6 step by step: when does the worker stop, and why must it use `tokio::time::sleep` not `thread::sleep`?”
 
 #### Concurrency primitives
 
 When to wait for all vs first, deadlines, and cancellation:
 
-12. **join vs select** — “Two slow tasks: when `join!` vs `select!`? One automation example each.”
-13. **select! scenario** — “Cancel slow request when fast path returns — full `select!` sketch.”
-14. **Timeout drill** — “Wrap Modbus read `async fn` with 100 ms timeout; handle `Elapsed`.”
-15. **Cancellation hygiene** — “What runs when `select!` drops the losing branch? Modbus read vs cache hit example.”
+11. **join vs select** — “Two slow tasks: when `join!` vs `select!`? One automation example each.”
+12. **select! scenario** — “Cancel slow request when fast path returns — full `select!` sketch.”
+13. **Timeout drill** — “Wrap Modbus read `async fn` with 100 ms timeout; handle `Elapsed`.”
+14. **Cancellation hygiene** — “What runs when `select!` drops the losing branch? Modbus read vs cache hit example.”
 
 #### Blocking and I/O
 
 Keeping the executor healthy while doing real device and file work:
 
-16. **Blocking fix** — “Audit async snippet with `thread::sleep`, `std::fs::read`; fix each.”
-17. **spawn_blocking** — “When `tokio::fs` vs `spawn_blocking` for config file read?”
-18. **Tcp echo** — “Expand Async I/O outline to multi-connection echo with `spawn` per accept.”
+15. **Blocking fix** — “Audit async snippet with `thread::sleep`, `std::fs::read`; fix each.”
+16. **spawn_blocking** — “When `tokio::fs` vs `spawn_blocking` for config file read?”
+17. **Tcp echo** — “Expand Async I/O outline to multi-connection echo with `spawn` per accept.”
 
 #### Async vs threads
 
 Architecture choices for gateways and connection counts:
 
-19. **async vs thread** — “1000 Modbus polls — argue async vs thread pool for latency.”
-20. **200 TCP connections** — “One process — async vs thread-per-connection memory story.”
-21. **When thread enough** — “Single serial port poll — justify thread loop over Tokio.”
+18. **async vs thread** — “1000 Modbus polls — argue async vs thread pool for latency.”
+19. **200 TCP connections** — “One process — async vs thread-per-connection memory story.”
+20. **When thread enough** — “Single serial port poll — justify thread loop over Tokio.”
 
 #### Atomics and shared state (Ch15)
 
 Bridging lock-free flags from Chapter 15 into async tasks:
 
-22. **Async sleep in worker** — “Why must Level 6’s poll loop use `tokio::time::sleep().await` on every iteration, not `thread::sleep`?”
-23. **tokio Mutex** — “Rewrite bad `std::sync::MutexGuard` across await with `tokio::sync::Mutex`.”
+21. **Async sleep in worker** — “Why must Level 6’s poll loop use `tokio::time::sleep().await` on every iteration, not `thread::sleep`?”
+22. **tokio Mutex** — “Rewrite bad `std::sync::MutexGuard` across await with `tokio::sync::Mutex`.”
 
-[-]#### Production capstone
 
-[-]Review exercises that mix blocking audit with the full level ladder:
 
-[-]24. **Blocking audit** — “Mark 6 snippets: async-safe vs executor poison vs needs `spawn_blocking`.”
-[-]25. **Level ladder recap** — “Explain Levels 0–6 in one paragraph each — Tokio mechanics only.”

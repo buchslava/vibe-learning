@@ -889,44 +889,41 @@ Use these for proc-macro authoring and advanced DSL topics not covered above.
 19. **Copy vs Clone quiz** — “Classify 8 types: Copy, Clone only, or neither; justify.”
 20. **Hot-loop clone audit** — “Audit poll loop with `.clone()` each tick; suggest move/`Arc`/borrow.”
 21. **Arc vs derive Clone** — “Explain cheap `Arc` clone vs deep `String` clone with one snippet.”
-[-]22. **Java clone compare** — “Compare Java `.clone()` / Python `copy` to Rust `Clone` derive.”
 
 #### Derive ecosystem
 
-23. **derive need** — “List derives I want for config struct loaded from TOML — justify each.”
-24. **Serde rename** — “Field `poll_ms` in JSON as `pollIntervalMs` — show attr; trap on refactor.”
-25. **thiserror vs manual** — “Same error enum: count lines derive vs hand-written (Ch8 style).”
-[-]26. **clap subcommands** — “Sketch `#[derive(Subcommand)]` enum for gateway start/stop/status.”
-27. **Float Eq trap** — “Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch7.”
+22. **derive need** — “List derives I want for config struct loaded from TOML — justify each.”
+23. **Serde rename** — “Field `poll_ms` in JSON as `pollIntervalMs` — show attr; trap on refactor.”
+24. **thiserror vs manual** — “Same error enum: count lines derive vs hand-written (Ch8 style).”
+25. **Float Eq trap** — “Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch7.”
 
 #### Debugging and tooling
 
-28. **cargo expand walkthrough** — “Step-by-step: install, run, read output for one derive.”
-29. **In expansion of** — “Decode a 3-note compiler error chain from nested macro + derive.”
-30. **tt vs expr escape** — “When switch matcher from `expr` to `tt`; tradeoffs in 80 words.”
-31. **Three-layer trace** — “Derive inside attribute inside macro_rules — how to debug layer by layer.”
+26. **cargo expand walkthrough** — “Step-by-step: install, run, read output for one derive.”
+27. **In expansion of** — “Decode a 3-note compiler error chain from nested macro + derive.”
+28. **tt vs expr escape** — “When switch matcher from `expr` to `tt`; tradeoffs in 80 words.”
+29. **Three-layer trace** — “Derive inside attribute inside macro_rules — how to debug layer by layer.”
 
 #### const vs macro
 
-32. **Port to const fn** — “Replace tiny numeric macro with `const fn`; when macro still needed?”
-33. **env vs var** — “Compare `env!`, `option_env!`, `std::env::var` — table with one use case each.”
-34. **include_str config** — “Embed default TOML with `include_str!`; deserialize at startup sketch.”
+30. **Port to const fn** — “Replace tiny numeric macro with `const fn`; when macro still needed?”
+31. **env vs var** — “Compare `env!`, `option_env!`, `std::env::var` — table with one use case each.”
+32. **include_str config** — “Embed default TOML with `include_str!`; deserialize at startup sketch.”
 
 #### Pros / cons decisions
 
-35. **Macro vs fn audit** — “Mark 6 snippets: should be macro, derive, or plain fn — justify.”
-36. **When not proc macro** — “Three scenarios where proc macro is overkill; alternative each.”
-[-]37. **Java annotation** — “Map Lombok `@Data` to Rust derive set — what's missing?”
-38. **Minimal derive set** — “Gateway config + error + CLI: smallest derive list that still ships.”
+33. **Macro vs fn audit** — “Mark 6 snippets: should be macro, derive, or plain fn — justify.”
+34. **When not proc macro** — “Three scenarios where proc macro is overkill; alternative each.”
+35. **Minimal derive set** — “Gateway config + error + CLI: smallest derive list that still ships.”
 
 #### Edge case audit
 
-39. **Trap quiz** — “Mark 8 snippets: empty `+`, double brace, Default enum, Arc Clone, env!, duplicate impl, cfg macro, serde rename.”
-40. **Duplicate register DSL** — “Design compile-time error for duplicate keys in register_map!”
-41. **Serde refactor test** — “Integration test plan after renaming TOML field with serde attrs.”
+36. **Trap quiz** — “Mark 8 snippets: empty `+`, double brace, Default enum, Arc Clone, env!, duplicate impl, cfg macro, serde rename.”
+37. **Duplicate register DSL** — “Design compile-time error for duplicate keys in register_map!”
+38. **Serde refactor test** — “Integration test plan after renaming TOML field with serde attrs.”
 
 #### Automation capstone
 
-42. **DSL sketch** — “Design tiny `command!` macro for CLI subcommands — tokens only.”
-43. **Modbus table macro** — “Spec register table macro generating lookup + const max address.”
-44. **Derive soup review** — “I paste 40-line struct with 12 derives; trim to minimal set with reasons.”
+39. **DSL sketch** — “Design tiny `command!` macro for CLI subcommands — tokens only.”
+40. **Modbus table macro** — “Spec register table macro generating lookup + const max address.”
+41. **Derive soup review** — “I paste 40-line struct with 12 derives; trim to minimal set with reasons.”

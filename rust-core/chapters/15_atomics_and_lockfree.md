@@ -422,45 +422,39 @@ Use these for lock-free structures and formal memory-model topics not covered ab
 
 1. **Threads vs async atomics** — “Same `Arc<AtomicBool>` in `thread::spawn` vs `tokio::spawn` — what differs, what stays the same?”
 2. **Data race vs logic race** — “Define both; classify lost `static mut` increment vs `fetch_add`.”
-[-]3. **Scope honesty** — “List 5 topics Ch15 skips and where to learn each.”
-4. **Ch14 port** — “Rewrite Mutex counter (Ch14 L4) as `AtomicUsize`; when is each better?”
+3. **Ch14 port** — “Rewrite Mutex counter (Ch14 L4) as `AtomicUsize`; when is each better?”
 
 #### Memory ordering
 
-5. **Ordering quiz** — “Shutdown flag + published config pointer — pick orderings; justify.”
-6. **When Relaxed lies** — “Metrics OK, config handoff broken — show Release/Acquire fix.”
-7. **Fence intuition** — “Draw happens-before for Release store + Acquire load (Level 4).”
-[-]8. **SeqCst default** — “When is paying for SeqCst worth it in a PLC gateway?”
-9. **Relaxed polls vs version** — “Why is `Relaxed` OK for Level 2 `polls` but wrong for Level 4 `version`? One sentence each.”
+4. **Ordering quiz** — “Shutdown flag + published config pointer — pick orderings; justify.”
+5. **When Relaxed lies** — “Metrics OK, config handoff broken — show Release/Acquire fix.”
+6. **Fence intuition** — “Draw happens-before for Release store + Acquire load (Level 4).”
+7. **Relaxed polls vs version** — “Why is `Relaxed` OK for Level 2 `polls` but wrong for Level 4 `version`? One sentence each.”
 
 #### CAS and compare_exchange
 
-10. **Counter port** — “Cap counter with CAS loop; explain spurious `compare_exchange_weak` failure.”
-11. **ABA problem** — “Explain ABA in 80 words for pointer `compare_exchange` — no full queue.”
-12. **Retry loop** — “Show single-shot CAS anti-pattern; fix with loop.”
-13. **Double-checked locking** — “Show broken lazy init with atomics; fix with `OnceLock` or explain why not hand-roll.”
+8. **Counter port** — “Cap counter with CAS loop; explain spurious `compare_exchange_weak` failure.”
+9. **ABA problem** — “Explain ABA in 80 words for pointer `compare_exchange` — no full queue.”
+10. **Retry loop** — “Show single-shot CAS anti-pattern; fix with loop.”
+11. **Double-checked locking** — “Show broken lazy init with atomics; fix with `OnceLock` or explain why not hand-roll.”
 
 #### Races and debugging
 
-14. **Race quiz** — “Mark 6 snippets: safe atomic, UB `static mut`, ordering bug, needs Mutex.”
-15. **Visibility story** — “Writer updates `port` then `Relaxed` flag — what can reader see?”
-[-]16. **Panic vs race** — “Thread panicked in worker — is it a data race? Link Ch8.”
+12. **Race quiz** — “Mark 6 snippets: safe atomic, UB `static mut`, ordering bug, needs Mutex.”
+13. **Visibility story** — “Writer updates `port` then `Relaxed` flag — what can reader see?”
 
 #### Atomics vs Mutex vs channels
 
-17. **When not** — “Three cases atomics are the wrong tool; prefer channels or Mutex.”
-18. **Mutex vs RwLock** — “Read-heavy sensor cache — atomic counter vs RwLock vs Mutex.”
-19. **Vec push** — “Why many threads cannot `push` to shared `Vec`; three fixes.”
-20. **Profile-first** — “Gateway uses `Mutex` for counter; profiler shows lock contention — minimal atomic refactor.”
-21. **Channel vs atomic flag** — “When is `crossbeam`/bounded channel + shutdown better than lone `AtomicBool`?”
+14. **When not** — “Three cases atomics are the wrong tool; prefer channels or Mutex.”
+15. **Mutex vs RwLock** — “Read-heavy sensor cache — atomic counter vs RwLock vs Mutex.”
+16. **Vec push** — “Why many threads cannot `push` to shared `Vec`; three fixes.”
+17. **Profile-first** — “Gateway uses `Mutex` for counter; profiler shows lock contention — minimal atomic refactor.”
+18. **Channel vs atomic flag** — “When is `crossbeam`/bounded channel + shutdown better than lone `AtomicBool`?”
 
 #### Production and Java port
 
-22. **Gateway metrics** — “Design `Gateway { polls, shutdown }` for async; orderings per field.”
-23. **False sharing** — “Two hot atomics on same cache line — problem and mitigation in 60 words.”
-[-]24. **Java AtomicInteger** — “Map Java `incrementAndGet` to Rust `fetch_add` + orderings.”
-25. **Lock-free queue** — “Why this chapter says don’t hand-roll; name crates/patterns instead.”
+19. **Gateway metrics** — “Design `Gateway { polls, shutdown }` for async; orderings per field.”
+20. **False sharing** — “Two hot atomics on same cache line — problem and mitigation in 60 words.”
+21. **Lock-free queue** — “Why this chapter says don’t hand-roll; name crates/patterns instead.”
 
-[-]#### Capstone
 
-[-]26. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”

@@ -1053,79 +1053,69 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 
 #### Structs and inherent `impl`
 
-[-]1. **Sensor struct** — “Port a Java `Sensor` class (fields + constructor + `scaled()`) to Rust `struct` + `impl`; no getters unless needed.”
-2. **new vs default** — “When is `Sensor::new` idiomatic vs `Default` + field update? One automation example each.”
-3. **Method receiver** — “Same logic three ways: `fn f(self)`, `fn f(&self)`, `fn f(&mut self)` on a struct; I predict what calls compile.”
+1. **new vs default** — “When is `Sensor::new` idiomatic vs `Default` + field update? One automation example each.”
+2. **Method receiver** — “Same logic three ways: `fn f(self)`, `fn f(&self)`, `fn f(&mut self)` on a struct; I predict what calls compile.”
 
-[-]#### Optional: traits via Java / Python examples
 
-[-]4. **Interface port** — “Convert Java interface `Measurable` + two classes to trait + two structs + `impl Measurable for` each.”
-[-]5. **Duck typing** — “Python function accepts anything with `.read()`; express as trait bound on a generic `fn load<T: ReadSource>(...)`.”
-[-]6. **OOP myth** — “Explain in 100 words why Rust has no inheritance; map Java `extends`/`implements` to struct/trait/enum.”
-[-]7. **Trait vs interface table** — “Fill gaps: default methods, static dispatch, orphan rule, `dyn` — compare Java interface vs Rust trait.”
 
 #### Enums, structs, and traits together
 
-8. **Enum trait impl** — “Add variant `Fault` to `Status`; show every compile error until trait `impl` and inherent methods match.”
-9. **Struct vs enum layout** — “Modbus/OpcUa device registry: justify `struct Device { kind: Enum }` vs `enum Device { Modbus(...), OpcUa(...) }`; sketch types.”
-10. **SensorReading port** — “Python `Union[TempReading, PressReading, Skipped]` → Rust enum + struct payloads + `Measurable` trait; show `match` in impl.”
-11. **Two impl blocks** — “Same type: add inherent `is_valid()` and trait `Summary`; explain which call sites see which methods.”
-12. **Partial move fix** — “Given `enum Packet { Raw(String), Empty }`, reproduce ‘partially moved value’ and rewrite with `&self` or one `match`.”
-13. **matches! drill** — “Rewrite `!matches!(self, Skipped { .. })` as longhand `match`; then back to `matches!`; link to macro_rules conceptually.”
+3. **Enum trait impl** — “Add variant `Fault` to `Status`; show every compile error until trait `impl` and inherent methods match.”
+4. **Struct vs enum layout** — “Modbus/OpcUa device registry: justify `struct Device { kind: Enum }` vs `enum Device { Modbus(...), OpcUa(...) }`; sketch types.”
+5. **SensorReading port** — “Python `Union[TempReading, PressReading, Skipped]` → Rust enum + struct payloads + `Measurable` trait; show `match` in impl.”
+6. **Two impl blocks** — “Same type: add inherent `is_valid()` and trait `Summary`; explain which call sites see which methods.”
+7. **Partial move fix** — “Given `enum Packet { Raw(String), Empty }`, reproduce ‘partially moved value’ and rewrite with `&self` or one `match`.”
+8. **matches! drill** — “Rewrite `!matches!(self, Skipped { .. })` as longhand `match`; then back to `matches!`; link to macro_rules conceptually.”
 
 #### Default trait methods and UFCS
 
-14. **Default override** — “Trait `HasCode` with default `label()`; override for one enum variant only; use `HasCode::label(self)` for the rest.”
-[-]15. **Not overloading** — “Explain why `HasCode::label(other)` is not Java overloading; compare to `interface.super.method()`.”
-16. **Recursion trap** — “Show infinite recursion when override calls `self.label()` instead of `HasCode::label(self)`; fix it.”
-17. **One trait per impl** — “Show `impl HasCode, Display for T` compile error; split into two blocks; add `fn show<T: HasCode + Display>(x: T)`.”
+9. **Default override** — “Trait `HasCode` with default `label()`; override for one enum variant only; use `HasCode::label(self)` for the rest.”
+10. **Recursion trap** — “Show infinite recursion when override calls `self.label()` instead of `HasCode::label(self)`; fix it.”
+11. **One trait per impl** — “Show `impl HasCode, Display for T` compile error; split into two blocks; add `fn show<T: HasCode + Display>(x: T)`.”
 
 #### `#[derive]` and shared models
 
-18. **Command + log row** — “`enum Command` + `struct SetSpeedLog` + `to_log()`; list which derives each type needs and why.”
-19. **Eq on floats** — “Add `Analog(f64)` variant; show `#[derive(Eq)]` failure; fix with integer fixed-point or `PartialEq` only.”
-[-]20. **Derive vs manual** — “When would you hand-write `impl Debug` instead of `#[derive(Debug)]` on an automation enum?”
+12. **Command + log row** — “`enum Command` + `struct SetSpeedLog` + `to_log()`; list which derives each type needs and why.”
+13. **Eq on floats** — “Add `Analog(f64)` variant; show `#[derive(Eq)]` failure; fix with integer fixed-point or `PartialEq` only.”
 
 #### Generics and trait bounds
 
-21. **Generic bounds** — “Fix compiler error: `T` needs `Display + Clone`; minimal bound set on `fn duplicate_and_print<T>(x: T)`.”
-22. **largest pitfalls** — “Why does `largest` need non-empty slice? Add `Option` return or document panic; compare to Java generics erasure story.”
-23. **where clause** — “Rewrite `fn f<T: A + B + C>(x: T)` with a `where` block; same signature, longer trait list.”
-[-]24. **Monomorphization** — “Explain in 60 words what the compiler generates for `show(42)` and `show("text")` with `fn show<T: Display>(x: T)`.”
+14. **Generic bounds** — “Fix compiler error: `T` needs `Display + Clone`; minimal bound set on `fn duplicate_and_print<T>(x: T)`.”
+15. **largest pitfalls** — “Why does `largest` need non-empty slice? Add `Option` return or document panic; compare to Java generics erasure story.”
+16. **where clause** — “Rewrite `fn f<T: A + B + C>(x: T)` with a `where` block; same signature, longer trait list.”
 
 #### `impl Trait` vs `dyn Trait` vs `enum`
 
-25. **dyn vs impl quiz** — “Four scenarios (plug-in Vec, single helper fn, closed protocol, factory return) — pick `impl`, `dyn`, or `enum` each time.”
-26. **AlarmSink registry** — “Implement `&[&dyn AlarmSink]` for log + metrics; then refactor to `enum Sink` if set is closed — compare trade-offs.”
-27. **Factory return** — “`greeter_for(lang) -> Box<dyn Greeter>` vs `-> impl Greeter` — show why `impl` fails when arms return `En` and `Fr`.”
-28. **Driver three ways** — “Same `poll()` behaviour with `&impl Driver`, `&[&dyn Driver]`, and `enum Device`; benchmark story without running code.”
-29. **Box vs borrow** — “When is `&dyn Trait` enough vs `Box<dyn Trait>` required? Vec of mixed types + dangling return examples.”
+17. **dyn vs impl quiz** — “Four scenarios (plug-in Vec, single helper fn, closed protocol, factory return) — pick `impl`, `dyn`, or `enum` each time.”
+18. **AlarmSink registry** — “Implement `&[&dyn AlarmSink]` for log + metrics; then refactor to `enum Sink` if set is closed — compare trade-offs.”
+19. **Factory return** — “`greeter_for(lang) -> Box<dyn Greeter>` vs `-> impl Greeter` — show why `impl` fails when arms return `En` and `Fr`.”
+20. **Driver three ways** — “Same `poll()` behaviour with `&impl Driver`, `&[&dyn Driver]`, and `enum Device`; benchmark story without running code.”
+21. **Box vs borrow** — “When is `&dyn Trait` enough vs `Box<dyn Trait>` required? Vec of mixed types + dangling return examples.”
 
 #### Object safety and `dyn` traps
 
-30. **Object safety audit** — “Mark each trait dyn-safe or not: no-`self` method, generic method, `-> Self`, `trait Foo: Sized`.”
-31. **Reader fix** — “Trait with `fn read() -> f64` fails as `dyn`; redesign for `&dyn Reader` or use enum.”
-32. **Clone not dyn** — “Why no `Box<dyn Clone>` pattern for heterogenous clone list; suggest enum or generic `T: Clone` instead.”
-33. **Send + Sync** — “Alarm handler shared across threads: write type as `Arc<dyn AlarmSink + Send + Sync>`; what breaks if handler holds `Rc`?”
-34. **Unsized trap** — “Show three snippets that fail: `let g: dyn Greeter = En`, `Vec<dyn Greeter>`, returning `&dyn` from locals; fix each.”
+22. **Object safety audit** — “Mark each trait dyn-safe or not: no-`self` method, generic method, `-> Self`, `trait Foo: Sized`.”
+23. **Reader fix** — “Trait with `fn read() -> f64` fails as `dyn`; redesign for `&dyn Reader` or use enum.”
+24. **Clone not dyn** — “Why no `Box<dyn Clone>` pattern for heterogenous clone list; suggest enum or generic `T: Clone` instead.”
+25. **Send + Sync** — “Alarm handler shared across threads: write type as `Arc<dyn AlarmSink + Send + Sync>`; what breaks if handler holds `Rc`?”
+26. **Unsized trap** — “Show three snippets that fail: `let g: dyn Greeter = En`, `Vec<dyn Greeter>`, returning `&dyn` from locals; fix each.”
 
 #### Orphan rule and cross-crate patterns
 
-35. **Orphan rule** — “Why `impl Display for Vec<u8>` fails; fix with newtype `struct Frame(pub Vec<u8>)` + `impl Display for Frame`.”
-36. **External trait** — “Wrap third-party struct; implement your trait on the wrapper; call from automation main.”
+27. **Orphan rule** — “Why `impl Display for Vec<u8>` fails; fix with newtype `struct Frame(pub Vec<u8>)` + `impl Display for Frame`.”
+28. **External trait** — “Wrap third-party struct; implement your trait on the wrapper; call from automation main.”
 
 #### Capstone drills
 
-37. **Checklist drill** — “Match 8 Chapter 7 compiler errors to snippets (non-exhaustive match, partial move, orphan, not dyn compatible, unsized, moved self, Eq+f64, multi-trait impl).”
-38. **PLC message model** — “Design full model: enum frames, struct payloads, two traits, one `dyn` registry for sinks, derive list — no code over 80 lines.”
-[-]39. **Java hierarchy kill** — “Given Java abstract `Device` + `ModbusDevice` + `OpcUaDevice`, produce Rust enum+struct+trait layout; no `dyn` unless I ask for plug-ins.”
-40. **Refactor story** — “Start with `Vec<Box<dyn Driver>>`; protocol closes to two devices; refactor to `enum`; list what the compiler now catches.”
+29. **Checklist drill** — “Match 8 Chapter 7 compiler errors to snippets (non-exhaustive match, partial move, orphan, not dyn compatible, unsized, moved self, Eq+f64, multi-trait impl).”
+30. **PLC message model** — “Design full model: enum frames, struct payloads, two traits, one `dyn` registry for sinks, derive list — no code over 80 lines.”
+31. **Refactor story** — “Start with `Vec<Box<dyn Driver>>`; protocol closes to two devices; refactor to `enum`; list what the compiler now catches.”
 
 #### Associated types and supertraits
 
-41. **Item type quiz** — "Change `PortScan`'s `type Item` from `u16` to `(u16, bool)` — list every call site in a `.map().collect()` chain that breaks and why."
-42. **Summarizable design** — "Add `Summarizable` with `type Output = String` for three sensor structs; one `fn report(r: &impl Summarizable)` — no duplicate return types in the trait."
-43. **Associated vs generic** — "Same cache API twice: `trait Get<T>` vs `trait Get { type Value; }` — when is each painful at call sites?"
-44. **Supertrait bounds** — "Trait `Exportable: Display + Debug` with default `fn export` — show impl for `Port(u16)`; what fails if `Display` is missing?"
-45. **UFCS fix** — "Type implements `A` and `B`, both define `name()` — show ambiguous call error and UFCS fix with `A::name(&x)`."
+32. **Item type quiz** — "Change `PortScan`'s `type Item` from `u16` to `(u16, bool)` — list every call site in a `.map().collect()` chain that breaks and why."
+33. **Summarizable design** — "Add `Summarizable` with `type Output = String` for three sensor structs; one `fn report(r: &impl Summarizable)` — no duplicate return types in the trait."
+34. **Associated vs generic** — "Same cache API twice: `trait Get<T>` vs `trait Get { type Value; }` — when is each painful at call sites?"
+35. **Supertrait bounds** — "Trait `Exportable: Display + Debug` with default `fn export` — show impl for `Port(u16)`; what fails if `Display` is missing?"
+36. **UFCS fix** — "Type implements `A` and `B`, both define `name()` — show ambiguous call error and UFCS fix with `A::name(&x)`."
 

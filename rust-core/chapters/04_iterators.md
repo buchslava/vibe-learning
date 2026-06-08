@@ -525,56 +525,51 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 
 ### Afterparty
 
-[-]#### Cross-language and mental model
 
-[-]1. **Loop port** — “Rewrite this C-style indexed loop as an iterator chain; preserve behavior and types.”
-[-]2. **Stack pattern map** — “I name a task in Java (`Stream`), Python (comprehension), and SQL. You show the idiomatic Rust iterator chain for each — one line per language plus Rust.”
-[-]3. **Python comp port** — “Translate `[x * 2 for x in nums if x > 0]` into a Rust `Vec` pipeline with `.iter().filter().map().collect()`; explain lazy vs eager.”
-[-]4. **Unix pipe analogy** — “In ≤120 words, map `cmd1 | cmd2` to Rust iterator adapters on in-memory data; where does `.collect()` fit?”
 
 #### `for`, ranges, and three walk modes
 
-5. **for desugar quiz** — “Four `for` loops (`0..n`, `&vec`, `vec`, `&mut vec`). I say which calls `iter`, `into_iter`, or range; you correct and show owner state after the loop.”
-6. **iter vs into_iter** — “Give 4 snippets using `Vec`; I predict whether `v` is usable after the loop; you explain move vs borrow.”
-7. **iter_mut drill** — “Task: double every element in `Vec<f64>` in place without allocating a new `Vec`. I write the loop; you review `*n` and borrow rules.”
-8. **Range vs collect** — “When is `for i in 0..n` better than `(0..n).collect::<Vec<_>>()`? Give two automation examples (retry count vs materializing indices).”
+1. **for desugar quiz** — “Four `for` loops (`0..n`, `&vec`, `vec`, `&mut vec`). I say which calls `iter`, `into_iter`, or range; you correct and show owner state after the loop.”
+2. **iter vs into_iter** — “Give 4 snippets using `Vec`; I predict whether `v` is usable after the loop; you explain move vs borrow.”
+3. **iter_mut drill** — “Task: double every element in `Vec<f64>` in place without allocating a new `Vec`. I write the loop; you review `*n` and borrow rules.”
+4. **Range vs collect** — “When is `for i in 0..n` better than `(0..n).collect::<Vec<_>>()`? Give two automation examples (retry count vs materializing indices).”
 
 #### Adapters and lazy pipelines
 
-9. **Adapter chain** — “Task: parse lines, trim, keep non-empty, parse as `u16`. I sketch `.lines().map(...).filter(...).collect()`; you refine.”
-10. **zip pairs** — “Two `Vec<u16>`: register IDs and values. Build `Vec<(u16, u16)>` with `.zip()`; I write it; you handle length mismatch policy.”
-11. **take and skip** — “Paginate a log: skip first 100 lines, take next 20. I use `.skip().take()` on `.lines()`; you show one pitfall if the source is not recomputed.”
-12. **chain iterators** — “Concatenate header rows and body rows (two `&[u8]` slices) without copying bytes into one array first — sketch with `.iter().chain()`.”
-13. **enumerate vs index** — “Same sum-over-evens task twice: index `for` vs `.enumerate()`. Compare readability and bounds-check risk.”
-14. **Lazy vs eager** — “Explain when `filter().map()` allocates vs when `.collect()` forces work. One example with `println!` in `map` showing evaluation order.”
+5. **Adapter chain** — “Task: parse lines, trim, keep non-empty, parse as `u16`. I sketch `.lines().map(...).filter(...).collect()`; you refine.”
+6. **zip pairs** — “Two `Vec<u16>`: register IDs and values. Build `Vec<(u16, u16)>` with `.zip()`; I write it; you handle length mismatch policy.”
+7. **take and skip** — “Paginate a log: skip first 100 lines, take next 20. I use `.skip().take()` on `.lines()`; you show one pitfall if the source is not recomputed.”
+8. **chain iterators** — “Concatenate header rows and body rows (two `&[u8]` slices) without copying bytes into one array first — sketch with `.iter().chain()`.”
+9. **enumerate vs index** — “Same sum-over-evens task twice: index `for` vs `.enumerate()`. Compare readability and bounds-check risk.”
+10. **Lazy vs eager** — “Explain when `filter().map()` allocates vs when `.collect()` forces work. One example with `println!` in `map` showing evaluation order.”
 
 #### Consumers and types
 
-15. **collect turbofish** — “Three `collect()` calls that fail without hints — I add type annotation or turbofish; you verify.”
-16. **find and Option** — “Wire scan: `Vec<&str>` of lines, find first containing `ERROR`. I return `Option<&str>` with `.find()`; you contrast with `.filter().next()`.”
-17. **fold vs sum** — “Compute max and count in one pass with `.fold()` vs calling `.max()` and `.len()` separately — when is fold worth it?”
-18. **any and all** — “Validate a batch: all ports in 1..=65535, any line starts with `#`. I write `.all()` / `.any()` predicates; you fix one double-reference mistake.”
+11. **collect turbofish** — “Three `collect()` calls that fail without hints — I add type annotation or turbofish; you verify.”
+12. **find and Option** — “Wire scan: `Vec<&str>` of lines, find first containing `ERROR`. I return `Option<&str>` with `.find()`; you contrast with `.filter().next()`.”
+13. **fold vs sum** — “Compute max and count in one pass with `.fold()` vs calling `.max()` and `.len()` separately — when is fold worth it?”
+14. **any and all** — “Validate a batch: all ports in 1..=65535, any line starts with `#`. I write `.all()` / `.any()` predicates; you fix one double-reference mistake.”
 
 #### Errors, ownership, and automation
 
-19. **Moved Vec mistake** — “Show code that does `for x in v` then uses `v` again. I explain the error and fix with `.iter()` or clone; you rank fixes.”
-20. **Borrow in chain** — “Snippet: build `Vec<&str>` from `String` lines then drop the `String`. I explain why it fails; you fix with owned `String` or different lifetime design.”
-21. **Modbus-style scan** — “List of raw register values `Vec<u16>`: filter evens, map to `f64` scale 0.1, sum. I write the iterator chain; you check overflow and types.”
-22. **Zero-cost check** — “Does `nums.iter().filter(...).map(...).sum()` allocate intermediate `Vec`s? Answer for `--release` and what to measure conceptually.”
+15. **Moved Vec mistake** — “Show code that does `for x in v` then uses `v` again. I explain the error and fix with `.iter()` or clone; you rank fixes.”
+16. **Borrow in chain** — “Snippet: build `Vec<&str>` from `String` lines then drop the `String`. I explain why it fails; you fix with owned `String` or different lifetime design.”
+17. **Modbus-style scan** — “List of raw register values `Vec<u16>`: filter evens, map to `f64` scale 0.1, sum. I write the iterator chain; you check overflow and types.”
+18. **Zero-cost check** — “Does `nums.iter().filter(...).map(...).sum()` allocate intermediate `Vec`s? Answer for `--release` and what to measure conceptually.”
 
 #### Compile errors and edge cases
 
-23. **Trap sheet drill** — “Give 6 snippets mixing `for x in v`, `for x in &v`, `into_iter`, and `collect` type errors. I predict compile ok or fail and why; you show the fixed line.”
-24. **&&i32 decoder** — “One `.iter().filter().map()` chain: I label the closure parameter type at each step; you correct and show `|x|`, `|&x|`, and `|&&x|` versions that compile.”
-25. **Empty iterator policy** — “Three tasks (sum, find, all) on possibly empty `Vec`. I state the result and whether it is a domain bug; you correct (e.g. empty `all` is true).”
-26. **zip truncation** — “IDs len 5, values len 100 — I write zip collect; you explain silent loss and sketch `zip` + length check or `enumerate` on the longer vec.”
+19. **Trap sheet drill** — “Give 6 snippets mixing `for x in v`, `for x in &v`, `into_iter`, and `collect` type errors. I predict compile ok or fail and why; you show the fixed line.”
+20. **&&i32 decoder** — “One `.iter().filter().map()` chain: I label the closure parameter type at each step; you correct and show `|x|`, `|&x|`, and `|&&x|` versions that compile.”
+21. **Empty iterator policy** — “Three tasks (sum, find, all) on possibly empty `Vec`. I state the result and whether it is a domain bug; you correct (e.g. empty `all` is true).”
+22. **zip truncation** — “IDs len 5, values len 100 — I write zip collect; you explain silent loss and sketch `zip` + length check or `enumerate` on the longer vec.”
 
 #### Custom iterators
 
-27. **PortScan impl** — "Implement `Iterator` for ports 502..=505; collect to `Vec` and sum with `.sum()` — show `type Item` and `fn next` only."
-28. **Skip blanks** — "Config string with empty lines — write `NonEmptyLines` iterator that trims and skips `''`; collect keys before `=`."
-29. **Infinite take** — "Counter from 0 without end — why must you `.take(n)` before `.collect()`? Show hang vs bounded collect."
-30. **IntoIterator pair** — "Same struct: implement `Iterator` and `IntoIterator` so both `scan.next()` and `for p in scan` work — minimal impl blocks."
-31. **Stateful parser** — "Byte buffer iterator yielding complete 4-byte frames; partial frame stays in struct — sketch `next()` state machine."
-32. **Capstone iterator** — "CSV line iterator: split fields, parse col 2 as `u16`, filter > 0 — custom struct + one consumer chain."
+23. **PortScan impl** — "Implement `Iterator` for ports 502..=505; collect to `Vec` and sum with `.sum()` — show `type Item` and `fn next` only."
+24. **Skip blanks** — "Config string with empty lines — write `NonEmptyLines` iterator that trims and skips `''`; collect keys before `=`."
+25. **Infinite take** — "Counter from 0 without end — why must you `.take(n)` before `.collect()`? Show hang vs bounded collect."
+26. **IntoIterator pair** — "Same struct: implement `Iterator` and `IntoIterator` so both `scan.next()` and `for p in scan` work — minimal impl blocks."
+27. **Stateful parser** — "Byte buffer iterator yielding complete 4-byte frames; partial frame stays in struct — sketch `next()` state machine."
+28. **Capstone iterator** — "CSV line iterator: split fields, parse col 2 as `u16`, filter > 0 — custom struct + one consumer chain."
 
