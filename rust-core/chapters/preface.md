@@ -4,7 +4,7 @@
 
 You already program in at least one language. You do not need a tutorial that starts with `for` loops. You need a **paradigm map**: how Rust thinks about memory, types, concurrency, and errors — and how to write **idiomatic** Rust instead of transliterating syntax from whatever you know today.
 
-Backend developers, CLI authors, and curious systems programmers are all welcome. **Rust Core** is the language-fundamentals track inside **[Rust Vibe Learning](../README.md)**. Part V applies ideas to std I/O; Parts I–IV stand on their own.
+Backend developers, CLI authors, and curious systems programmers are all welcome. **Rust Core** is the language-fundamentals track inside **[Vibe Learning](../README.md)**. Part V applies ideas to std I/O; Parts I–IV stand on their own.
 
 Where tables compare **Java** and **Python**, treat them as **optional anchors** — handy if you know those languages, not required to follow the notes.
 
@@ -101,7 +101,7 @@ Use the model as a sparring partner. You stay responsible for correctness and id
 **Starter context — paste once at the top of each chapter chat:**
 
 ```text
-You are my Rust tutor. I am working through Rust Core (Rust Vibe Learning lecture notes).
+You are my Rust tutor. I am working through Rust Core.
 I already program in: [your language(s) — e.g. Python, C++, Go].
 
 Answer rules:

@@ -428,8 +428,7 @@ Interactive CLI tools sometimes need a **pseudo-terminal** (line discipline, ech
 - [Chapter 16: Async I/O](16_async_tokio.md) — `tokio::fs`, `TcpListener`
 - [Chapter 17: Metaprogramming](17_metaprogramming.md) — `include_str!`, config derives
 - [Chapter 18: Unsafe](18_unsafe_and_internals.md) — FFI and safe wrappers over I/O handles
-
-### Afterparty
+- [Chapter 20: Production standards](20_production_standards.md) — review checklist before merge
 
 #### Read / Write and buffering
 

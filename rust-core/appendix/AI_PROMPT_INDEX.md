@@ -487,9 +487,24 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 | P367 | **Line parser** — BufRead lines, skip `#`, parse `key=value` — trailing newline. |
 | P368 | **Capstone CLI** — env path → metadata check → line parse → print port — function list only. |
 
+## Chapter 20 — Production standards
+
+| ID | Prompt |
+|----|--------|
+| P369 | **Diff review** — Mark each of the 19 checklist rows pass/fail on a 30-line Rust PR with one sentence each. |
+| P370 | **Mega-error refactor** — Split one `AppError` into `ValidateError` + `StorageError`; show boundary mapping. |
+| P371 | **Panic hunt** — Find five panic sources in a snippet; replace with `Option`/`Result`. |
+| P372 | **Clone audit** — Remove three unnecessary clones by fixing signatures to `&str` / `&[T]`. |
+| P373 | **Arc style** — Rewrite `arc.clone()` to `Arc::clone(&arc)`; explain review benefit. |
+| P374 | **Workspace.toml** — Sketch root + two members; shared deps use `{ workspace = true }`. |
+| P375 | **Golden test** — One `assert_eq!(got, want)` + `pretty_assertions`; no per-field asserts. |
+| P376 | **Flaky test fix** — Replace `thread::sleep` in test with injected `Clock` trait. |
+| P377 | **Pre-merge gate** — Checklist-only review of gateway `main.rs` + `lib.rs` — findings only. |
+| P378 | **AI review prompt** — One paragraph prompt for an assistant to verify the Ch20 rules on a Rust diff. |
+
 ---
 
-**Total: 368 prompts** (P001–P368).
+**Total: 378 prompts** (P001–P378).
 
 ## By theme
 
@@ -508,6 +523,7 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 | Errors / tests | P124–P128 |
 | Concurrency | P244–P265 |
 | Systems / I/O | P337–P368 |
+| Production standards | P369–P378 |
 | Meta / tooling | P001–P005, P266–P336 |
 
 ## See also

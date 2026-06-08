@@ -584,9 +584,105 @@ fn main() {
 | `Cow::Borrowed(&T)` | no allocation; return as-is |
 | `Cow::Owned(T)` | had to mutate or build owned data |
 
-Call `.into_owned()` when the caller must keep an owned value after the function returns.
+### `into_owned()` — finish with a plain owned value
 
-**API pattern:** accept `Cow<'a, str>` when you might normalize or pass through unchanged. Common in parsers and HTTP header helpers.
+`Cow` is for **maybe** allocating. Once you know the caller needs an owned `String` or `Vec` long-term, call **`.into_owned()`** — it returns `T` without cloning when the data is already `Cow::Owned`:
+
+```rust
+// Playground
+use std::borrow::Cow;
+
+fn slugify<'a>(s: Cow<'a, str>) -> String {
+    let cow = if s.contains(' ') {
+        Cow::Owned(s.replace(' ', "-"))
+    } else {
+        s
+    };
+    cow.into_owned() // String — cheap move if already Owned, one clone if Borrowed
+}
+
+fn store_label(label: String) {
+    println!("stored: {}", label);
+}
+
+fn main() {
+    store_label(slugify(Cow::Borrowed("sensor 1"))); // allocates once inside slugify
+    store_label(slugify(Cow::Borrowed("sensor-2"))); // into_owned clones the &str
+}
+```
+
+| Call | If `Cow` was… | Cost |
+|------|----------------|------|
+| `.into_owned()` | `Borrowed(&T)` | clone `T` into owned |
+| `.into_owned()` | `Owned(T)` | move `T` out — **no extra clone** |
+
+Use **`into_owned()`** at the boundary when the next API takes `String` / `Vec<T>`, not `Cow`.
+
+### `ToOwned` and `.to_owned()` on references
+
+The **`ToOwned`** trait generalizes “borrowed view → owned copy”. For **`&str`**, **`.to_owned()`** is the same idea as **`.to_string()`** — both produce a `String`:
+
+```rust
+// Playground
+fn cache_key(prefix: &str, id: u32) -> String {
+    format!("{}:{}", prefix.to_owned(), id)
+}
+
+fn main() {
+    let literal = "modbus";
+    let owned = String::from("opcua");
+    println!("{}", cache_key(literal, 1));
+    println!("{}", cache_key(&owned, 2));
+}
+```
+
+Typical implementations:
+
+| Borrowed | `.to_owned()` gives |
+|----------|---------------------|
+| `&str` | `String` |
+| `&[T]` where `T: Clone` | `Vec<T>` |
+| `&Path` | `PathBuf` |
+| `Cow<'a, T>` | `T` (via `.into_owned()`) |
+
+**When to reach for `.to_owned()`**
+
+- You hold **`&str` / `&[u8]`** and the next step needs **`String` / `Vec<u8>`** for storage or `Send` across threads.
+- You are **normalizing** borrowed input once at the boundary (trim, replace) before pushing into a collection.
+
+**When to skip it**
+
+- The value is **already** `String` — use it as-is; `.to_owned()` on `&String` allocates a **duplicate** ([Chapter 20](20_production_standards.md)).
+- You only **read** the data — take `&str` / `impl AsRef<str>` and borrow ([AsRef](#asref-and-borrow) above).
+
+```rust
+// Playground — weak: double allocation
+fn weak(label: &String) -> String {
+    label.to_owned() // clones entire String when &str would borrow
+}
+
+// Playground — strong: borrow until you store
+fn strong(label: &str) -> String {
+    label.to_string() // or to_owned() — one allocation when storage is required
+}
+
+fn main() {
+    let s = String::from("plc-1");
+    println!("{} {}", weak(&s), strong(&s));
+}
+```
+
+**`.clone()` vs `.to_owned()`:** on **`&T`**, prefer **`.to_owned()`** when you mean “give me an owned copy of this borrowed data”. On **`String`** / **`Vec`**, **`.clone()`** duplicates the owned value. The names signal intent to readers.
+
+**API pattern:** accept `Cow<'a, str>` when you might normalize or pass through unchanged; return **`String`** (or call `.into_owned()` before storing). Common in parsers and HTTP header helpers.
+
+| Method | On what | Result | Cost |
+|--------|---------|--------|------|
+| **`.to_owned()`** | borrowed `&T` | owned copy of `T` (`&str` → `String`) | **heap alloc + copy** — same price as `.clone()` on owned data; skip if you can borrow |
+| **`.clone()`** | already-owned `T` | duplicate of `T` (`String` → `String`) | **heap alloc + copy** for `String`/`Vec`; cheap for `Copy` types |
+| **`.into_owned()`** | `Cow<'a, T>` | owned `T` | **move** if already `Owned`; **alloc + copy** if `Borrowed` |
+
+**One line:** borrow → **`.to_owned()`**; own and keep two → **`.clone()`**; `Cow` → plain owned → **`.into_owned()`**.
 
 ## Deref — cheap access through smart pointers
 
@@ -736,6 +832,7 @@ Common errors in this chapter:
 18. **Borrow lookup** — “Explain `HashMap<String, V>.get(&str)` — role of `Borrow<str>`.”
 19. **Cow API** — “Normalize slug: accept `Cow<str>`, return borrowed if already valid else owned.”
 20. **into_owned** — “When caller needs `String` after your `Cow` helper — where call `into_owned()`?”
+21. **to_owned vs clone** — “Three snippets: `&str`→store, `&String`→store, already-`String` — pick `to_owned`, borrow, or move; explain each.”
 
 #### API design and capstone
 

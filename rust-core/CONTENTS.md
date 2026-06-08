@@ -1,6 +1,6 @@
 # Table of Contents
 
-**Rust Core** — Part of [Rust Vibe Learning](../README.md). Paradigm → crates → concurrency → power tools → std I/O.
+**Rust Core** — Part of [Vibe Learning](../README.md). Paradigm → crates → concurrency → power tools → std I/O.
 
 ---
 
@@ -54,11 +54,17 @@
 |----|-------|------|
 | 19 | [I/O, processes, and bits](chapters/19_io_processes_bits.md) | `chapters/19_io_processes_bits.md` |
 
+## Part VI — Production standards
+
+| Ch | Title | File |
+|----|-------|------|
+| 20 | [Production Rust standards](chapters/20_production_standards.md) | `chapters/20_production_standards.md` |
+
 ## Appendices
 
 | Doc | Purpose |
 |-----|---------|
-| [AI Prompt Index](appendix/AI_PROMPT_INDEX.md) | Afterparty prompts (**P001–P368**) |
+| [AI Prompt Index](appendix/AI_PROMPT_INDEX.md) | Afterparty prompts (**P001–P378**) |
 | [Playground Guide](appendix/PLAYGROUND_GUIDE.md) | Run snippets online vs locally |
 | [Java / Python / Rust map](appendix/JAVA_PYTHON_RUST_MAP.md) | Optional mental-model cheat sheet |
 
@@ -73,6 +79,7 @@
 | III | 14–16 | 8–12 h |
 | IV | 17–18 | 6–10 h |
 | V | 19 | 3–5 h |
+| VI | 20 | 2–3 h (review checklist; revisit after shipping code) |
 
 Adjust for depth; concurrency chapters reward repetition.
 
@@ -101,4 +108,5 @@ flowchart TD
   c16 --> c17[Ch17 Macros]
   c17 --> c18[Ch18 Unsafe]
   c18 --> c19[Ch19 IO]
+  c19 --> c20[Ch20 Production standards]
 ```

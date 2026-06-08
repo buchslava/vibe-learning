@@ -1,6 +1,6 @@
 # Rust Core
 
-**Part of [Rust Vibe Learning](../README.md)**
+**Part of [Vibe Learning](../README.md)**
 
 A Rust language track for developers **already comfortable programming in another language**. You get the **Rust paradigm** — ownership, traits, concurrency — without framework churn. Examples run on the [Rust Playground](https://play.rust-lang.org/) where possible.
 

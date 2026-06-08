@@ -1,4 +1,4 @@
-# Rust Vibe Learning
+# Vibe Learning
 
 A learning hub for Rust — practical books and exercises for developers who already write code and want **clear mental models**, not filler.
 
