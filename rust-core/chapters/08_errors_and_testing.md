@@ -887,7 +887,7 @@ fn main() {}
 #### Errors and enums
 
 16. **Error enum design** — “Design `AppError` for config + serial + timeout; variant shapes + recovery `match`.”
-17. **Domain vs error** — “Same PLC model: separate `Command` enum from `AppError`; justify.”
+[-]17. **Domain vs error** — “Same PLC model: separate `Command` enum from `AppError`; justify.”
 18. **Recovery match** — “Poll loop: Timeout → retry, ParsePort → alert, DeviceOffline → safe state — sketch `match`.”
 19. **Nested SerialError** — “Add `AppError::Serial(SerialError)`; show propagation with `#[from]`.”
 20. **Exhaustive trap** — “Add `DeviceOffline` variant; quote non-exhaustive `match` errors until fixed.”
@@ -895,11 +895,11 @@ fn main() {}
 #### Custom errors and boundaries
 
 21. **Boundary pattern** — “`run() -> Result` + `main` maps to exit code; no `unwrap` in between.”
-22. **Java exceptions** — “Map checked `FileNotFoundException` flow to Rust `Result` + boundary `match`.”
+[-]22. **Java exceptions** — “Map checked `FileNotFoundException` flow to Rust `Result` + boundary `match`.”
 23. **map_err drill** — “Convert `ParseIntError` → `AppError::Parse` with and without `From` / `#[from]`.”
 
 #### Testing
 
 24. **Table-driven ports** — “Tests for `parse_port`: valid, zero, non-numeric, too large for `u16`.”
-25. **Test panic vs prod** — “Why `unwrap` in `#[test]` is OK but not in `main` poll loop.”
+[-]25. **Test panic vs prod** — “Why `unwrap` in `#[test]` is OK but not in `main` poll loop.”
 26. **Integration test** — “Sketch `tests/config_load.rs` that expects `Err` on missing file without panicking.”

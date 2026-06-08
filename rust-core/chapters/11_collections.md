@@ -466,7 +466,7 @@ Common errors in this chapter:
 
 1. **Pick collection** — “Five tasks (dedup, sorted range scan, FIFO queue, index by id, min-key lookup) — I pick Vec/HashMap/BTree/VecDeque/HashSet each.”
 2. **Hash vs BTree** — “Same 10k insert + range scan workload — when HashMap wins vs BTreeMap; one sentence each.”
-3. **Java map** — “Translate `LinkedHashMap` access-order need — what Rust std type fits, what does not?”
+[-]3. **Java map** — “Translate `LinkedHashMap` access-order need — what Rust std type fits, what does not?”
 4. **Queue anti-pattern** — “Review `while !v.is_empty() { v.remove(0) }` — cost and fix with `VecDeque`.”
 
 #### Vec drills

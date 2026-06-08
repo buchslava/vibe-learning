@@ -434,12 +434,12 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 
 Use these for worker pools and topics not covered above.
 
-#### Concepts and when to use threads
+[-]#### Concepts and when to use threads
 
-1. **GIL vs OS threads** — “Same CPU-bound task in Python `threading` vs Rust OS threads — who runs in parallel?”
-2. **Parallelism vs concurrency** — “Define both; classify Modbus poll + HTTP publish as one or both.”
-3. **Threads vs async** — “Gateway with 200 idle TCP connections — argue threads vs async; link Ch16.”
-4. **Scope honesty** — “List 5 multithreading topics Ch14 deliberately skips and where to learn each.”
+[-]1. **GIL vs OS threads** — “Same CPU-bound task in Python `threading` vs Rust OS threads — who runs in parallel?”
+[-]2. **Parallelism vs concurrency** — “Define both; classify Modbus poll + HTTP publish as one or both.”
+[-]3. **Threads vs async** — “Gateway with 200 idle TCP connections — argue threads vs async; link Ch16.”
+[-]4. **Scope honesty** — “List 5 multithreading topics Ch14 deliberately skips and where to learn each.”
 
 #### Spawn, move, join
 
@@ -447,7 +447,7 @@ Use these for worker pools and topics not covered above.
 6. **Move fix** — “Show spawn without `move` that fails; fix with `move` or `clone`.”
 7. **Join panic** — “Worker panics; rewrite main to `match join()` and keep supervisor alive.”
 8. **Detached threads** — “Why is `mem::forget(handle)` after spawn dangerous? Better pattern?”
-9. **Python GIL** — “Compare this Python threading example to Rust for same I/O-bound task.”
+[-]9. **Python GIL** — “Compare this Python threading example to Rust for same I/O-bound task.”
 
 #### Channels
 
@@ -455,7 +455,7 @@ Use these for worker pools and topics not covered above.
 11. **Drop tx footgun** — “Main exits before worker sends — diagram who holds `tx`/`rx`.”
 12. **Multiple producers** — “Clone `tx` to two workers; main receives merged stream — sketch code.”
 13. **Bounded vs unbounded** — “When does unbounded `mpsc` blow memory in automation? Bounded alternative?”
-14. **Backpressure** — “Sensor flood faster than logger — channel + drop policy in 80 words.”
+[-]14. **Backpressure** — “Sensor flood faster than logger — channel + drop policy in 80 words.”
 
 #### Mutex and shared state
 
@@ -470,7 +470,7 @@ Use these for worker pools and topics not covered above.
 
 21. **PLC gateway layout** — “Sketch poll thread + command channel + main supervisor; no code over 40 lines.”
 22. **Lock latency** — “Modbus cycle 20 ms — max time holding mutex for register cache update?”
-23. **Capstone audit** — “Mark 6 snippets: UB/data race in C++ vs Rust compile error vs safe pattern.”
+[-]23. **Capstone audit** — “Mark 6 snippets: UB/data race in C++ vs Rust compile error vs safe pattern.”
 24. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”
 
 #### RwLock, OnceLock, and scope

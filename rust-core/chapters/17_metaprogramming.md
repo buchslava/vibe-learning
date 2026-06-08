@@ -889,14 +889,14 @@ Use these for proc-macro authoring and advanced DSL topics not covered above.
 19. **Copy vs Clone quiz** — “Classify 8 types: Copy, Clone only, or neither; justify.”
 20. **Hot-loop clone audit** — “Audit poll loop with `.clone()` each tick; suggest move/`Arc`/borrow.”
 21. **Arc vs derive Clone** — “Explain cheap `Arc` clone vs deep `String` clone with one snippet.”
-22. **Java clone compare** — “Compare Java `.clone()` / Python `copy` to Rust `Clone` derive.”
+[-]22. **Java clone compare** — “Compare Java `.clone()` / Python `copy` to Rust `Clone` derive.”
 
 #### Derive ecosystem
 
 23. **derive need** — “List derives I want for config struct loaded from TOML — justify each.”
 24. **Serde rename** — “Field `poll_ms` in JSON as `pollIntervalMs` — show attr; trap on refactor.”
 25. **thiserror vs manual** — “Same error enum: count lines derive vs hand-written (Ch8 style).”
-26. **clap subcommands** — “Sketch `#[derive(Subcommand)]` enum for gateway start/stop/status.”
+[-]26. **clap subcommands** — “Sketch `#[derive(Subcommand)]` enum for gateway start/stop/status.”
 27. **Float Eq trap** — “Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch7.”
 
 #### Debugging and tooling
@@ -916,7 +916,7 @@ Use these for proc-macro authoring and advanced DSL topics not covered above.
 
 35. **Macro vs fn audit** — “Mark 6 snippets: should be macro, derive, or plain fn — justify.”
 36. **When not proc macro** — “Three scenarios where proc macro is overkill; alternative each.”
-37. **Java annotation** — “Map Lombok `@Data` to Rust derive set — what's missing?”
+[-]37. **Java annotation** — “Map Lombok `@Data` to Rust derive set — what's missing?”
 38. **Minimal derive set** — “Gateway config + error + CLI: smallest derive list that still ships.”
 
 #### Edge case audit

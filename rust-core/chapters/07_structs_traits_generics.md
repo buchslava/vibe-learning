@@ -1053,16 +1053,16 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 
 #### Structs and inherent `impl`
 
-1. **Sensor struct** — “Port a Java `Sensor` class (fields + constructor + `scaled()`) to Rust `struct` + `impl`; no getters unless needed.”
+[-]1. **Sensor struct** — “Port a Java `Sensor` class (fields + constructor + `scaled()`) to Rust `struct` + `impl`; no getters unless needed.”
 2. **new vs default** — “When is `Sensor::new` idiomatic vs `Default` + field update? One automation example each.”
 3. **Method receiver** — “Same logic three ways: `fn f(self)`, `fn f(&self)`, `fn f(&mut self)` on a struct; I predict what calls compile.”
 
-#### Optional: traits via Java / Python examples
+[-]#### Optional: traits via Java / Python examples
 
-4. **Interface port** — “Convert Java interface `Measurable` + two classes to trait + two structs + `impl Measurable for` each.”
-5. **Duck typing** — “Python function accepts anything with `.read()`; express as trait bound on a generic `fn load<T: ReadSource>(...)`.”
-6. **OOP myth** — “Explain in 100 words why Rust has no inheritance; map Java `extends`/`implements` to struct/trait/enum.”
-7. **Trait vs interface table** — “Fill gaps: default methods, static dispatch, orphan rule, `dyn` — compare Java interface vs Rust trait.”
+[-]4. **Interface port** — “Convert Java interface `Measurable` + two classes to trait + two structs + `impl Measurable for` each.”
+[-]5. **Duck typing** — “Python function accepts anything with `.read()`; express as trait bound on a generic `fn load<T: ReadSource>(...)`.”
+[-]6. **OOP myth** — “Explain in 100 words why Rust has no inheritance; map Java `extends`/`implements` to struct/trait/enum.”
+[-]7. **Trait vs interface table** — “Fill gaps: default methods, static dispatch, orphan rule, `dyn` — compare Java interface vs Rust trait.”
 
 #### Enums, structs, and traits together
 
@@ -1076,7 +1076,7 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 #### Default trait methods and UFCS
 
 14. **Default override** — “Trait `HasCode` with default `label()`; override for one enum variant only; use `HasCode::label(self)` for the rest.”
-15. **Not overloading** — “Explain why `HasCode::label(other)` is not Java overloading; compare to `interface.super.method()`.”
+[-]15. **Not overloading** — “Explain why `HasCode::label(other)` is not Java overloading; compare to `interface.super.method()`.”
 16. **Recursion trap** — “Show infinite recursion when override calls `self.label()` instead of `HasCode::label(self)`; fix it.”
 17. **One trait per impl** — “Show `impl HasCode, Display for T` compile error; split into two blocks; add `fn show<T: HasCode + Display>(x: T)`.”
 
@@ -1084,14 +1084,14 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 
 18. **Command + log row** — “`enum Command` + `struct SetSpeedLog` + `to_log()`; list which derives each type needs and why.”
 19. **Eq on floats** — “Add `Analog(f64)` variant; show `#[derive(Eq)]` failure; fix with integer fixed-point or `PartialEq` only.”
-20. **Derive vs manual** — “When would you hand-write `impl Debug` instead of `#[derive(Debug)]` on an automation enum?”
+[-]20. **Derive vs manual** — “When would you hand-write `impl Debug` instead of `#[derive(Debug)]` on an automation enum?”
 
 #### Generics and trait bounds
 
 21. **Generic bounds** — “Fix compiler error: `T` needs `Display + Clone`; minimal bound set on `fn duplicate_and_print<T>(x: T)`.”
 22. **largest pitfalls** — “Why does `largest` need non-empty slice? Add `Option` return or document panic; compare to Java generics erasure story.”
 23. **where clause** — “Rewrite `fn f<T: A + B + C>(x: T)` with a `where` block; same signature, longer trait list.”
-24. **Monomorphization** — “Explain in 60 words what the compiler generates for `show(42)` and `show("text")` with `fn show<T: Display>(x: T)`.”
+[-]24. **Monomorphization** — “Explain in 60 words what the compiler generates for `show(42)` and `show("text")` with `fn show<T: Display>(x: T)`.”
 
 #### `impl Trait` vs `dyn Trait` vs `enum`
 
@@ -1118,7 +1118,7 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 
 37. **Checklist drill** — “Match 8 Chapter 7 compiler errors to snippets (non-exhaustive match, partial move, orphan, not dyn compatible, unsized, moved self, Eq+f64, multi-trait impl).”
 38. **PLC message model** — “Design full model: enum frames, struct payloads, two traits, one `dyn` registry for sinks, derive list — no code over 80 lines.”
-39. **Java hierarchy kill** — “Given Java abstract `Device` + `ModbusDevice` + `OpcUaDevice`, produce Rust enum+struct+trait layout; no `dyn` unless I ask for plug-ins.”
+[-]39. **Java hierarchy kill** — “Given Java abstract `Device` + `ModbusDevice` + `OpcUaDevice`, produce Rust enum+struct+trait layout; no `dyn` unless I ask for plug-ins.”
 40. **Refactor story** — “Start with `Vec<Box<dyn Driver>>`; protocol closes to two devices; refactor to `enum`; list what the compiler now catches.”
 
 #### Associated types and supertraits

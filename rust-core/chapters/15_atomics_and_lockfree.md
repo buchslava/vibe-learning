@@ -422,7 +422,7 @@ Use these for lock-free structures and formal memory-model topics not covered ab
 
 1. **Threads vs async atomics** — “Same `Arc<AtomicBool>` in `thread::spawn` vs `tokio::spawn` — what differs, what stays the same?”
 2. **Data race vs logic race** — “Define both; classify lost `static mut` increment vs `fetch_add`.”
-3. **Scope honesty** — “List 5 topics Ch15 skips and where to learn each.”
+[-]3. **Scope honesty** — “List 5 topics Ch15 skips and where to learn each.”
 4. **Ch14 port** — “Rewrite Mutex counter (Ch14 L4) as `AtomicUsize`; when is each better?”
 
 #### Memory ordering
@@ -430,7 +430,7 @@ Use these for lock-free structures and formal memory-model topics not covered ab
 5. **Ordering quiz** — “Shutdown flag + published config pointer — pick orderings; justify.”
 6. **When Relaxed lies** — “Metrics OK, config handoff broken — show Release/Acquire fix.”
 7. **Fence intuition** — “Draw happens-before for Release store + Acquire load (Level 4).”
-8. **SeqCst default** — “When is paying for SeqCst worth it in a PLC gateway?”
+[-]8. **SeqCst default** — “When is paying for SeqCst worth it in a PLC gateway?”
 9. **Relaxed polls vs version** — “Why is `Relaxed` OK for Level 2 `polls` but wrong for Level 4 `version`? One sentence each.”
 
 #### CAS and compare_exchange
@@ -444,7 +444,7 @@ Use these for lock-free structures and formal memory-model topics not covered ab
 
 14. **Race quiz** — “Mark 6 snippets: safe atomic, UB `static mut`, ordering bug, needs Mutex.”
 15. **Visibility story** — “Writer updates `port` then `Relaxed` flag — what can reader see?”
-16. **Panic vs race** — “Thread panicked in worker — is it a data race? Link Ch8.”
+[-]16. **Panic vs race** — “Thread panicked in worker — is it a data race? Link Ch8.”
 
 #### Atomics vs Mutex vs channels
 
@@ -458,9 +458,9 @@ Use these for lock-free structures and formal memory-model topics not covered ab
 
 22. **Gateway metrics** — “Design `Gateway { polls, shutdown }` for async; orderings per field.”
 23. **False sharing** — “Two hot atomics on same cache line — problem and mitigation in 60 words.”
-24. **Java AtomicInteger** — “Map Java `incrementAndGet` to Rust `fetch_add` + orderings.”
+[-]24. **Java AtomicInteger** — “Map Java `incrementAndGet` to Rust `fetch_add` + orderings.”
 25. **Lock-free queue** — “Why this chapter says don’t hand-roll; name crates/patterns instead.”
 
-#### Capstone
+[-]#### Capstone
 
-26. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”
+[-]26. **Level ladder recap** — “Explain Levels 1–6 in one paragraph each for a Java teammate.”

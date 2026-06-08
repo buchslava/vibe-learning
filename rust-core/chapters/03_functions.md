@@ -395,7 +395,7 @@ Common errors in this chapter:
 
 1. **Parameter audit** — “Five function signatures for logging: `&str`, `String`, `&String`, `Cow<str>`, `impl AsRef<str>`. I pick one per use case; you explain ownership cost.”
 2. **Move vs borrow** — “Snippet calls `process(s)` then uses `s` again. I explain the error and show two fixes (`&s`, clone).”
-3. **Java map** — “Map Java method `void consume(List<String> xs)` to idiomatic Rust — owned vs borrowed slice of strings.”
+[-]3. **Java map** — “Map Java method `void consume(List<String> xs)` to idiomatic Rust — owned vs borrowed slice of strings.”
 
 #### Methods and impl
 
@@ -413,7 +413,7 @@ Common errors in this chapter:
 
 10. **Generic bounds** — “Fix `fn max(a: T, b: T)` without bounds; add `T: Ord` or `PartialOrd`.”
 11. **Result signature** — “Design `fn read_config(path: &str) -> Result<Config, ...>`; list error variants, no body.”
-12. **Capstone** — “Split a 40-line `main` into 4 functions with clear signatures; list names and params only, I implement.”
+[-]12. **Capstone** — “Split a 40-line `main` into 4 functions with clear signatures; list names and params only, I implement.”
 
 #### impl Trait and drain
 
@@ -422,5 +422,5 @@ Common errors in this chapter:
 15. **where clause** — "Rewrite cluttered `fn f<T: A + B + C>(x: T)` with `where` block — same behaviour."
 16. **Self return** — "Method `fn into_inner(self) -> Vec<u8>` on wrapper — why `Self` not concrete type name?"
 17. **const fn** — "One `const fn` port validator `fn is_valid(p: u16) -> bool` — what can and cannot run at compile time?"
-18. **Capstone signatures** — "CLI tool: four functions `load_config`, `parse_port`, `run`, `main` — list signatures with ownership only."
+[-]18. **Capstone signatures** — "CLI tool: four functions `load_config`, `parse_port`, `run`, `main` — list signatures with ownership only."
 

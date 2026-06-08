@@ -489,7 +489,7 @@ Prompts to solidify how futures, polling, and scope fit together:
 1. **Future diagram** — “Draw state machine for `async fn` with two `.await` points.”
 2. **Poll vs await** — “Who polls the Future — caller, executor, or Tokio runtime?”
 3. **Executor vs thread** — “One paragraph: cooperative async vs preemptive OS threads.”
-4. **Scope honesty** — “List 5 async topics Ch16 skips and where to learn each.”
+[+]4. **Scope honesty** — “List 5 async topics Ch16 skips and where to learn each.”
 5. **Forgotten await** — “Show unused Future bug; fix with `.await` or `spawn`.”
 
 #### Tokio basics
@@ -540,9 +540,9 @@ Bridging lock-free flags from Chapter 15 into async tasks:
 22. **Async sleep in worker** — “Why must Level 6’s poll loop use `tokio::time::sleep().await` on every iteration, not `thread::sleep`?”
 23. **tokio Mutex** — “Rewrite bad `std::sync::MutexGuard` across await with `tokio::sync::Mutex`.”
 
-#### Production capstone
+[-]#### Production capstone
 
-Review exercises that mix blocking audit with the full level ladder:
+[-]Review exercises that mix blocking audit with the full level ladder:
 
-24. **Blocking audit** — “Mark 6 snippets: async-safe vs executor poison vs needs `spawn_blocking`.”
-25. **Level ladder recap** — “Explain Levels 0–6 in one paragraph each — Tokio mechanics only.”
+[-]24. **Blocking audit** — “Mark 6 snippets: async-safe vs executor poison vs needs `spawn_blocking`.”
+[-]25. **Level ladder recap** — “Explain Levels 0–6 in one paragraph each — Tokio mechanics only.”

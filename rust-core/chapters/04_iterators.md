@@ -525,12 +525,12 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 
 ### Afterparty
 
-#### Cross-language and mental model
+[-]#### Cross-language and mental model
 
-1. **Loop port** — “Rewrite this C-style indexed loop as an iterator chain; preserve behavior and types.”
-2. **Stack pattern map** — “I name a task in Java (`Stream`), Python (comprehension), and SQL. You show the idiomatic Rust iterator chain for each — one line per language plus Rust.”
-3. **Python comp port** — “Translate `[x * 2 for x in nums if x > 0]` into a Rust `Vec` pipeline with `.iter().filter().map().collect()`; explain lazy vs eager.”
-4. **Unix pipe analogy** — “In ≤120 words, map `cmd1 | cmd2` to Rust iterator adapters on in-memory data; where does `.collect()` fit?”
+[-]1. **Loop port** — “Rewrite this C-style indexed loop as an iterator chain; preserve behavior and types.”
+[-]2. **Stack pattern map** — “I name a task in Java (`Stream`), Python (comprehension), and SQL. You show the idiomatic Rust iterator chain for each — one line per language plus Rust.”
+[-]3. **Python comp port** — “Translate `[x * 2 for x in nums if x > 0]` into a Rust `Vec` pipeline with `.iter().filter().map().collect()`; explain lazy vs eager.”
+[-]4. **Unix pipe analogy** — “In ≤120 words, map `cmd1 | cmd2` to Rust iterator adapters on in-memory data; where does `.collect()` fit?”
 
 #### `for`, ranges, and three walk modes
 

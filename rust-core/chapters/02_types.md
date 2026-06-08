@@ -359,8 +359,8 @@ fn main() {
 #### Scalars and inference
 
 1. **Integer pick** — “Quiz me: for 8 scenarios (Modbus port, byte buffer, collection index, money cents, timestamp millis, hash output, loop counter, enum discriminant), I pick `u8`/`u16`/`u32`/`u64`/`i32`/`usize`; you correct and explain overflow risk.”
-2. **Suffix or annotate** — “Give 5 snippets where integer inference is ambiguous or wrong; I add a suffix or type annotation; you verify.”
-3. **Overflow policy** — “Three arithmetic scenarios in a control loop. For each, recommend plain `+`, `checked_add`, `saturating_add`, or `wrapping_add`; explain panic vs wrap in debug/release.”
+[-]2. **Suffix or annotate** — “Give 5 snippets where integer inference is ambiguous or wrong; I add a suffix or type annotation; you verify.”
+[-]3. **Overflow policy** — “Three arithmetic scenarios in a control loop. For each, recommend plain `+`, `checked_add`, `saturating_add`, or `wrapping_add`; explain panic vs wrap in debug/release.”
 4. **`char` vs byte** — “Explain why `'A'` is not the same type as `65u8`. Show one valid `char` literal and one invalid escape; mention UTF-8 only when discussing `str`/`String`.”
 
 #### Compound types and text
@@ -374,12 +374,12 @@ fn main() {
 
 9. **Slice from array** — “Given `[u8; 8]` with a 2-byte header and 6-byte payload, I write range expressions for `header`, `payload`, and `full` as `&[u8]`; you check half-open bounds.”
 10. **`.get` vs `[i]`** — “Three indexing scenarios (fixed compile-time index, user-supplied index, loop variable). I pick `[i]` or `.get(i)` for each; you explain panic risk.”
-11. **`&[u8]` vs `&str`** — “Four automation scenarios (Modbus PDU bytes, JSON string field after parse, serial line with ASCII command, raw hex dump). I pick byte slice or text slice; you explain validation.”
+[-]11. **`&[u8]` vs `&str`** — “Four automation scenarios (Modbus PDU bytes, JSON string field after parse, serial line with ASCII command, raw hex dump). I pick byte slice or text slice; you explain validation.”
 12. **UTF-8 length trap** — “For `\"naïve\"` and `\"hi 🦀\"`, I predict `.len()` vs `.chars().count()`; you show one bad string slice that panics and the safe fix (`.chars()` or careful byte ranges).”
-13. **Build a `String`** — “Task: assemble `\"port=502;host=plc1\"` from parts in a loop. I choose `push_str`, `format!`, or `+`; you rank by allocations and idiomatic style.”
+[-]13. **Build a `String`** — “Task: assemble `\"port=502;host=plc1\"` from parts in a loop. I choose `push_str`, `format!`, or `+`; you rank by allocations and idiomatic style.”
 14. **Coercion quiz** — “Five call sites passing `&str`, `String`, `&String`, and a literal into `fn log(msg: &str)`. I say ok or what coercion happens; you quote the effective type.”
-15. **Text helpers** — “Give a serial line `CMD:READ,ADDR=10`. I rewrite using `trim`, `strip_prefix`, and `split_once` — no manual byte indexing; you nitpick.”
-16. **Slice signature drill** — “Four functions: sum numeric slice, validate UTF-8 wire bytes, store tag for later, peek first 4 header bytes. I write parameter types (`&[u8]`, `&str`, `String`, etc.); you review.”
+[-]15. **Text helpers** — “Give a serial line `CMD:READ,ADDR=10`. I rewrite using `trim`, `strip_prefix`, and `split_once` — no manual byte indexing; you nitpick.”
+[-]16. **Slice signature drill** — “Four functions: sum numeric slice, validate UTF-8 wire bytes, store tag for later, peek first 4 header bytes. I write parameter types (`&[u8]`, `&str`, `String`, etc.); you review.”
 17. **Empty slice** — “Explain whether `&frame[0..0]` is valid, what `.len()` returns, and how `if slice.is_empty()` reads in a parser guard.”
 18. **Lines and config** — “Multiline config string with comments and blank lines. I sketch a loop using `.lines()` and `.trim().starts_with('#')`; you extend with one `strip_prefix` for `KEY=` rows.”
 
@@ -390,10 +390,10 @@ fn main() {
 21. **match warm-up** — “Extend a `match` on HTTP status codes with 3xx, 4xx, 5xx groupings using range patterns; I write arms; you check exhaustiveness.”
 22. **Loop choice** — “Four iteration tasks (infinite retry with break, consume iterator, index 0..len, early exit on condition). I pick `loop`/`while`/`for`; you confirm idiomatic choice.”
 
-#### Reading and reviewing code
+[-]#### Reading and reviewing code
 
-23. **Type read-through** — “Paste a 20-line `main` with mixed types. I annotate every binding with its inferred or explicit type without running the compiler; you correct.”
-24. **Protocol struct sketch** — “Design a `[u8; N]` frame parser header: field names, types, and which values must be explicit width. No full impl — types only.”
-25. **Review nitpick** — “Show unidiomatic code using `mut` everywhere and magic `i32` for port numbers. I rewrite with minimal `mut` and `u16`; you review.”
-26. **String smell audit** — “Paste 25 lines mixing `&String` parameters, `.clone()` on literals, and `[..]` on non-ASCII text. I flag smells and rewrite with `&str`, borrows, and safe slicing; you grade.”
-27. **Frame parser sketch** — “I describe a 12-byte header + variable payload protocol. You ask only type/signature questions; I answer with `&[u8]`, ranges, and where `String` appears (if at all).”
+[-]23. **Type read-through** — “Paste a 20-line `main` with mixed types. I annotate every binding with its inferred or explicit type without running the compiler; you correct.”
+[-]24. **Protocol struct sketch** — “Design a `[u8; N]` frame parser header: field names, types, and which values must be explicit width. No full impl — types only.”
+[-]25. **Review nitpick** — “Show unidiomatic code using `mut` everywhere and magic `i32` for port numbers. I rewrite with minimal `mut` and `u16`; you review.”
+[-]26. **String smell audit** — “Paste 25 lines mixing `&String` parameters, `.clone()` on literals, and `[..]` on non-ASCII text. I flag smells and rewrite with `&str`, borrows, and safe slicing; you grade.”
+[-]27. **Frame parser sketch** — “I describe a 12-byte header + variable payload protocol. You ask only type/signature questions; I answer with `&[u8]`, ranges, and where `String` appears (if at all).”
