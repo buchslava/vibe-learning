@@ -1,6 +1,6 @@
 # Vibe Learning
 
-A learning hub for Rust — practical books and exercises for developers who already write code and want **clear mental models**, not filler.
+A learning hub — practical books and exercises for developers who already write code and want **clear mental models**, not filler.
 
 ## Sub-books
 
@@ -8,13 +8,6 @@ A learning hub for Rust — practical books and exercises for developers who alr
 |------|------|--------|
 | **Rust Core** | [`rust-core/`](rust-core/) | Language fundamentals: ownership, types, traits, concurrency, std I/O |
 | *(more coming)* | — | Future tracks under this umbrella |
-
-## Other material in this repo
-
-| Path | Notes |
-|------|--------|
-| [`basic/`](basic/) | Introductory notes |
-| [`blockchain-unleashed/`](blockchain-unleashed/) | Separate project track |
 
 ## Start here
 
