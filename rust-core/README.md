@@ -48,3 +48,10 @@ For **Playground** snippets, paste into [play.rust-lang.org](https://play.rust-l
 ## Further patterns
 
 For hundreds of small progressive examples, see [Functional Rust](https://hightechmind.io/rust/). This book links curated examples where they reinforce a topic.
+
+## License
+
+- **Book text** (markdown in this directory): [CC BY-SA 4.0](LICENSE-CC-BY-SA-4.0)
+- **Code examples** (Rust snippets in the chapters): [MIT](LICENSE-MIT)
+
+See [LICENSE](LICENSE) for the full dual-license notice.
