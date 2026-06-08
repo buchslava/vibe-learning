@@ -502,6 +502,147 @@ fn main() -> anyhow::Result<()> {
 
 **Pairing:** use a `thiserror` enum in **`lib`** for typed errors for callers. Use `anyhow` in **`bin`** for context chains at the top. See [errors and enums](#errors-and-enums) for matching variants at the boundary.
 
+### Crate-local `Result` alias
+
+Large modules repeat the same error type on every signature. A **type alias** fixes the error side once:
+
+```rust
+// Playground
+#[derive(Debug)]
+pub enum GatewayError {
+    Timeout,
+    Parse(String),
+}
+
+pub type Result<T> = std::result::Result<T, GatewayError>;
+
+pub fn poll() -> Result<f64> {
+    Ok(42.0)
+}
+
+fn main() {
+    println!("{:?}", poll());
+}
+```
+
+Use **`pub type Result<T> = std::result::Result<T, MyError>`** in library roots — not in public APIs that re-export `std::result::Result` ambiguously. Document the alias in crate docs.
+
+### Transparent `#[from]` variants
+
+Wrap subsystem errors without a custom message — **`#[error(transparent)]`** forwards `Display` and `source()`:
+
+```rust
+// Cargo project — conceptual with thiserror
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error("config read failed")]
+    Config { source: std::io::Error },
+
+    #[error(transparent)]
+    Serial(#[from] SerialError),
+}
+
+#[derive(Debug, Error)]
+pub enum SerialError {
+    #[error("framing error")]
+    Framing,
+}
+
+fn read_frame() -> Result<(), AppError> {
+    Err(SerialError::Framing.into()) // `?` works on SerialError helpers
+}
+
+fn main() {
+    let _ = read_frame();
+}
+```
+
+### Error aggregation for batch work
+
+Stream and batch pipelines often collect **per-item failures** and report them together instead of failing silently on the first error. A small trait keeps the merge logic reusable:
+
+```rust
+// Playground
+#[derive(Debug)]
+struct ItemError {
+    line: usize,
+    msg: String,
+}
+
+#[derive(Debug)]
+enum BatchError {
+    Multiple { errors: Vec<ItemError> },
+}
+
+trait FromMultipleErrors<E> {
+    fn from_multiple(errors: Vec<E>) -> Self;
+}
+
+impl FromMultipleErrors<ItemError> for BatchError {
+    fn from_multiple(errors: Vec<ItemError>) -> Self {
+        Self::Multiple { errors }
+    }
+}
+
+fn flush_errors(errors: Vec<ItemError>) -> Result<(), BatchError> {
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(BatchError::from_multiple(errors))
+    }
+}
+
+fn main() {
+    let errs = vec![
+        ItemError { line: 3, msg: "bad port".into() },
+        ItemError { line: 9, msg: "missing tag".into() },
+    ];
+    println!("{:?}", flush_errors(errs));
+}
+```
+
+Format the **`Display`** message for `Multiple` variants to list each sub-error — operators need the full list, not “something failed”.
+
+## Extension traits on `Option`
+
+Hand-written parsers repeat `ok_or_else` for required fields. An **extension trait** on `Option<T>` centralizes the error shape ([Chapter 7](07_structs_traits_generics.md#extension-traits-in-your-crate)):
+
+```rust
+// Playground
+#[derive(Debug)]
+enum ParseError {
+    MissingField { name: String },
+}
+
+trait RequiredField<T> {
+    fn required(self, name: &str) -> Result<T, ParseError>;
+}
+
+impl<T> RequiredField<T> for Option<T> {
+    fn required(self, name: &str) -> Result<T, ParseError> {
+        self.ok_or_else(|| ParseError::MissingField {
+            name: name.to_string(),
+        })
+    }
+}
+
+fn parse_unit_id(fields: &std::collections::HashMap<&str, &str>) -> Result<u8, ParseError> {
+    let raw = fields.get("unit_id").copied().required("unit_id")?;
+    raw.parse::<u8>()
+        .map_err(|_| ParseError::MissingField { name: "unit_id".into() })
+}
+
+fn main() {
+    let mut m = std::collections::HashMap::new();
+    m.insert("unit_id", "7");
+    println!("{:?}", parse_unit_id(&m));
+}
+```
+
+Name constructors on the error enum (`ParseError::missing_field(...)`) keep call sites even shorter ([Chapter 3](03_functions.md#error-constructor-factories)).
+
 ### Custom error edge cases
 
 **Wrong — `Result<T, String>` in a library public API:**
@@ -838,6 +979,173 @@ fn main() {}
 
 **Testing `Result` errors** — use `match`, `.unwrap_err()`, or crates like `assert_matches` instead of panicking on unexpected `Ok`.
 
+### Trait-based mocks — test orchestration, not I/O
+
+Production code depends on **traits** ([Chapter 7](07_structs_traits_generics.md#trait-decomposition--small-interfaces)). Tests supply a **mock struct** that implements the same trait and records calls:
+
+```rust
+// Playground
+use std::cell::RefCell;
+
+trait DeviceWriter {
+    fn write_reading(&self, tag: &str, value: f64);
+}
+
+struct LiveWriter;
+
+impl DeviceWriter for LiveWriter {
+    fn write_reading(&self, tag: &str, value: f64) {
+        println!("live {}={}", tag, value);
+    }
+}
+
+struct MockWriter {
+    pub calls: RefCell<Vec<(String, f64)>>,
+}
+
+impl DeviceWriter for MockWriter {
+    fn write_reading(&self, tag: &str, value: f64) {
+        self.calls.borrow_mut().push((tag.to_string(), value));
+    }
+}
+
+fn ingest<W: DeviceWriter>(w: &W, tag: &str, value: f64) {
+    w.write_reading(tag, value);
+}
+
+#[cfg(test)]
+mod mock_tests {
+    use super::*;
+
+    #[test]
+    fn records_one_write() {
+        let mock = MockWriter {
+            calls: RefCell::new(Vec::new()),
+        };
+        ingest(&mock, "temp", 22.5);
+        assert_eq!(mock.calls.borrow().len(), 1);
+    }
+}
+
+fn main() {}
+```
+
+Use **`RefCell`** or **`Mutex`** in mocks when the trait takes `&self` but tests need interior mutability. Async traits use the same pattern with **`#[async_trait]`** and **`#[tokio::test]`** ([Chapter 16](16_async_tokio.md#async-trait-boundaries-for-testing)).
+
+### Golden-file and shared parser tests
+
+Parsers fit a **shared test helper**: read input fixture, run the parser, compare to expected output. One helper covers every source format:
+
+```rust
+// Playground — pattern sketch
+fn parse_line(line: &str) -> Result<(String, f64), String> {
+    let (tag, val) = line
+        .split_once('=')
+        .ok_or_else(|| "missing '='".to_string())?;
+    Ok((tag.into(), val.parse().map_err(|e| e.to_string())?))
+}
+
+#[cfg(test)]
+mod golden {
+    use super::parse_line;
+
+    #[test]
+    fn sample_lines() {
+        let inputs = ["temp=22.5", "press=101.3"];
+        let expected: Vec<_> = inputs
+            .iter()
+            .map(|s| parse_line(s).unwrap())
+            .collect();
+        assert_eq!(expected.len(), 2);
+    }
+}
+```
+
+For large nested structs, **`pretty_assertions::assert_eq`** (dev-dependency) prints colored diffs on failure — worth it in data-heavy tests.
+
+### Comparable test DTOs — normalize before equality
+
+Golden comparisons often fail on **benign differences** (whitespace, sort order). Build a **test-only comparable type** that normalizes:
+
+```rust
+// Playground
+#[derive(Debug, PartialEq)]
+struct Reading {
+    tag: String,
+    value: f64,
+}
+
+#[derive(Debug, PartialEq)]
+struct ComparableReading {
+    tag: String,
+    value_milli: i64,
+}
+
+impl ComparableReading {
+    fn from_reading(r: Reading) -> Self {
+        Self {
+            tag: r.tag.trim().to_lowercase(),
+            value_milli: (r.value * 1000.0).round() as i64,
+        }
+    }
+}
+
+#[cfg(test)]
+mod compare {
+    use super::*;
+
+    #[test]
+    fn normalizes_whitespace_and_float() {
+        let a = ComparableReading::from_reading(Reading {
+            tag: " Temp ".into(),
+            value: 22.499,
+        });
+        let b = ComparableReading::from_reading(Reading {
+            tag: "temp".into(),
+            value: 22.5,
+        });
+        assert_eq!(a, b);
+    }
+}
+
+fn main() {}
+```
+
+### Test-only derives with `cfg_attr`
+
+Production types may skip **`Deserialize`** or **`PartialEq`** to keep dependencies lean. Tests opt in with **`cfg_attr`**:
+
+```rust
+// Playground
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(test, derive(serde::Deserialize))]
+struct RegionOffsets {
+    start: u64,
+    end: u64,
+}
+
+fn main() {
+    let _ = RegionOffsets { start: 0, end: 10 };
+}
+```
+
+Requires `serde` as a **dev-dependency** when you deserialize fixtures in tests only.
+
+### Async tests
+
+Stream and parser tests that use `.await` need a runtime:
+
+```rust
+// Cargo project — needs tokio with "macros" + "rt"
+#[tokio::test]
+async fn delayed_ok() {
+    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    assert_eq!(2 + 2, 4);
+}
+```
+
+See [Chapter 16](16_async_tokio.md) for `#[tokio::test]` and spawn patterns.
+
 ## Idiom spotlight
 
 > **Libraries:** `enum` + **`thiserror`** — typed variants, `#[from]` for `?`, `#[error("…")]` for messages. **Never `Result<T, String>` in a public API.**
@@ -845,6 +1153,8 @@ fn main() {}
 > **Binaries:** **`anyhow`** at `main` for context chains; map `thiserror` errors at the boundary.
 >
 > **Propagation:** `?` inside helpers; **one** `match` or `main() -> Result` at the edge. Expected failures are **data**; panics **unwind** (or **abort**) — wrong tool for retry loops on a factory floor.
+>
+> **Batch pipelines:** aggregate per-item errors; **extension traits on `Option`** for required fields. **Mock traits** in tests — same interface as production I/O.
 
 ## Go deeper
 

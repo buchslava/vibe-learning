@@ -370,6 +370,133 @@ fn main() {
 
 **When to use which:** use `s.parse::<u16>()` for plain numbers. Use custom `FromStr` for **domain types** (`Port`, `HostPort`) with extra rules.
 
+### FromStr for structured values — paths and endpoints
+
+Parse **one string into a sum type** at the boundary. Validation happens once; the rest of the code pattern-matches on variants:
+
+```rust
+// Playground
+use std::str::FromStr;
+
+#[derive(Debug, PartialEq)]
+enum DevicePath {
+    Tcp { host: String, port: u16 },
+    Serial { port_name: String },
+}
+
+impl FromStr for DevicePath {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(rest) = s.strip_prefix("tcp://") {
+            let (host, port) = rest
+                .split_once(':')
+                .ok_or_else(|| format!("invalid tcp path: {s}"))?;
+            Ok(DevicePath::Tcp {
+                host: host.into(),
+                port: port.parse().map_err(|_| format!("bad port in {s}"))?,
+            })
+        } else if let Some(name) = s.strip_prefix("serial://") {
+            Ok(DevicePath::Serial {
+                port_name: name.into(),
+            })
+        } else {
+            Err(format!("expected tcp:// or serial://, got {s}"))
+        }
+    }
+}
+
+fn main() {
+    let p: DevicePath = "tcp://plc.local:502".parse().unwrap();
+    assert_eq!(
+        p,
+        DevicePath::Tcp {
+            host: "plc.local".into(),
+            port: 502,
+        }
+    );
+    println!("{:?}", p);
+}
+```
+
+Same idea for `s3://`, `file://`, or `host:port` — **`FromStr` at the CLI/config edge**, typed enum inside the core.
+
+### Display + FromStr round-trip for CLI enums
+
+CLI tools often need **human-readable flags** that round-trip through strings. Implement both traits on the same enum:
+
+```rust
+// Playground
+use std::fmt;
+use std::str::FromStr;
+
+#[derive(Debug, Clone, PartialEq)]
+enum LogFormat {
+    Json,
+    Plain,
+}
+
+impl fmt::Display for LogFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LogFormat::Json => write!(f, "json"),
+            LogFormat::Plain => write!(f, "plain"),
+        }
+    }
+}
+
+impl FromStr for LogFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "json" => Ok(LogFormat::Json),
+            "plain" => Ok(LogFormat::Plain),
+            other => Err(format!("unknown log format: {other}")),
+        }
+    }
+}
+
+fn main() {
+    let fmt = LogFormat::Json;
+    let s = fmt.to_string();
+    assert_eq!(LogFormat::from_str(&s).unwrap(), fmt);
+    println!("{}", s);
+}
+```
+
+`Display` strings should match what `FromStr` accepts — tests can assert **`parse(display(x)) == x`**.
+
+### Display on field-name enums — stable log labels
+
+Small enums that name **schema fields** or **metric keys** implement `Display` so error and log messages stay consistent:
+
+```rust
+// Playground
+use std::fmt;
+
+enum MetricField {
+    PollLatencyMs,
+    ErrorCount,
+}
+
+impl fmt::Display for MetricField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetricField::PollLatencyMs => write!(f, "poll_latency_ms"),
+            MetricField::ErrorCount => write!(f, "error_count"),
+        }
+    }
+}
+
+fn main() {
+    let field = MetricField::PollLatencyMs;
+    println!("metric {} exceeded threshold", field);
+}
+```
+
+Prefer enums over string literals for field names — renames stay compile-time checked.
+
 ### TryFrom edge cases
 
 **Wrong — `as` cast that silently truncates:**
@@ -461,6 +588,62 @@ Call `.into_owned()` when the caller must keep an owned value after the function
 
 **API pattern:** accept `Cow<'a, str>` when you might normalize or pass through unchanged. Common in parsers and HTTP header helpers.
 
+## Deref — cheap access through smart pointers
+
+`Deref` lets you treat **`Arc<T>`**, **`Box<T>`**, and newtypes like **`T`** for field access. In async code, tasks often hold `Arc<Config>` — destructure without cloning the whole struct:
+
+```rust
+// Playground
+use std::ops::Deref;
+use std::sync::Arc;
+
+struct GatewayConfig {
+    host: String,
+    port: u16,
+}
+
+fn connect(cfg: Arc<GatewayConfig>) {
+    let GatewayConfig { host, port, .. } = cfg.deref();
+    println!("connecting to {}:{}", host, port);
+}
+
+fn main() {
+    connect(Arc::new(GatewayConfig {
+        host: "plc.local".into(),
+        port: 502,
+    }));
+}
+```
+
+Rust also **deref-coerces** `&String` → `&str` via `Deref`. Newtype wrappers often implement `Deref` to reach inner data ([Chapter 10](10_smart_pointers_interior_mutability.md)).
+
+## Extension traits on `&str`
+
+Add string helpers as traits on **`&str`** (or your newtype) instead of a pile of free functions. Keeps call chains readable and each helper unit-testable:
+
+```rust
+// Playground
+trait NormalizeWhitespace {
+    fn normalize_whitespace(self) -> String;
+}
+
+impl NormalizeWhitespace for &str {
+    fn normalize_whitespace(self) -> String {
+        self.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+}
+
+fn clean_label(raw: &str) -> String {
+    raw.normalize_whitespace()
+}
+
+fn main() {
+    println!("'{}'", clean_label("  over   temp  "));
+}
+```
+
+Use a **state machine or split loop** for hot paths; reach for regex only when the pattern truly needs it. Pair with `Cow<str>` when most inputs need no allocation ([Cow](#cow--clone-on-write) above).
+
 ## Common derive sets (cheat sheet)
 
 | Type role | Typical derives |
@@ -503,6 +686,8 @@ Common errors in this chapter:
 > **`Display` for users, `Debug` for developers** — derive `Debug` freely; invest in `Display` where humans read the output.
 >
 > **Validate at the boundary** — `TryFrom` / `FromStr` at parse time; trust types inside the core.
+>
+> **Pair `Display` + `FromStr`** on CLI enums; use **`FromStr` on path strings** to build sum types in one step.
 
 ## Go deeper
 

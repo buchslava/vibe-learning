@@ -358,6 +358,226 @@ async fn main() -> Result<(), &'static str> {
 
 **`main() -> Result`** ([Chapter 8](08_errors_and_testing.md)): errors bubble to one place instead of scattering `unwrap()` in the supervisor.
 
+### Level 7 — Medium: bounded concurrency with `Semaphore`
+
+Unbounded `tokio::spawn` on thousands of devices can overwhelm databases or serial buses. A **`Semaphore`** caps how many in-flight operations run at once:
+
+```rust
+// Cargo project
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::time::{sleep, Duration};
+
+async fn probe_device(id: u32) -> u32 {
+    sleep(Duration::from_millis(20)).await;
+    id
+}
+
+#[tokio::main]
+async fn main() {
+    let sem = Arc::new(Semaphore::new(2)); // at most 2 probes at once
+    let mut handles = Vec::new();
+
+    for id in 0..5u32 {
+        let permit = Arc::clone(&sem);
+        handles.push(tokio::spawn(async move {
+            let _permit = permit.acquire().await.unwrap(); // held until task finishes
+            probe_device(id).await
+        }));
+    }
+
+    for h in handles {
+        println!("id {}", h.await.unwrap());
+    }
+}
+```
+
+**What happened:**
+
+- Five tasks are spawned, but **`acquire().await`** blocks when two permits are already taken.
+- The **`_permit`** guard releases the slot when the task ends — no manual `release`.
+- Same pattern protects MongoDB cursors, HTTP fan-out, and Modbus batch reads.
+
+### Level 8 — Medium: batch spawn and `await??`
+
+Fan out independent async work with **`tokio::spawn`**, then collect results. Each **`handle.await`** yields **`Result<T, JoinError>`** — use **`??`** when the inner task also returns **`Result`** ([Chapter 8](08_errors_and_testing.md)):
+
+```rust
+// Cargo project
+use tokio::time::{sleep, Duration};
+
+async fn fetch_reading(seed: u32) -> Result<f64, &'static str> {
+    sleep(Duration::from_millis(10)).await;
+    if seed == 3 {
+        Err("device offline")
+    } else {
+        Ok(seed as f64 * 1.5)
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let seeds = [1u32, 2, 3];
+    let mut handles = Vec::new();
+
+    for seed in seeds {
+        handles.push(tokio::spawn(fetch_reading(seed)));
+    }
+
+    for handle in handles {
+        match handle.await? {
+            Ok(v) => println!("reading {}", v),
+            Err(e) => eprintln!("skip: {}", e),
+        }
+    }
+    Ok(())
+}
+```
+
+| Layer | Type | `?` / `??` |
+|-------|------|------------|
+| Outer | `JoinError` from panicked/cancelled task | first `?` on `handle.await` |
+| Inner | `Result<T, E>` from your async fn | second `?` when you want to propagate |
+
+Use **`match`** on the inner `Result` when one failure should not abort the whole batch (as above for seed `3`).
+
+### Async trait boundaries for testing
+
+Async methods in traits are not natively object-safe without **`async_trait`** (crate). Production and test code share one interface — MongoDB in prod, mock in tests ([Chapter 8 — trait mocks](08_errors_and_testing.md#trait-based-mocks--test-orchestration-not-io)):
+
+```rust
+// Cargo project
+// async-trait = "0.1"
+use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
+
+#[async_trait]
+trait PipelineEffects: Send + Sync {
+    async fn write_batch(&self, tags: &[&str]) -> Result<usize, String>;
+}
+
+struct LiveEffects;
+
+#[async_trait]
+impl PipelineEffects for LiveEffects {
+    async fn write_batch(&self, tags: &[&str]) -> Result<usize, String> {
+        Ok(tags.len())
+    }
+}
+
+struct MockEffects {
+    pub calls: Mutex<Vec<Vec<String>>>,
+}
+
+#[async_trait]
+impl PipelineEffects for MockEffects {
+    async fn write_batch(&self, tags: &[&str]) -> Result<usize, String> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(tags.iter().map(|s| s.to_string()).collect());
+        Ok(tags.len())
+    }
+}
+
+async fn run_pipeline(effects: Arc<dyn PipelineEffects>) -> Result<(), String> {
+    effects.write_batch(&["temp", "press"]).await?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), String> {
+    let live: Arc<dyn PipelineEffects> = Arc::new(LiveEffects);
+    run_pipeline(live).await?;
+
+    let mock: Arc<dyn PipelineEffects> = Arc::new(MockEffects {
+        calls: Mutex::new(Vec::new()),
+    });
+    run_pipeline(Arc::clone(&mock)).await?;
+    assert_eq!(mock.calls.lock().unwrap().len(), 1);
+    Ok(())
+}
+```
+
+Bounds **`Send + Sync`** on the trait allow **`Arc<dyn PipelineEffects>`** across tasks. Keep the trait **small** — same decomposition advice as [Chapter 7](07_structs_traits_generics.md#trait-decomposition--small-interfaces).
+
+### Pipeline sketch — reader task, channel, workers
+
+Long-running services decouple **read throughput** from **write latency** with bounded channels. One task pulls documents/frames; workers consume batches:
+
+```rust
+// Cargo project — outline
+use tokio::sync::mpsc;
+
+async fn reader_task(tx: mpsc::Sender<Vec<u8>>) -> Result<(), String> {
+    for i in 0u8..3 {
+        tx.send(vec![i]).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+async fn worker_task(mut rx: mpsc::Receiver<Vec<u8>>) -> Result<(), String> {
+    while let Some(batch) = rx.recv().await {
+        println!("process {} bytes", batch.len());
+    }
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), String> {
+    let (tx, rx) = mpsc::channel(4); // backpressure when full
+    let worker = tokio::spawn(worker_task(rx));
+    reader_task(tx).await?; // dropping tx closes the channel
+    worker.await.unwrap()?;
+    Ok(())
+}
+```
+
+**Bounded capacity** (`4` here) applies backpressure: a fast reader blocks on `send().await` when workers fall behind — preferable to unbounded memory growth.
+
+### Polling loop — long-running HTTP or job status
+
+APIs that return **202 + poll URL** fit a **`loop`**, **`sleep().await`**, and exit on success or timeout:
+
+```rust
+// Cargo project
+use tokio::time::{sleep, timeout, Duration, Instant};
+
+async fn job_ready(tick: u32) -> Option<&'static str> {
+    if tick >= 3 {
+        Some("done")
+    } else {
+        None
+    }
+}
+
+async fn poll_until_ready(max_wait: Duration) -> Result<&'static str, &'static str> {
+    let start = Instant::now();
+    let mut tick = 0;
+    loop {
+        if let Some(status) = job_ready(tick).await {
+            return Ok(status);
+        }
+        if start.elapsed() >= max_wait {
+            return Err("timed out waiting for job");
+        }
+        tick += 1;
+        sleep(Duration::from_millis(50)).await;
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    match timeout(Duration::from_secs(1), poll_until_ready(Duration::from_secs(5))).await {
+        Ok(Ok(s)) => println!("status = {}", s),
+        Ok(Err(e)) => eprintln!("{}", e),
+        Err(_) => eprintln!("outer timeout"),
+    }
+}
+```
+
+Wrap the whole poll in **`timeout(...)`** ([Level 3](#level-3--medium-join-and-timeout)) so a stuck remote cannot loop forever.
+
 ## Techniques at a glance
 
 Use this table as a cheat sheet while reading Tokio code elsewhere. Each row maps to a level above.
@@ -366,12 +586,14 @@ Use this table as a cheat sheet while reading Tokio code elsewhere. Each row map
 |-----------|--------------|-------|
 | `async fn` / `.await` | lazy futures; yield points | 0–2 |
 | `#[tokio::main]` | start Tokio runtime | 1 |
-| `tokio::spawn` | concurrent background task | 1, 6 |
+| `tokio::spawn` | concurrent background task | 1, 6, 8 |
 | `tokio::join!` | wait for **all** branches | 2–3 |
 | `tokio::select!` | **first** ready branch | 4 |
-| `tokio::time::timeout` | deadline / device timeout | 3 |
+| `tokio::time::timeout` | deadline / device timeout | 3, poll loop |
 | `spawn_blocking` | sync I/O or `thread::sleep` off executor | 5 |
-| `tokio::sync::mpsc` | async message passing | Afterparty |
+| `Semaphore` | cap in-flight async work | 7 |
+| `mpsc` channel | decouple reader and workers | pipeline sketch |
+| `async_trait` | async methods on `dyn Trait` | testing boundary |
 | `Arc<AtomicBool>` | shutdown flag across tasks | 6, Ch15 |
 
 **Mutex choice:** use **`tokio::sync::Mutex`** if the lock may be held across `.await`. Holding **`std::sync::MutexGuard`** across `.await` makes the future **`!Send`** — the compiler rejects it (see edge cases below).
@@ -474,6 +696,8 @@ async fn main() {
 One paragraph to carry into production code:
 
 > **Async for many I/O waits; threads for CPU-heavy or a single simple poll loop.** Never block the executor — **`tokio::time::sleep`**, not **`thread::sleep`**. Share shutdown with **`Arc<AtomicBool>`** ([Chapter 15](15_atomics_and_lockfree.md)). Bubble errors with **`?`** and **`main() -> Result`** at the boundary ([Chapter 8](08_errors_and_testing.md)).
+>
+> **Cap fan-out with `Semaphore`**. **Decouple stages with bounded `mpsc`**. **`async_trait`** for swappable I/O in tests.
 
 ## Go deeper
 

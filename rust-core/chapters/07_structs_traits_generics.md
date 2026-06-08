@@ -886,6 +886,184 @@ Return `Box<dyn Greeter>` when the callee allocates/chooses the value.
 | Closed protocol | stringly plug-in names | `enum` beats `dyn` for speed + exhaustiveness |
 | Dangling `&dyn` | borrow checker on return | `Box<dyn Trait>` or borrow from caller’s value |
 
+## Trait decomposition — small interfaces
+
+Large “god traits” are hard to mock and test. Split I/O boundaries into **focused traits** that each do one job. The same orchestration code runs in production, CLI, and tests by swapping implementations:
+
+```rust
+// Playground
+use std::io::{self, Read};
+
+trait ConfigLoader {
+    fn load_text(&self, path: &str) -> io::Result<String>;
+}
+
+trait PortValidator {
+    fn validate(&self, port: u16) -> Result<(), &'static str>;
+}
+
+struct FileConfigLoader;
+
+impl ConfigLoader for FileConfigLoader {
+    fn load_text(&self, path: &str) -> io::Result<String> {
+        std::fs::read_to_string(path)
+    }
+}
+
+struct PrivilegedPortGuard;
+
+impl PortValidator for PrivilegedPortGuard {
+    fn validate(&self, port: u16) -> Result<(), &'static str> {
+        if port < 1024 {
+            Err("port below 1024")
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn startup_port<L: ConfigLoader, V: PortValidator>(
+    loader: &L,
+    validator: &V,
+    path: &str,
+) -> io::Result<u16> {
+    let text = loader.load_text(path)?;
+    let port: u16 = text.trim().parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    validator.validate(port).map_err(|msg| io::Error::new(io::ErrorKind::InvalidInput, msg))?;
+    Ok(port)
+}
+
+fn main() {
+    let loader = FileConfigLoader;
+    let guard = PrivilegedPortGuard;
+    // startup_port(&loader, &guard, "port.txt") in a real project
+    let _ = (&loader as &dyn ConfigLoader, &guard as &dyn PortValidator);
+    println!("traits split for test doubles");
+}
+```
+
+| Split | Role |
+|-------|------|
+| `ConfigLoader` | where bytes come from (file, env, mock) |
+| `PortValidator` | business rule isolated from I/O |
+| generic orchestrator | one function, many backend pairs |
+
+In async services, the same split applies with `async fn` traits — see [Chapter 16 — async trait boundaries](16_async_tokio.md#async-trait-boundaries-for-testing).
+
+## Strategy enum — closed dispatch without a top-level vtable
+
+When you have a **fixed set** of backends, an internal **`enum`** often beats `Box<dyn Trait>` at the runner layer. Each variant holds its parser/state; one `match` dispatches:
+
+```rust
+// Playground
+enum SourceKind {
+    Modbus { unit_id: u8 },
+    OpcUa { endpoint: String },
+}
+
+impl SourceKind {
+    fn default_port(&self) -> u16 {
+        match self {
+            SourceKind::Modbus { .. } => 502,
+            SourceKind::OpcUa { .. } => 4840,
+        }
+    }
+
+    fn label(&self) -> &str {
+        match self {
+            SourceKind::Modbus { .. } => "modbus",
+            SourceKind::OpcUa { .. } => "opcua",
+        }
+    }
+}
+
+fn run_source(src: &SourceKind) {
+    println!("{} on port {}", src.label(), src.default_port());
+}
+
+fn main() {
+    run_source(&SourceKind::Modbus { unit_id: 1 });
+    run_source(&SourceKind::OpcUa {
+        endpoint: "opc://plc".into(),
+    });
+}
+```
+
+Use **`enum` + `match`** when variants are known at compile time in your crate. Use **`dyn Trait`** when plug-ins arrive at runtime from outside. Many production runners combine both: enum at the top, `impl Stream` or trait objects **inside** a variant when needed.
+
+## Transform traits — parse once, map to domain
+
+Keep **wire format** separate from **domain records**. A parser yields raw rows; a transformer maps them to what you persist:
+
+```rust
+// Playground
+struct RawReading {
+    tag: String,
+    value: f64,
+}
+
+struct StoredReading {
+    tag: String,
+    value_milli: i64,
+}
+
+trait ToStored {
+    fn to_stored(&self) -> StoredReading;
+}
+
+impl ToStored for RawReading {
+    fn to_stored(&self) -> StoredReading {
+        StoredReading {
+            tag: self.tag.clone(),
+            value_milli: (self.value * 1000.0).round() as i64,
+        }
+    }
+}
+
+fn ingest(rows: &[RawReading]) -> Vec<StoredReading> {
+    rows.iter().map(|r| r.to_stored()).collect()
+}
+
+fn main() {
+    let raw = RawReading {
+        tag: "temp".into(),
+        value: 22.5,
+    };
+    println!("{:?}", ingest(&[raw]).len());
+}
+```
+
+Each source (Modbus, OPC-UA, CSV) can implement the same transform trait on its row type. The runner stays generic over “anything that becomes `StoredReading`”.
+
+## Extension traits in your crate
+
+Extension traits add methods without wrapping every value in a newtype. Typical targets: **`Option<T>`** for required-field checks, **`&str`** for normalizers ([Chapter 13](13_standard_traits.md#extension-traits-on-str)), **`Stream`** adapters in async pipelines ([Chapter 16](16_async_tokio.md)).
+
+```rust
+// Playground
+trait RequiredField<T> {
+    fn required(self, name: &str) -> Result<T, String>;
+}
+
+impl<T> RequiredField<T> for Option<T> {
+    fn required(self, name: &str) -> Result<T, String> {
+        self.ok_or_else(|| format!("missing field '{name}'"))
+    }
+}
+
+fn parse_id(raw: Option<&str>) -> Result<u32, String> {
+    let s = raw.required("device_id")?;
+    s.parse().map_err(|e| e.to_string())
+}
+
+fn main() {
+    println!("{:?}", parse_id(Some("42")));
+    println!("{:?}", parse_id(None));
+}
+```
+
+Implement extension traits in the **same module** as the error type they produce — keeps `?` chains readable in hand-written parsers.
+
 ## Associated types and supertraits
 
 You already implement traits with methods. Many std traits also declare an **associated type** — one output type fixed per `impl`, not a separate generic parameter on the trait itself.
@@ -1037,6 +1215,8 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 > **Default: `impl Trait` / generics (static dispatch).** Use **`dyn Trait`** for runtime plug-in lists or return-type erasure — and **`enum`** when the variant set is closed.
 >
 > **`&dyn Trait`** when callers own values; **`Box<dyn Trait>`** for owning heterogeneous collections.
+>
+> **Split large traits** into small getters/savers; **enum-dispatch** fixed backends; **transform traits** bridge wire format → domain.
 
 ## Go deeper
 

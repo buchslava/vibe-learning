@@ -344,6 +344,126 @@ fn main() {
 
 Same contract as `fn log_pair<T: Display, U: Display>(...)` — pick whichever reads cleaner.
 
+## Error constructor factories
+
+Production error enums often expose **named constructors** instead of spelling struct variants at every call site. Accept **`impl Into<String>`** so callers pass `&str`, `String`, or anything string-like:
+
+```rust
+// Playground
+#[derive(Debug)]
+enum ParseError {
+    MissingField { field: String, record: String },
+    BadValue { field: String, raw: String },
+}
+
+impl ParseError {
+    #[inline]
+    pub fn missing_field(field: impl Into<String>, record: impl Into<String>) -> Self {
+        Self::MissingField {
+            field: field.into(),
+            record: record.into(),
+        }
+    }
+
+    #[inline]
+    pub fn bad_value(field: impl Into<String>, raw: impl Into<String>) -> Self {
+        Self::BadValue {
+            field: field.into(),
+            raw: raw.into(),
+        }
+    }
+}
+
+fn parse_port_field(raw: &str) -> Result<u16, ParseError> {
+    raw.parse()
+        .map_err(|_| ParseError::bad_value("port", raw))
+}
+
+fn main() {
+    println!("{:?}", parse_port_field("502"));
+    println!("{:?}", parse_port_field("oops"));
+}
+```
+
+| Pattern | Why |
+|---------|-----|
+| `impl Into<String>` | one constructor accepts literals and owned strings |
+| `#[inline]` on tiny wrappers | hints the compiler on hot parser paths — no runtime cost |
+| named fn vs raw variant | call sites read like intent; field names stay consistent |
+
+Use this in library crates with **`thiserror`** enums ([Chapter 8](08_errors_and_testing.md)) — the constructors stay even when `Display` is derived.
+
+## Config-holder structs (lightweight builders)
+
+You do not always need a builder crate. A small struct that **holds configuration** and exposes one method per use case is enough:
+
+```rust
+// Playground
+struct RequestBuilder {
+    timeout_ms: u64,
+    retries: u32,
+    endpoint: String,
+}
+
+impl RequestBuilder {
+    fn new(endpoint: impl Into<String>) -> Self {
+        Self {
+            timeout_ms: 5000,
+            retries: 3,
+            endpoint: endpoint.into(),
+        }
+    }
+
+    fn with_timeout(mut self, ms: u64) -> Self {
+        self.timeout_ms = ms;
+        self
+    }
+
+    fn build_poll_body(&self, device_id: u32) -> String {
+        format!(
+            "GET /devices/{device_id}?timeout={}&retries={}",
+            self.timeout_ms, self.retries
+        )
+    }
+}
+
+fn main() {
+    let req = RequestBuilder::new("gateway.local")
+        .with_timeout(1000)
+        .build_poll_body(7);
+    println!("{}", req);
+}
+```
+
+Reach for **`new` + chainable setters + one `build_*` method** when parameters are fixed at construction time but the output shape varies. Full builder crates pay off when you have many optional fields and validation at build time.
+
+## Extension traits — add behaviour without newtypes
+
+When you need a helper on a type you do not own, define a **trait in your crate** and implement it for the foreign type you control the orphan rule for — or implement for your wrapper. Common pattern: extend **`Option`** with domain-specific `?` helpers ([Chapter 8](08_errors_and_testing.md#extension-traits-on-option)) and extend **`&str`** with string normalizers ([Chapter 13](13_standard_traits.md#extension-traits-on-str)).
+
+```rust
+// Playground
+trait TrimOrEmpty {
+    fn trim_or_empty(self) -> &str;
+}
+
+impl TrimOrEmpty for &str {
+    fn trim_or_empty(self) -> &str {
+        self.trim()
+    }
+}
+
+fn label(raw: &str) -> &str {
+    raw.trim_or_empty()
+}
+
+fn main() {
+    println!("'{}'", label("  sensor-1  "));
+}
+```
+
+Keep extension traits **small and focused** — one concern per trait, not a grab-bag of unrelated methods.
+
 ### Function edge cases
 
 **Wrong — mismatched `impl Trait` return arms:**
@@ -420,4 +540,6 @@ Common errors in this chapter:
 13. **where clause** — "Rewrite cluttered `fn f<T: A + B + C>(x: T)` with `where` block — same behaviour."
 14. **Self return** — "Method `fn into_inner(self) -> Vec<u8>` on wrapper — why `Self` not concrete type name?"
 15. **const fn** — "One `const fn` port validator `fn is_valid(p: u16) -> bool` — what can and cannot run at compile time?"
-
+16. **Error constructors** — "Add `missing_field(name, record)` on a parse error enum with `impl Into<String>`; compare to spelling the variant at each site."
+17. **Config holder** — "HTTP poll client: struct holds timeout/retries/endpoint; one `build_request(device_id)` — no builder crate."
+18. **Extension trait** — "Add `TrimOrEmpty for &str`; use in three parser call sites vs free functions."
