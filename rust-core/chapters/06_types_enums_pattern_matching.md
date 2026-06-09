@@ -624,7 +624,7 @@ Common errors in this chapter:
 ## Go deeper
 
 - [The Rust Book — Enums](https://doc.rust-lang.org/book/ch06-00-enums.html)
-- [The Rust Book — Pattern matching](https://doc.rust-lang.org/book/ch18-00-patterns.html)
+- [The Rust Book — Patterns and Matching](https://doc.rust-lang.org/book/ch19-00-patterns.html)
 - [Option basics](https://hightechmind.io/rust/) — examples 041–044
 - [Result basics](https://hightechmind.io/rust/) — examples 045–048
 

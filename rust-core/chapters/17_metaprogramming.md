@@ -956,6 +956,7 @@ macro_rules! my_vec {
 
 ## Go deeper
 
+- [The Rust Book — Macros](https://doc.rust-lang.org/book/ch20-05-macros.html)
 - [macro_rules! basics](https://hightechmind.io/rust/) — 411
 - [Derive macro concepts](https://hightechmind.io/rust/) — 422
 - [The Little Book of Rust Macros](https://veykril.github.io/tlborm/)

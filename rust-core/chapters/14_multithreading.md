@@ -418,6 +418,7 @@ Popular primitives — one line each. Details for starred rows live in Afterpart
 
 ## Go deeper
 
+- [The Rust Book — Fearless Concurrency](https://doc.rust-lang.org/book/ch16-00-concurrency.html)
 - [Mutex basics](https://hightechmind.io/rust/) — 986
 - [Thread pool](https://hightechmind.io/rust/) — 923
 - [Arc threads](https://hightechmind.io/rust/) — 109

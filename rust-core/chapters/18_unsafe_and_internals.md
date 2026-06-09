@@ -356,12 +356,13 @@ Most application code **never** needs `unsafe` in *your* crate — depend on mai
 
 > **Encapsulate `unsafe` in the smallest module; document invariants in comments; test aggressively.** Prefer safe crates maintained by experts for FFI.
 >
-> **Profile before `unsafe` for speed.** A safe algorithm beat beats a wrong `unsafe` patch.
+> **Profile before `unsafe` for speed.** A safe algorithm beats a wrong `unsafe` patch.
 >
 > **Safe wrapper, documented proof:** every `unsafe` block should name what safe callers rely on.
 
 ## Go deeper
 
+- [The Rust Book — Unsafe Rust](https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html)
 - [Rustonomicon](https://doc.rust-lang.org/nomicon/) — ownership, FFI, unwinding
 - [Miri](https://github.com/rust-lang/miri) — UB detection
 - [Procedural macro intro](https://hightechmind.io/rust/) — 423 (boundary with unsafe traits)

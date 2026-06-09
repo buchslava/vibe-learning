@@ -819,8 +819,9 @@ fn main() {}
 ## Go deeper
 
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
+- [The Rust Book — Error Handling](https://doc.rust-lang.org/book/ch09-00-error-handling.html)
+- [The Rust Book — Writing Automated Tests](https://doc.rust-lang.org/book/ch11-00-testing.html)
 - [Clippy lints](https://doc.rust-lang.org/clippy/) — many rules overlap this checklist
-- [The Rust Book — Best Practices](https://doc.rust-lang.org/book/)
 
 ## See also
 

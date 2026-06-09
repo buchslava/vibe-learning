@@ -242,7 +242,7 @@ Gate optional serial support behind a feature flag.
 [package]
 name = "gateway"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [features]
 default = []

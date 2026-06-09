@@ -1220,6 +1220,9 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 
 ## Go deeper
 
+- [The Rust Book — Structs and Methods](https://doc.rust-lang.org/book/ch05-00-structs.html)
+- [The Rust Book — Generics, Traits, and Lifetimes](https://doc.rust-lang.org/book/ch10-00-generics.html)
+- [The Rust Book — Trait Objects](https://doc.rust-lang.org/book/ch18-02-trait-objects.html)
 - [Records / structs](https://hightechmind.io/rust/) — example 062
 
 ## See also

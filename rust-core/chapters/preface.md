@@ -30,7 +30,7 @@ Parts I–IV give you the paradigm map. Chapter 20 gives you the production bar.
 
 ## What you will not find here
 
-- A line-by-line clone of [*The Rust Book*](https://doc.rust-lang.org/book/) (excellent; use it as reference)
+- A line-by-line clone of [*The Rust Book*](https://doc.rust-lang.org/book/) (excellent; use it as reference — current stable edition is **2024**, Rust 1.90+)
 - Framework churn (Axum vs Actix debates)
 - Long proofs about memory models
 - Long prosaic-style text (density over narrative padding)
@@ -127,7 +127,7 @@ You are my Rust tutor. I am working through Rust Core.
 I already program in: [your language(s) — e.g. Python, C++, Go].
 
 Answer rules:
-- Rust edition 2021, stable toolchain unless I ask otherwise
+- Rust edition 2024, stable toolchain unless I ask otherwise
 - Prefer single-file Playground snippets (fn main, std only) unless I say Cargo
 - Quote compiler errors literally; explain ownership/borrow moves step by step
 - Do not invent crates or APIs; if unsure, say so
@@ -197,7 +197,7 @@ Every binary crate follows the same shape: one `Cargo.toml`, one `src/main.rs`, 
 [package]
 name = "hello_rust"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 ```
 
 ```rust

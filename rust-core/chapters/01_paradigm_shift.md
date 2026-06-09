@@ -82,7 +82,7 @@ Rust’s iterators, traits, and generics are designed to compile down to code as
 
 ## Fearless concurrency (preview)
 
-The same borrow rules that prevent use-after-free also prevent **data races** in safe Rust: you cannot mutate shared state from two threads without synchronization (`Mutex`, channels, atomics — Part II). The compiler enforces this; you do not rely on discipline alone.
+The same borrow rules that prevent use-after-free also prevent **data races** in safe Rust: you cannot mutate shared state from two threads without synchronization (`Mutex`, channels, atomics — Part III). The compiler enforces this; you do not rely on discipline alone.
 
 ## Stack and heap
 
@@ -198,7 +198,7 @@ Java would copy a **reference** (two refs, one object). Python would bind anothe
 
 #### Which types are `Copy` vs move?
 
-`**Copy` types** (assignment duplicates bits; both variables stay valid):
+**`Copy` types** (assignment duplicates bits; both variables stay valid):
 
 
 | Category              | Examples                                                                               |
@@ -230,8 +230,8 @@ Java would copy a **reference** (two refs, one object). Python would bind anothe
 
 1. **Primitives on the stack → usually `Copy`.**
 2. **Anything that owns heap memory or runs `Drop` → move by default.**
-3. `**Copy` and `Drop` are mutually exclusive** — a type cannot implement both.
-4. `**.clone()`** is the explicit, potentially expensive deep copy when you truly need two independent heap values.
+3. **`Copy` and `Drop` are mutually exclusive** — a type cannot implement both.
+4. **`.clone()`** is the explicit, potentially expensive deep copy when you truly need two independent heap values.
 
 You can check any type in the playground or docs: `Copy` is a trait; if a type implements it, assignment copies; otherwise it moves.
 
@@ -558,6 +558,7 @@ Control loops and serial parsers often run for hours. **Stack allocation is esse
 
 ## Go deeper
 
+- [The Rust Book — Understanding Ownership](https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html)
 - [Functional Rust — Option basics](https://hightechmind.io/rust/)
 
 ## See also

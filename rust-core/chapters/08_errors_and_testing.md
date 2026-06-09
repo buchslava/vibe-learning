@@ -1158,6 +1158,8 @@ See [Chapter 16](16_async_tokio.md) for `#[tokio::test]` and spawn patterns.
 
 ## Go deeper
 
+- [The Rust Book — Error Handling](https://doc.rust-lang.org/book/ch09-00-error-handling.html)
+- [The Rust Book — Writing Automated Tests](https://doc.rust-lang.org/book/ch11-00-testing.html)
 - [Result railway](https://hightechmind.io/rust/)
 - [Unit test patterns](https://hightechmind.io/rust/) — 744+
 - [thiserror docs](https://docs.rs/thiserror/latest/thiserror/)

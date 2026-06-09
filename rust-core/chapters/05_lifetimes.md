@@ -155,7 +155,11 @@ Often the compiler infers the contract above — **lifetime elision**. You write
 // // means: return borrows from `s` (elision ties input and output)
 ```
 
-Three **elision rules** cover most everyday signatures.
+Three **elision rules** cover most everyday signatures (the compiler applies them automatically):
+
+1. Each reference parameter gets its own lifetime parameter (`&str` → `&'a str`, …).
+2. If there is exactly **one** input lifetime, it is assigned to **all** output lifetimes (`fn foo<'a>(x: &'a str) -> &'a str`).
+3. If there are multiple input lifetimes but one is **`&self` or `&mut self`**, the lifetime of `self` is assigned to all output lifetimes (methods only).
 
 When elision fails — several references in and out, or an ambiguous return — write `'a` / `'b` explicitly. Any name works.
 
@@ -373,6 +377,7 @@ fn main() {
 
 ## Go deeper
 
+- [The Rust Book — Validating References with Lifetimes](https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html)
 - [Functional Rust — pattern matching & types](https://hightechmind.io/rust/by-topic.html)
 
 ## See also

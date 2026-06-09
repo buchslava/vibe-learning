@@ -405,6 +405,7 @@ Use **`Mutex<Vec<_>>`**, a **channel**, or a dedicated concurrent crate — not 
 
 ## Go deeper
 
+- [The Rust Book — Fearless Concurrency](https://doc.rust-lang.org/book/ch16-00-concurrency.html) — mutex-first baseline; atomics go deeper below
 - [Atomic types — lock-free primitives](https://hightechmind.io/rust/) — 452
 - [Rust nomicon — atomics](https://doc.rust-lang.org/nomicon/atomics.html)
 

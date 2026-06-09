@@ -788,6 +788,7 @@ Common errors in this chapter:
 ## Go deeper
 
 - [The Rust Book — Useful Traits](https://doc.rust-lang.org/book/ch10-02-traits.html)
+- [The Rust Book — Derivable Traits (Appendix C)](https://doc.rust-lang.org/book/appendix-03-derivable-traits.html)
 - [From/Into](https://doc.rust-lang.org/std/convert/trait.From.html)
 - [Borrow trait](https://doc.rust-lang.org/std/borrow/trait.Borrow.html)
 

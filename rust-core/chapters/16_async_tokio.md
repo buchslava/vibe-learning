@@ -40,6 +40,8 @@ You do **not** need every row to ship a Level 6 supervisor. Add depth when a con
 
 **Async** is cooperative concurrency: one OS thread hosts many **tasks**, each pausing at `.await` so the executor runs others. Unlike [Chapter 14](14_multithreading.md) threads (OS-preempted), async tasks **yield voluntarily** — which makes blocking calls inside them dangerous.
 
+The [Rust Book — Async, Await, Futures, and Streams](https://doc.rust-lang.org/book/ch17-00-async-await.html) covers the std mental model: **futures**, **tasks**, and **executors**. This chapter applies that model with **Tokio** — a third-party runtime the book uses in examples but does not standardize.
+
 | Idea | Plain language |
 |------|----------------|
 | **`async fn`** | Returns a **Future** — a state machine describing work; **does not run** until polled |
@@ -703,6 +705,7 @@ One paragraph to carry into production code:
 
 When this chapter’s ladder is not enough, these links cover fundamentals, channels, I/O, and the official Tokio walkthrough:
 
+- [The Rust Book — Async, Await, Futures, and Streams](https://doc.rust-lang.org/book/ch17-00-async-await.html)
 - [async fn and .await fundamentals](https://hightechmind.io/rust/) — 321
 - [Async channels mpsc](https://hightechmind.io/rust/) — 328
 - [Async I/O](https://hightechmind.io/rust/) — 342, 921
