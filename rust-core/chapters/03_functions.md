@@ -350,7 +350,7 @@ Production error enums often expose **named constructors** instead of spelling s
 
 ```rust
 // Playground
-#[derive(Debug)]
+#[derive(Debug)] // compile-time trait impl — not a Java annotation or Python decorator; see Ch17
 enum ParseError {
     MissingField { field: String, record: String },
     BadValue { field: String, raw: String },
@@ -392,6 +392,8 @@ fn main() {
 | named fn vs raw variant | call sites read like intent; field names stay consistent |
 
 Use this in library crates with **`thiserror`** enums ([Chapter 8](08_errors_and_testing.md)) — the constructors stay even when `Display` is derived.
+
+**`#[derive(...)]` preview:** the attribute auto-generates trait implementations at **compile time** (`impl Debug for ParseError { ... }`). It does not run at call time and is not runtime metadata. Std derives (`Debug`, `Clone`, …), ecosystem derives (`Serialize`, `Error`, …), and when custom derives are worth it — [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes).
 
 ## Config-holder structs (lightweight builders)
 
@@ -508,6 +510,7 @@ Common errors in this chapter:
 - [Chapter 4: Iterators](04_iterators.md) — functions as pipeline steps
 - [Chapter 7: Structs, traits, and generics](07_structs_traits_generics.md) — `impl`, traits, generics
 - [Chapter 8: Errors and testing](08_errors_and_testing.md) — `Result` and `?`
+- [Chapter 17: Metaprogramming](17_metaprogramming.md#derive-attributes) — `#[derive]` syntax, not annotations/decorators
 
 ### Afterparty
 

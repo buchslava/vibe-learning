@@ -13,11 +13,11 @@ Formatting, comparison, and conversion traits — not custom `Formatter` depth o
 | `Debug`, `Display`, `Default` | Custom `Formatter` flags in depth |
 | `PartialEq`, `Eq`, `Hash`, `Ord` | Float ordering edge cases (nominal) |
 | `From`/`Into`, `TryFrom`/`TryInto`, `FromStr` | Full error-type design → [Chapter 8](08_errors_and_testing.md) |
-| `AsRef`, `Borrow`, `Cow` | Serde derives → [Chapter 17](17_metaprogramming.md) |
+| `AsRef`, `Borrow`, `Cow` | `#[derive]` mechanics, serde/custom derives → [Chapter 17](17_metaprogramming.md#derive-attributes) |
 
 ## Debug and Display
 
-**`Debug`** — developer-oriented formatting via `{:?}`. Derive for most structs:
+**`Debug`** — developer-oriented formatting via `{:?}`. Derive for most structs with `#[derive(Debug)]` — compile-time codegen, not a decorator ([Chapter 17](17_metaprogramming.md#derive-attributes)):
 
 ```rust
 // Playground
@@ -796,7 +796,8 @@ Common errors in this chapter:
 - [Chapter 7: Structs, traits, and generics](07_structs_traits_generics.md) — orphan rule, `impl Trait`
 - [Chapter 8: Errors and testing](08_errors_and_testing.md) — `From` in `?`, custom errors
 - [Chapter 11: Collections](11_collections.md) — trait bounds on keys
-- [Chapter 3: Functions](03_functions.md) — flexible parameters
+- [Chapter 3: Functions](03_functions.md) — flexible parameters, first `#[derive(Debug)]` on errors
+- [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes) — std vs ecosystem vs custom derives
 - [Chapter 19: I/O](19_io_processes_bits.md) — `AsRef<Path>`, CLI path/env patterns
 
 ### Afterparty

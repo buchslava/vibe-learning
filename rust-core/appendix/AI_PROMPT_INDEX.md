@@ -413,6 +413,13 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 | P304 | **Derive soup review** — I paste 40-line struct with 12 derives; trim to minimal set with reasons. |
 | P305 | **For after expr** — Why is `$e:expr for $i:ident in $r:expr` illegal? Show legal `$p:pat in $r:expr` foreach macro. |
 | P306 | **Double-brace fix** — Fix `poll_twice!` macro that mixes `let` and `for` for use in `let x = poll_twice!()`. |
+| P379 | **Derive vs decorator** — I come from Python/Java. Explain why `#[derive(Debug)]` is not a decorator or annotation that runs at call time — what actually happens at compile time? |
+| P380 | **Three kinds quiz** — Classify 8 snippets: derive proc macro, attribute proc macro, function-like macro, compiler attribute (`#[inline]`, `#[cfg]`), field meta parsed inside a derive (`#[serde(rename)]`). |
+| P381 | **tokio::main expand** — Sketch the conceptual expansion of `#[tokio::main] async fn main() { ... }`. Why is this an attribute proc macro, not `#[derive]`? |
+| P382 | **Custom attribute inputs** — For `#[my_attr(some = "config")] fn poll() { ... }`, what two token streams does the proc macro receive? Give two things the macro might emit. |
+| P383 | **Field attr vs item attr** — Contrast `#[serde(rename = "pollIntervalMs")]` on a struct field vs `#[tracing::instrument]` on `fn poll` — same proc-macro kind or not? |
+| P384 | **Custom attribute when** — Three scenarios (poll-loop tracing, type-level JSON mapping, wrapping `main` with a runtime). Pick: custom attribute proc macro, derive, or plain helper fn — justify each. |
+| P385 | **Runtime myth** — Does `#[tracing::instrument]` or `#[test]` run every time I call the function? Explain what runs at compile time vs run time. |
 
 ## Chapter 18 — Unsafe
 
@@ -504,7 +511,7 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 
 ---
 
-**Total: 378 prompts** (P001–P378).
+**Total: 385 prompts** (P001–P378, P379–P385).
 
 ## By theme
 
@@ -524,7 +531,7 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 | Concurrency | P244–P265 |
 | Systems / I/O | P337–P368 |
 | Production standards | P369–P378 |
-| Meta / tooling | P001–P005, P266–P336 |
+| Meta / tooling | P001–P005, P266–P306, P379–P385 |
 
 ## See also
 

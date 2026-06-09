@@ -267,6 +267,7 @@ Same **traits** mentally. Async adds `.await` and a runtime. [Chapter 16](16_asy
 | Task | Approach |
 |------|----------|
 | Read CSV/TOML config | `BufReader` + parse, or `serde` + file ([Chapter 17](17_metaprogramming.md)) |
+| JSON config / log line / REST body | `read_to_string` or buffer → `serde_json::from_str` / `to_string` ([Chapter 17](17_metaprogramming.md)) |
 | Run `systemctl` / vendor CLI | `Command` direct args; capture stdout; check `status` |
 | Modbus-style register | `Frame` struct, BE `u16`, CRC per spec |
 | Serial sensor / PLC | `serialport` crate — same `Read`/`Write` |
@@ -426,7 +427,7 @@ Interactive CLI tools sometimes need a **pseudo-terminal** (line discipline, ech
 - [Chapter 8: Errors](08_errors_and_testing.md) — `io::Error`, `?`, no panic in production loops
 - [Chapter 14: Multithreading](14_multithreading.md) — blocking I/O on worker threads
 - [Chapter 16: Async I/O](16_async_tokio.md) — `tokio::fs`, `TcpListener`
-- [Chapter 17: Metaprogramming](17_metaprogramming.md) — `include_str!`, config derives
+- [Chapter 17: Metaprogramming](17_metaprogramming.md) — `include_str!`, serde JSON serialize/deserialize
 - [Chapter 18: Unsafe](18_unsafe_and_internals.md) — FFI and safe wrappers over I/O handles
 - [Chapter 20: Production standards](20_production_standards.md) — review checklist before merge
 

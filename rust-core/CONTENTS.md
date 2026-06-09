@@ -64,7 +64,7 @@
 
 | Doc | Purpose |
 |-----|---------|
-| [AI Prompt Index](appendix/AI_PROMPT_INDEX.md) | Afterparty prompts (**P001–P378**) |
+| [AI Prompt Index](appendix/AI_PROMPT_INDEX.md) | Afterparty prompts (**P001–P385**) |
 | [Playground Guide](appendix/PLAYGROUND_GUIDE.md) | Run snippets online vs locally |
 | [Java / Python / Rust map](appendix/JAVA_PYTHON_RUST_MAP.md) | Optional mental-model cheat sheet |
 

@@ -389,7 +389,7 @@ fn main() {
 
 ### `thiserror` in production — count it in
 
-For libraries and gateway cores, **`thiserror`** replaces manual `Display` + `Error` + `From` with one derive.
+For libraries and gateway cores, **`thiserror`** replaces manual `Display` + `Error` + `From` with one derive. `#[derive(Error)]` is an **ecosystem derive attribute** — same `#[derive]` syntax as `Debug`, implemented by a proc-macro crate, not a runtime annotation ([Chapter 17](17_metaprogramming.md#derive-attributes)).
 
 **Cargo.toml:**
 
@@ -1167,6 +1167,7 @@ See [Chapter 16](16_async_tokio.md) for `#[tokio::test]` and spawn patterns.
 - [Chapter 6: Result enum](06_types_enums_pattern_matching.md)
 - [Chapter 7: Enums + traits](07_structs_traits_generics.md#enums-structs-and-traits-together) — same enum machinery for errors
 - [Chapter 19: I/O errors](19_io_processes_bits.md)
+- [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes) — `#[derive(Error)]`, annotations vs decorators
 
 ### Afterparty
 

@@ -19,7 +19,7 @@ Intro to `macro_rules!`, derive, and `const` — not proc-macro authoring with `
 | This chapter covers | Deferred to See also / Afterparty |
 |---------------------|-----------------------------------|
 | `macro_rules!`, fragments, repetition, hygiene | Writing proc macros with `syn`/`quote` |
-| How `#[derive]` works, std derives, **Clone/Copy**, ecosystem (`serde`, `thiserror`, `clap`) | Full DSL design, `build.rs` codegen |
+| **`#[derive]` syntax**, annotations vs decorators, std + ecosystem + **custom** derives, **Clone/Copy**, **serde JSON round-trip** | Proc-macro authoring with `syn`/`quote`, `build.rs` codegen |
 | `const` / `const fn` / `env!` / `include_str!` | `generic_const_exprs`, advanced const traits |
 | Forbidden matcher clauses, **edge cases**, **why macros are hard to trace** | Miri, macro fuzzing, proc-macro testing |
 
@@ -313,17 +313,59 @@ fn main() {
 }
 ```
 
-## How `#[derive(...)]` works
+## Derive attributes
 
-[Chapter 7](07_structs_traits_generics.md) shows *which* derives to pick on command/log models. Here: *what derive is doing*.
+`#[derive(...)]` is **core Rust syntax** — not optional decoration. You place it **above** a `struct` or `enum` to auto-implement one or more **traits** before type checking runs. You will see it from the first error enum ([Chapter 3](03_functions.md)) through config types ([Chapter 13](13_standard_traits.md)), `thiserror` ([Chapter 8](08_errors_and_testing.md)), and `serde` below.
 
-**Mechanics:**
+```rust
+// Playground
+#[derive(Debug, Clone, PartialEq)]
+struct Point {
+    x: i32,
+    y: i32,
+}
 
-1. `#[derive(Trait)]` invokes a **proc macro** at compile time.
-2. The macro emits `impl Trait for YourType { ... }`.
-3. The compiler type-checks that impl like hand-written code.
+fn main() {
+    let a = Point { x: 1, y: 2 };
+    let b = a.clone();
+    println!("{:?} == {:?} ? {}", a, b, a == b);
+}
+```
 
-**Field rule:** derive succeeds only when **every field** (or every variant's fields) already implements the trait. Otherwise you get a clear “field X doesn't implement Y” error.
+Comma-separated trait names in one attribute: `#[derive(Debug, Clone)]`. Field-level helpers (e.g. `#[serde(rename = "...")]`) sit on individual fields and are interpreted by the same ecosystem crate — see [Serde JSON](#serde-json--serialize-and-deserialize) below.
+
+### Not annotations or decorators
+
+If you come from **Java**, **Python**, **C#**, or **TypeScript**, do **not** read `#[derive]` as an annotation or decorator. The mental model is different.
+
+| Habit from other languages | What you might assume | What Rust `#[derive]` actually does |
+|----------------------------|----------------------|-------------------------------------|
+| Java `@Override`, `@SuppressWarnings` | Hints to compiler / IDE | **Generates Rust source** (`impl` blocks) at compile time |
+| Java Spring `@Autowired`, JAX-RS annotations | Runtime wiring via reflection | **No runtime reflection** — expanded code is normal Rust |
+| Python `@property`, `@staticmethod` | Wraps or replaces the function at **call time** | **Does not wrap** your type — emits trait impls once at **compile time** |
+| Python `@dataclass` | Runtime class builder | Closest cousin — but Rust expand is **before** type check, zero runtime cost |
+| C# / TypeScript **decorators** | Metadata or method interception at runtime | Rust derive is **not** interception — it is **codegen** |
+| Lombok `@Data` (compile-time Java) | Closest analogy | Still different: Rust errors are in **your** crate's type check, not a separate processor pass |
+
+**Rules of thumb for migrants:**
+
+- **`#[derive(Name)]`** → “run the proc macro registered for `Name`” — usually emits `impl` for a trait also called `Name` (compile time).
+- **`#[some_attr]`** on a **function** (e.g. `#[test]`, `#[tokio::main]`) → attribute proc macro — also compile time, but not `derive`; see [Proc macros — three kinds](#proc-macros-three-kinds).
+- **No attribute runs when you call a function** unless you explicitly invoked a macro that generated that call.
+
+### Mechanics
+
+1. `#[derive(Name)]` looks up a **registered derive proc macro** for that identifier — built into the compiler (`Debug`, `Clone`, …) or shipped in a dependency (`Serialize`, `Error`, …).
+2. The macro **expands** and typically emits `impl SomeTrait for YourType { ... }` (and sometimes extra items). **`Name` is usually the same as `SomeTrait`**, but the compiler invokes the **macro registration**, not “any `trait` you defined.”
+3. The compiler type-checks the expanded code like hand-written Rust.
+
+**Not automatic:** writing `trait Foo { ... }` in your application module does **not** enable `#[derive(Foo)]`. A `proc-macro = true` crate must register `#[proc_macro_derive(Foo)]` ([custom derives below](#std-derives-ecosystem-derives-and-custom-derives)). You can always `impl Foo for Bar { ... }` by hand without a derive.
+
+**No derive for every trait:** `Display` is a real std trait with **no** `#[derive(Display)]`. Unknown names fail at compile time: *cannot find derive macro `Foo` in this scope*.
+
+Inspect expansion when confused: `cargo expand` ([Go deeper](#go-deeper)).
+
+**Field rule:** derive succeeds only when **every field** (or every variant's fields) already implements the trait. Otherwise: “field `X` doesn't implement `Y`”.
 
 **Enum vs struct:** enums get per-variant `match` arms in generated `Debug`, `Clone`, `PartialEq`, …; structs get field-wise impls.
 
@@ -336,21 +378,9 @@ fn main() {
 | `Ord` | `PartialEq` + `Eq` |
 | `Hash` | usually paired with `Eq` for map keys |
 
-```rust
-// Playground
-#[derive(Debug, Clone, PartialEq)]
-struct Point { x: i32, y: i32 }
+**What happened in the `Point` example:** `Clone` generated `fn clone(&self) -> Self { ... }` field-wise. `PartialEq` generated `==` field-wise.
 
-fn main() {
-    let a = Point { x: 1, y: 2 };
-    let b = a.clone();
-    println!("{:?} == {:?} ? {}", a, b, a == b);
-}
-```
-
-**What happened:** `Clone` proc macro generated `fn clone(&self) -> Self { Point { x: self.x.clone(), y: self.y.clone() } }`. `PartialEq` generated field-wise `==`.
-
-**Manual vs derive:** derive when default behaviour fits. Hand-write for redacted `Debug`, custom `Clone` (share `Arc` instead of deep copy), or enum `Default` with `#[default]` on one variant (Rust 1.62+).
+**Manual vs derive:** derive when default behaviour fits. Hand-write for redacted `Debug`, custom `Clone` (share `Arc` instead of deep copy), or enum `Default` with `#[default]` on one variant (Rust 1.62+). [Chapter 13](13_standard_traits.md) lists which std traits can be derived vs must be written by hand (`Display` has no derive).
 
 **Wrong — `Eq` on floats:**
 
@@ -361,12 +391,30 @@ fn main() {
 // FIX: integer fixed-point, `PartialEq` only, or ordered-float crate — see Ch7
 ```
 
-| Java / Python | Rust derive |
-|---------------|-------------|
-| Lombok `@Data`, `@EqualsAndHashCode` | `Debug`, `Clone`, `PartialEq`, `Hash` |
-| `@ToString` | `Debug` or manual `Display` |
-| `record` / reference semantics | `Clone` explicit; `Copy` for small plain types |
-| Reflection cloning | Compile-time `clone()` — no runtime reflection |
+### Std derives, ecosystem derives, and custom derives
+
+Three sources — same **syntax**, different implementers:
+
+| Source | Examples | Provided by |
+|--------|----------|-------------|
+| **Standard library** | `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq`, `Hash`, `Default`, `Ord` | Compiler-built-in proc macros |
+| **Ecosystem crates** | `Serialize`, `Deserialize`, `Error`, `Parser`, `instrument`, … | `serde`, `thiserror`, `clap`, `tracing`, … ([Derive ecosystem](#derive-ecosystem--existing-solutions)) |
+| **Custom (your org / crate)** | `#[derive(RegisterMap)]`, … | **Your** `proc-macro = true` crate (`syn` + `quote`) |
+
+`instrument` is **ecosystem proc-macro tooling** from `tracing`, but it is an **attribute** on `fn` (`#[tracing::instrument]`), not a name inside `#[derive(...)]`. Same crate family, different proc-macro kind — [Proc macros — three kinds](#proc-macros-three-kinds).
+
+You **cannot register** a new derive macro name in a normal application module. Custom derives live in a **dependency** crate with `proc-macro = true`. **Using** a registered name looks identical to std — the lookup at step 1 above is the same:
+
+```rust
+// Cargo.toml: my-derive = { path = "../my-derive" }
+// my-derive crate registers #[proc_macro_derive(RegisterMap)] and defines trait RegisterMap
+
+// #[derive(RegisterMap)]
+// struct DeviceId(u16);
+// expands to: impl RegisterMap for DeviceId { ... }
+```
+
+Defining `trait RegisterMap` only in your app without the proc-macro crate gives you manual `impl` — not `#[derive(RegisterMap)]`.
 
 ## Clone and Copy — derive in practice
 
@@ -481,13 +529,88 @@ struct Cli {
 
 **Serde + Clone pairing:** `#[derive(Debug, Clone, Deserialize)]` — deserialize once, then `clone()` hands copies to threads without re-reading the file.
 
+#### Serde JSON — serialize and deserialize
+
+`serde` defines the traits; **`serde_json`** is the format crate for JSON text and bytes. Derive **`Serialize`** and **`Deserialize`**, then call **`to_string`** / **`from_str`** at boundaries — config files, log lines, HTTP bodies ([Chapter 19](19_io_processes_bits.md)).
+
+```rust
+// Cargo project
+// [dependencies]
+// serde = { version = "1", features = ["derive"] }
+// serde_json = "1"
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SensorReading {
+    device_id: String,
+    value: f64,
+}
+
+fn main() -> Result<(), serde_json::Error> {
+    let reading = SensorReading {
+        device_id: "plc1".into(),
+        value: 23.5,
+    };
+
+    let json = serde_json::to_string(&reading)?;
+    println!("{}", json); // {"device_id":"plc1","value":23.5}
+
+    let back: SensorReading = serde_json::from_str(&json)?;
+    println!("{:?}", back);
+    Ok(())
+}
+```
+
+**Serialize** turns Rust values into JSON text. **Deserialize** parses JSON back into typed structs. Failures return **`serde_json::Error`** — propagate with `?` or map into your app error enum ([Chapter 8](08_errors_and_testing.md)).
+
+| API | Input | Typical use |
+|-----|-------|-------------|
+| `serde_json::to_string` | `&T` where `T: Serialize` | log line, HTTP response body |
+| `serde_json::from_str` | `&str` | config file read into `String`, API payload |
+| `serde_json::from_slice` | `&[u8]` | socket/frame buffer before UTF-8 validation |
+
+For files: `std::fs::read_to_string(path)?` then `from_str` ([Chapter 19](19_io_processes_bits.md)). For outgoing logs: `to_string` and write one line.
+
+**Field names in JSON often differ from Rust idioms** — use serde attributes instead of manual string parsing:
+
+```rust
+// Cargo project
+// serde = { version = "1", features = ["derive"] }
+// serde_json = "1"
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PollConfig {
+    #[serde(rename = "pollIntervalMs")]
+    poll_ms: u64,
+}
+
+fn main() -> Result<(), serde_json::Error> {
+    let json = r#"{"pollIntervalMs":250}"#;
+    let cfg: PollConfig = serde_json::from_str(json)?;
+    println!("poll every {} ms", cfg.poll_ms);
+
+    let out = serde_json::to_string(&cfg)?;
+    println!("{}", out); // {"pollIntervalMs":250}
+    Ok(())
+}
+```
+
+Rename attrs keep Rust field names idiomatic while matching external JSON. After a refactor, add an integration test with a fixture file — silent drift is a common production trap (see Afterparty **Serde rename**).
+
 ## Proc macros — three kinds
 
-| Kind | Syntax | Example |
-|------|--------|---------|
-| **derive** | `#[derive(Trait)]` | `Debug`, `Deserialize`, `Error` |
-| **attribute** | `#[attr(...)]` on item | `#[tokio::main]`, `#[test]`, `#[tracing::instrument]` |
-| **function-like** | `name!(...)` | `include_bytes!`, `sqlx::query!` |
+[Derive attributes](#derive-attributes) above is the **derive** kind in depth. Two other proc-macro shapes share the same compile-time expansion pipeline:
+
+| Kind | Syntax | Example | Differs from `derive` how? |
+|------|--------|---------|----------------------------|
+| **derive** | `#[derive(Trait)]` on type | `Debug`, `Deserialize`, `Error` | Emits `impl Trait for Type` |
+| **attribute** | `#[attr(...)]` on item | `#[tokio::main]`, `#[test]`, `#[tracing::instrument]` | Rewrites the **annotated item** (function, module, …) |
+| **function-like** | `name!(...)` | `include_bytes!`, `sqlx::query!` | Expands at the **call site** like `macro_rules!` |
+
+Do not mix these up with **annotations/decorators** from other languages — all three kinds expand to Rust source **before** runtime ([Not annotations or decorators](#not-annotations-or-decorators)).
 
 Proc macros live in separate `proc-macro = true` crates — rust-analyzer sometimes stops at the macro boundary. **Authoring proc macros is out of scope here**. Know how to **consume** and **debug** them with `cargo expand`.
 
@@ -839,15 +962,16 @@ macro_rules! my_vec {
 - [Rust Reference — Follow-set ambiguity](https://doc.rust-lang.org/reference/macros-by-example.html#follow-set-ambiguity-restrictions)
 - [Rust Reference — Macros](https://doc.rust-lang.org/reference/macros.html)
 - [cargo-expand](https://github.com/dtolnay/cargo-expand)
-- [serde derive](https://serde.rs/derive.html), [thiserror](https://docs.rs/thiserror/), [clap derive](https://docs.rs/clap/latest/clap/_derive/index.html)
+- [serde derive](https://serde.rs/derive.html), [serde_json](https://docs.rs/serde_json/), [thiserror](https://docs.rs/thiserror/), [clap derive](https://docs.rs/clap/latest/clap/_derive/index.html)
 
 ## See also
 
 - [Preface](preface.md) — `env!` vs runtime env
+- [Chapter 3: Functions](03_functions.md) — first `#[derive(Debug)]` on error enums
 - [Chapter 6: Enums and pattern matching](06_types_enums_pattern_matching.md) — `matches!`, advanced patterns
 - [Chapter 7: Traits](07_structs_traits_generics.md) — derive usage, float/`Eq`
-- [Chapter 13: Standard traits](13_standard_traits.md) — `Display`/`Debug` formatting flags for `format!` / `println!`
-- [Chapter 8: Errors](08_errors_and_testing.md) — `thiserror`
+- [Chapter 13: Standard traits](13_standard_traits.md) — which traits to derive vs implement (`Display`, `Debug`, cheat sheet)
+- [Chapter 8: Errors](08_errors_and_testing.md) — `#[derive(Error)]` with `thiserror`
 - [Chapter 14: Multithreading](14_multithreading.md) — `Clone` + channels
 - [Chapter 16: Async](16_async_tokio.md) — Tokio attribute macros
 - [Chapter 18: Unsafe](18_unsafe_and_internals.md)
@@ -922,8 +1046,18 @@ Use these for proc-macro authoring and advanced DSL topics not covered above.
 37. **Duplicate register DSL** — “Design compile-time error for duplicate keys in register_map!”
 38. **Serde refactor test** — “Integration test plan after renaming TOML field with serde attrs.”
 
+#### Derive and attribute proc macros
+
+39. **Derive vs decorator** — “I come from Python/Java. Explain why `#[derive(Debug)]` is not a decorator or annotation that runs at call time — what actually happens at compile time?”
+40. **Three kinds quiz** — “Classify 8 snippets: derive proc macro, attribute proc macro, function-like macro, compiler attribute (`#[inline]`, `#[cfg]`), field meta parsed inside a derive (`#[serde(rename)]`).”
+41. **`tokio::main` expand** — “Sketch the conceptual expansion of `#[tokio::main] async fn main() { ... }`. Why is this an attribute proc macro, not `#[derive]`?”
+42. **Custom attribute inputs** — “For `#[my_attr(some = \"config\")] fn poll() { ... }`, what two token streams does the proc macro receive? Give two things the macro might emit.”
+43. **Field attr vs item attr** — “Contrast `#[serde(rename = \"pollIntervalMs\")]` on a struct field vs `#[tracing::instrument]` on `fn poll` — same proc-macro kind or not?”
+44. **Custom attribute when** — “Three scenarios (poll-loop tracing, type-level JSON mapping, wrapping `main` with a runtime). Pick: custom attribute proc macro, derive, or plain helper fn — justify each.”
+45. **Runtime myth** — “Does `#[tracing::instrument]` or `#[test]` run every time I call the function? Explain what runs at compile time vs run time.”
+
 #### Automation capstone
 
-39. **DSL sketch** — “Design tiny `command!` macro for CLI subcommands — tokens only.”
-40. **Modbus table macro** — “Spec register table macro generating lookup + const max address.”
-41. **Derive soup review** — “I paste 40-line struct with 12 derives; trim to minimal set with reasons.”
+46. **DSL sketch** — “Design tiny `command!` macro for CLI subcommands — tokens only.”
+47. **Modbus table macro** — “Spec register table macro generating lookup + const max address.”
+48. **Derive soup review** — “I paste 40-line struct with 12 derives; trim to minimal set with reasons.”

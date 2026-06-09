@@ -419,7 +419,7 @@ fn main() {
 
 `SetSpeedLog` is the **struct side** of the same automation model. The enum is the wire/command shape (`Stop`, `SetSpeed(1500)`); the struct is the persisted audit row (`at` + `rpm`). `Command::to_log` bridges them — only `SetSpeed` produces a `SetSpeedLog`; `Stop` returns `None`.
 
-Both types share `#[derive(...)]` because you typically want the same tooling (`Debug`, `Clone`, equality) on commands and the records they generate.
+Both types share `#[derive(...)]` because you typically want the same tooling (`Debug`, `Clone`, equality) on commands and the records they generate. What `#[derive]` is (compile-time codegen, not annotations/decorators), ecosystem vs custom derives — [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes).
 
 `PartialEq`/`Eq` on enums requires every payload type to be comparable. A variant holding `f64` forces you to drop `Eq` or model floats differently — see edge cases below.
 
@@ -1227,6 +1227,7 @@ Use **UFCS** — `TraitName::method(&self)` — when two traits define the same 
 - [Chapter 6: Enums and pattern matching](06_types_enums_pattern_matching.md) — `match`, exhaustiveness, `Option`/`Result`
 - [Chapter 4: Iterators](04_iterators.md#implementing-iterator) — custom `Iterator` and `type Item`
 - [Chapter 11: Collections](11_collections.md)
+- [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes) — `#[derive]` syntax, std/ecosystem/custom
 - [Chapter 16: Async traits](16_async_tokio.md) (advanced)
 
 ### Afterparty

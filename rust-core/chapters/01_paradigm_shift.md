@@ -119,6 +119,12 @@ fn main() {
 }
 ```
 
+`a` and `b` die when `stack_demo` returns — their stack slots vanish with the frame. You still see **42** because `a + b` is not asking the caller to keep `a` or `b`. It **computes a new value**, and that value becomes the **return value** before the frame is destroyed.
+
+Order matters: Rust evaluates `a + b`, places **42** in the return slot (for `i32`, a bitwise **copy**), then pops the frame and drops `a` and `b`. `main` receives the copied **42** and passes it to `println!`. The locals are gone; the **result** escaped via `return`.
+
+“Die” means the **bindings** and their stack slots are destroyed — not that every value computed inside the function disappears. Only what you **return** (or otherwise move out) survives past the closing brace. With heap-backed types like `String`, the same rule applies: the owner binding dies, but the data can live on if ownership **moves** into the caller’s binding.
+
 Nested blocks shrink live ranges — useful for [borrowing](#references-borrowing-and-dereferencing) below:
 
 ```rust
@@ -261,15 +267,48 @@ Use the **`&`** operator to **create** a reference from an owner:
 // Playground
 fn main() {
     let s = String::from("sensor_a");
-    let r = &s; // r: &String — borrow s; s still owns the heap buffer
+    let r = &s; // r: &String — immutable borrow; s still owns the heap buffer
 
     let mut count = 0;
     let m = &mut count; // m: &mut i32 — exclusive borrow for mutation
-    *m += 1;
+    *m += 1; // writes through m into count (1)
 
-    println!("{} {}", r, count);
+    // Works: after *m += 1, the mutable borrow of count is over (last use of m)
+    println!("{} {}", r, count); // sensor_a 1
 }
 ```
+
+Walk through the two borrows separately:
+
+- **`r` and `s`:** `r` is a read-only handle to `s`. The heap buffer still has one owner (`s`); `r` only lets you read it. Many immutable borrows of the same value can coexist.
+- **`m` and `count`:** `count` must be `mut` before you can take `&mut count`. The `*m += 1` line **dereferences** `m` and updates the owner’s slot in place — `count` becomes `1` without moving it.
+
+The closing `println!` uses `count` directly, not `m`. That compiles because the **mutable borrow ended** when `m` was last used (`*m += 1`). The binding `m` still exists, but until you use `m` again, `count` is free for a read.
+
+**Try adding `m` to the same `println!` — it fails:**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let s = String::from("sensor_a");
+    let r = &s;
+
+    let mut count = 0;
+    let m = &mut count;
+    *m += 1;
+
+    // ERROR E0502: cannot borrow `count` as immutable because it is also borrowed as mutable
+    println!("{} {} {}", r, m, count);
+}
+```
+
+`println!` expands to code that must **use every argument** for the duration of the call. Passing `m` (`&mut i32`) **re-opens** the exclusive borrow of `count`. Passing `count` in the same macro asks for an **immutable** read of the owner while that mutable borrow is active. Rust rejects the overlap — you cannot read and exclusively borrow `count` at once.
+
+Fixes (smallest first):
+
+1. **Read through one path** — `println!("{} {} {}", r, *m, count)` still fails for the same reason (`count` plus active `m`). Use `println!("{} {}", r, *m)` or `println!("{} {}", r, count)` — not both `m` and `count`.
+2. **End the borrow with a block** — `{ let m = &mut count; *m += 1; }` then `println!("{} {}", r, count)`.
+3. **Drop `m` explicitly** — `drop(m);` before printing `count` (less idiomatic than a block; [Chapter 10](10_smart_pointers_interior_mutability.md) covers `drop` in depth).
 
 **Java / Python:** two variables can reach the same object; neither owns it in the Rust sense. **Rust:** the **owner** (`s`, `count`) stays put; `r` and `m` are temporary handles the compiler checks ([Chapter 5](05_lifetimes.md)).
 
@@ -339,8 +378,10 @@ The type table above lists **raw pointers** `*const T` and `*mut T`. They also u
 
 1. **Need read-only access without moving?** → `&T`
 2. **Need in-place mutation of the owner?** → `&mut T` (one at a time)
+3. **Callee should take ownership** (store, send, transform-and-return)? → pass by value — **move**
+4. **Caller must reuse the same allocation** (loop buffer, counter, in-place edit)? → `&mut T`
 
-#### Move vs `&mut`: who keeps the value?
+#### Move vs `&mut`: who keeps the value? (rules 3–4)
 
 These look similar in other languages — “pass something to a function and let it change” — but Rust splits them on **ownership**.
 

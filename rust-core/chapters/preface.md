@@ -8,11 +8,32 @@ Backend developers, CLI authors, and curious systems programmers are all welcome
 
 Where tables compare **Java** and **Python**, treat them as **optional anchors** — handy if you know those languages, not required to follow the notes.
 
+## Why Rust is a different bet
+
+Most languages make you pick a poison you already know: stay close to the metal and spend years chasing memory bugs, or buy safety from a **GC** or a **VM** and pay latency, pauses, and opaque runtime behavior. Rust breaks that menu. **Ownership** and **borrow checking** reject huge classes of use-after-free, data race, and aliasing mistakes at **compile time** — with no garbage collector, no mandatory runtime, and no surrender of layout, syscalls, or `no_std` control. That is not a faster C or a stricter Java. It is a different contract between you, the compiler, and the machine.
+
+The contract scales across surfaces that used to demand different stacks. The same language can run on an **ARM64** cloud instance, serve HTTP with **Axum**, embed as a **WebAssembly** module in the browser or beside **Node** via **N-API** / **FFI**, ship a desktop shell with **Tauri**, and still compile firmware for **embedded** targets or a daemon that talks to hardware. You are not maintaining four mental models for four deployment shapes — you are reusing types, tests, and habits.
+
+At runtime Rust stays **lean**: release builds are native **machine code**, not bytecode behind another interpreter. At compile time the language is **expressive**: **algebraic enums**, **traits** instead of inheritance tax, **generics** and **iterators** that optimize like hand-written loops, **macros** when the type system needs a lever. Small binary and rich syntax are not opposites here — zero-cost abstractions and monomorphization are the point.
+
+The industry vote is already in the tree, not in slide decks. **Firefox** shipped memory-safe components from the Servo line; **Windows** and **Android** move security-critical paths to Rust; Chromium hardens parsers at the Rust boundary. In the **Linux kernel**, Rust entered in **6.1** (2022); at the **2025 Kernel Maintainers Summit** it graduated from *experimental* to a **core kernel language** alongside C and assembly — with production drivers and subsystems on the path maintainers expect to keep. You are not learning a hype cycle. You are learning the language those merges already assume.
+
+That is why these notes exist: not to sell Rust in the abstract, but to hand you the paradigm map before the compiler enforces it.
+
+## Production standards — what compile time does not teach
+
+Most Rust material stops when the program builds. Production does not. Reviewers ask whether your error types belong in a public API, whether that `.clone()` hides a borrow smell, whether two `u8` parameters can be swapped without the compiler noticing, and whether a workspace crate still shares dependencies correctly after the last refactor. Those questions rarely appear in language tutorials. They surface in merge requests, on-call threads, and code you maintain for years under enterprise SLAs.
+
+**[Chapter 20: Production Rust standards](20_production_standards.md)** closes that gap. It is a review checklist — typed boundaries, panic-free paths, deliberate allocation, workspace and test conventions — distilled from my own work shipping Rust in **production and enterprise** teams. The patterns there are not generic best-practice quotes recycled from docs. They are habits I apply after every diff: anti-patterns that compiled cleanly but failed in staging, conventions that kept multi-crate repos reviewable, and the bar I use before calling code merge-ready.
+
+Parts I–IV give you the paradigm map. Chapter 20 gives you the production bar. Read it when you are ready to write Rust that survives code review, not just `cargo check`.
+
 ## What you will not find here
 
 - A line-by-line clone of [*The Rust Book*](https://doc.rust-lang.org/book/) (excellent; use it as reference)
 - Framework churn (Axum vs Actix debates)
 - Long proofs about memory models
+- Long prosaic-style text (density over narrative padding)
 
 ## What these notes are (and are not)
 
@@ -23,6 +44,7 @@ These are **lecture notes**, not a textbook. Treat each chapter like dense slide
 - paradigm maps for programmers coming from any mainstream language
 - optional **Java** / **Python** comparison tables where they clarify a habit
 - **Playground** snippets you can run, break, and fix
+- edge-case drills through compiler errors — Rust is about restrictions; fluency is understanding the compiler's logic, not just syntax
 - hooks for drill and review (Afterparty prompts, crosslinks, optional deep dives)
 
 **These notes are not:**
