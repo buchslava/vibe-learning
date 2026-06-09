@@ -1,6 +1,6 @@
 # Table of Contents
 
-**Rust Core** — Part of [Vibe Learning](../README.md). Paradigm → crates → concurrency → power tools → std I/O.
+**Rust Core** (draft edition) — Part of [Vibe Learning](../README.md). Paradigm → crates → concurrency → power tools → std I/O.
 
 ---
 

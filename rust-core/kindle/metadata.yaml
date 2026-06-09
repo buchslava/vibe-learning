@@ -1,12 +1,12 @@
 ---
 title: "Rust Core"
-subtitle: "Language fundamentals for programmers coming from another language"
+subtitle: "Draft edition — language fundamentals for programmers coming from another language"
 author: "Viacheslav Chub"
-date: "2026"
+date: "Draft, 2026"
 lang: en-US
 rights: "Text CC BY-SA 4.0; code examples MIT"
 description: |
-  A Rust language track for developers already comfortable in another language.
+  Draft edition. A Rust language track for developers already comfortable in another language.
   Ownership, traits, concurrency, and production habits — without framework churn.
 publisher: "Vibe Learning"
 documentclass: book

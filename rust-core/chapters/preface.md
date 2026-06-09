@@ -1,5 +1,9 @@
 # Preface
 
+## Draft edition
+
+**Rust Core** is a **draft edition** of the Vibe Learning language track. Chapters are usable end-to-end, but the text is not final: expect edits to examples, cross-links, and the production checklist ([Chapter 20](20_production_standards.md)). When in doubt, confirm against the [official Rust Book](https://doc.rust-lang.org/book/) (2024 edition) and compiler output.
+
 ## Who these notes are for
 
 You already program in at least one language. You do not need a tutorial that starts with `for` loops. You need a **paradigm map**: how Rust thinks about memory, types, concurrency, and errors — and how to write **idiomatic** Rust instead of transliterating syntax from whatever you know today.

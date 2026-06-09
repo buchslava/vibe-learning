@@ -1,6 +1,6 @@
 # Kindle / KDP PDF build
 
-Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica:
+Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica. The PDF title page shows **Draft edition** (see `metadata.yaml`).
 
 - Preface + chapters 1–20 (all six parts)
 - Appendices: Playground Guide, Java/Python/Rust map, AI Prompt Index
