@@ -1,0 +1,43 @@
+% Kindle / KDP-friendly typography (6×9 trim, e-ink readable)
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ltablex}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{etoolbox}
+\usepackage{calc}
+
+\setlist{nosep,leftmargin=*}
+\captionsetup{font=small,skip=4pt}
+
+% Narrow-page tables: smaller type, equal-ish wrapped columns
+\AtBeginEnvironment{longtable}{\footnotesize\setlength{\tabcolsep}{3pt}}
+\AtBeginEnvironment{tabular}{\footnotesize\setlength{\tabcolsep}{3pt}}
+\AtBeginEnvironment{table}{\small}
+\keepXColumns
+\renewcommand{\arraystretch}{1.2}
+
+% Code listings — long lines are pre-wrapped in build.py (no line numbers)
+\definecolor{listingbg}{RGB}{248,248,248}
+\definecolor{listingframe}{RGB}{220,220,220}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  rulecolor=\color{listingframe},
+  backgroundcolor=\color{listingbg},
+  xleftmargin=0.5em,
+  framexleftmargin=0.3em,
+  tabsize=2,
+  showstringspaces=false,
+  aboveskip=0.6em,
+  belowskip=0.6em,
+  upquote=true,
+}
