@@ -196,322 +196,338 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 | ID | Prompt |
 |----|--------|
 | P129 | **File tree** — Design module tree for a CLI that reads config and runs commands. Directories + `mod` lines only, no bodies. |
-| P130 | **Path quiz** — From `crate::service::worker::run`, how do I reach `crate::config::load`? Show `use` and fully qualified call. |
-| P131 | **lib vs bin** — What belongs in `main.rs` vs `lib.rs` for a tool with 500 lines of logic? |
-| P132 | **pub audit** — List items that should be `pub` vs private in a library crate exposing `Client::connect`. |
-| P133 | **pub(crate)** — When is `pub(crate)` better than `pub` for test helpers? |
-| P134 | **Re-export** — Sketch `pub use` so users see `my_crate::Error` but you wrap `thiserror` internally. |
-| P135 | **Workspace split** — Two crates: `core` library + `cli` binary. Write `Cargo.toml` dependency path only. |
-| P136 | **Integration test** — Where does `tests/smoke.rs` live and how does it `use` the library? |
-| P137 | **Orphan fix** — I want `Display` on `Vec<u8>` — show newtype wrapper module layout. |
-| P138 | **Split monolith** — Given one `main.rs` with config + parser + runner, name three modules and what each owns. |
-| P139 | **cfg test** — Explain why `mod tests` uses `#[cfg(test)]` and `use super::*`. |
-| P140 | **Capstone** — Generate `src/` tree for `sensor_core` library + `sensor_cli` binary in one workspace; I implement. |
+| P130 | **Nested mod.rs** — Draw `ui/theme/themes/` and `ui/theme/palettes/` as a directory tree. When is `foo/mod.rs` better than `foo.rs`? |
+| P131 | **Path quiz** — From `crate::service::worker::run`, how do I reach `crate::config::load`? Show `use` and fully qualified call. |
+| P132 | **use crate::** — In `app/events.rs`, import `AppState` from `app/state.rs` and `PanelLocation` from `core/location.rs` — write both `use` lines. |
+| P133 | **super:: siblings** — `dsp/flowgraph.rs` needs `silence::silenced` from a sibling file under `dsp/`. Show the `use` line (not a path from crate root). |
+| P134 | **lib vs bin** — What belongs in `main.rs` vs `lib.rs` for a tool with 500 lines of logic? |
+| P135 | **Binary-only** — No `lib.rs`: list top-level `mod` lines in `main.rs` for a TUI with `core`, `ui`, `app`, and `util` modules. Where does `pub(crate)` fit? |
+| P136 | **pub audit** — List items that should be `pub` vs private in a library crate exposing `Client::connect`. |
+| P137 | **pub(super)** — `dsp/mod.rs` must call `flowgraph::run`, but `sdr.rs` must not reach it. Show `mod flowgraph;` and `pub(super) fn run` — who can call `run`? |
+| P138 | **Facade module** — `ui/mod.rs` has `mod renderer;` and `pub use renderer::Renderer;`. Why not `pub mod renderer`? |
+| P139 | **Barrel re-export** — `config/mod.rs` exposes `Station` and `load_stations` without callers writing `config::stations::`. Sketch `pub mod` + `pub use` lines. |
+| P140 | **pub(crate)** — Name three helpers that should be `pub(crate)` in a binary crate (shared across `app/`, `ui/`, `main`) but must not be `pub`. |
+| P141 | **pub(crate) mod** — `theme/mod.rs` keeps `palettes` visible inside the crate only. Show `pub(crate) mod palettes;` vs `pub mod palettes` — what breaks for external callers? |
+| P142 | **pub mod vs mod** — In `browser/mod.rs`, `viewer_image` is private but `viewer` is `pub mod`. What can code outside `browser/` import? |
+| P143 | **Re-export dep** — Sketch `pub use` so users see `my_crate::Error` but you wrap `thiserror` internally. |
+| P144 | **Workspace split** — Two crates: `core` library + `cli` binary. Write `Cargo.toml` dependency path only. |
+| P145 | **Integration test** — Where does `tests/smoke.rs` live and how does it `use` the library? |
+| P146 | **Orphan fix** — I want `Display` on `Vec<u8>` — show newtype wrapper module layout. |
+| P147 | **Lib name split** — Tauri package `sdr_fm` uses `[lib] name = "sdr_fm_lib"` and `main` calls `sdr_fm_lib::run()`. Why not name the lib `sdr_fm`? |
+| P148 | **Domain layers** — Split a file manager TUI into `core/` (no ratatui), `ui/` (drawing), `app/` (state + events). What must never live in `core/`? |
+| P149 | **Split monolith** — Given one `main.rs` with config + parser + runner, name three modules and what each owns. |
+| P150 | **cfg test** — Explain why `mod tests` uses `#[cfg(test)]` and `use super::*`. |
+| P151 | **Leaf tests** — `dsp/mod.rs` and `core/settings.rs` each have `#[cfg(test)] mod tests`. Why co-locate tests in submodule files instead of only at `lib.rs`? |
+| P152 | **Capstone** — Generate `src/` tree for `sensor_core` library + `sensor_cli` binary in one workspace; I implement. |
+| P153 | **Feature flag** — Add `serial` feature gating `mod serial_io` — `Cargo.toml` and one `#[cfg]`. |
+| P154 | **cfg vs cfg!** — `#[cfg(debug_assertions)]` vs `if cfg!(debug_assertions)` — release binary diff. |
+| P155 | **Optional dep** — Optional `tokio` behind feature `async` — show `dep:tokio` line. |
+| P156 | **Platform module** — `#[cfg(target_os = "linux")] pub mod linux_home_trash;` in `core/mod.rs` — what happens on macOS builds? |
+| P157 | **Platform stub fn** — Same `fn process_is_root() -> bool` on Unix (real check) and Windows (always `false`). Show the `#[cfg(unix)]` / `#[cfg(not(unix))]` pair. |
+| P158 | **Empty stub fn** — `disable_spellcheck()` runs real code on macOS and `pub fn disable_spellcheck() {}` elsewhere. Why compile the module on all targets instead of gating the whole file? |
+| P159 | **Target deps** — Add `libc` only on Unix in `Cargo.toml`: show `[target.'cfg(unix)'.dependencies]` block. |
+| P160 | **Integration layout** — Tree for `tests/load_config.rs` — what API is invisible to test? |
+| P161 | **pub use prelude** — Re-export so users call `my_crate::connect` not `internal::connect`. |
+| P162 | **Module docs** — Top of `core/mod.rs` describes what the module owns. Show a `//!` inner doc comment (two lines) vs `///` on a single `pub fn`. |
+| P163 | **doc hidden** — When mark helper `#[doc(hidden)]` on public re-export surface? |
+| P164 | **Capstone crate** — `gateway` crate: `serial` feature, integration test, `///` on parse fn — tree only. |
 
-| P141 | **Feature flag** — Add `serial` feature gating `mod serial_io` — `Cargo.toml` and one `#[cfg]`. |
-| P142 | **cfg vs cfg!** — `#[cfg(debug_assertions)]` vs `if cfg!(debug_assertions)` — release binary diff. |
-| P143 | **Optional dep** — Optional `tokio` behind feature `async` — show `dep:tokio` line. |
-| P144 | **Platform gate** — `#[cfg(target_os = "linux")]` module for device path — sketch. |
-| P145 | **Integration layout** — Tree for `tests/load_config.rs` — what API is invisible to test? |
-| P146 | **pub use prelude** — Re-export so users call `my_crate::connect` not `internal::connect`. |
-| P147 | **doc hidden** — When mark helper `#[doc(hidden)]` on public re-export surface? |
-| P148 | **Capstone crate** — `gateway` crate: `serial` feature, integration test, `///` on parse fn — tree only. |
 ## Chapter 10 — Smart pointers and interior mutability
 
 | ID | Prompt |
 |----|--------|
-| P149 | **Box why** — When is `Box<[T]>` better than `Vec<T>` on the stack? Two cases. |
-| P150 | **Rc cycle** — Explain why `Rc` cycles leak; contrast with Python reference cycles and `Weak` fix. |
-| P151 | **Arc Mutex sketch** — Diagram thread-safe cache with Arc<Mutex<HashMap>> — no full code. |
-| P152 | **Java heap map** — Map Java "everything is reference" to Rust ownership — when `Arc`, when plain `&`, when neither. |
-| P153 | **RefCell trap** — Show double `borrow_mut` panic; fix with scoped borrows. |
-| P154 | **Arc vs Rc** — Thread spawn with `Rc` — show error; fix with `Arc`; explain atomic count overhead. |
-| P155 | **Deref coercion** — Why does `fn takes_str(s: &str)` accept `&String`, `&Box<String>`, and `&Rc<String>`? Trace steps. |
-| P156 | **Pick pointer** — Five scenarios (AST node, thread cache, GUI graph, config string, plugin list) — I pick Box/Rc/Arc/RefCell/Weak; you grade. |
-| P157 | **Recursive list** — Draw memory for `Cons(1, Box::new(Cons(2, Nil)))` — stack vs heap boxes. |
-| P158 | **Move out of Box** — What happens after `let s = *box_string`? When idiomatic vs keeping the `Box`? |
-| P159 | **Trait object box** — Three plugin types implement `Plugin` — sketch `Vec<Box<dyn Plugin>>`; why not `Vec<Plugin>`? |
-| P160 | **Handle vs deep clone** — Audit snippet with `Rc<String>` and both `Rc::clone` and `(*rc).clone()` — label cost of each. |
-| P161 | **Weak upgrade** — Parent/child with `Rc` parent and `Weak` child back-ref — I sketch types; you explain cycle break. |
-| P162 | **strong_count debug** — `strong_count` stays at 2 after I thought I dropped all refs — list 5 places handles hide. |
-| P163 | **Immutable then mut** — Hold `let r = cell.borrow()` and call `borrow_mut` — explain panic; fix with nested block. |
-| P164 | **Cell vs RefCell** — Counter `u32` vs `Vec` cache — I pick `Cell` or `RefCell` each; you correct. |
-| P165 | **Rc RefCell graph** — Two nodes share `Rc<RefCell<Node>>` — one updates, one reads — sketch borrow rules on one thread. |
-| P166 | **Compile vs runtime** — Same overlapping-mut pattern: compile error with `&mut` and runtime panic with `RefCell` side by side. |
-| P167 | **Drop order** — Three `Drop` structs in one function — I predict print order; you confirm reverse declaration rule. |
-| P168 | **Rc last handle** — Two `Rc` clones dropped at different times — when does inner `Drop` run? Step through with println in `Drop`. |
-| P169 | **Drop panic** — Explain double-panic abort if `Drop` panics during unwind — link to Ch8. |
-| P170 | **Refactor to smart ptr** — I paste struct with `Box`, `Rc`, or raw tree — you suggest minimal smart pointer fix and justify. |
-| P171 | **Leak hunt** — Sketch `Rc` cycle in observer pattern; refactor one edge to `Weak` and explain count after each drop. |
+| P165 | **Box why** — When is `Box<[T]>` better than `Vec<T>` on the stack? Two cases. |
+| P166 | **Rc cycle** — Explain why `Rc` cycles leak; contrast with Python reference cycles and `Weak` fix. |
+| P167 | **Arc Mutex sketch** — Diagram thread-safe cache with Arc<Mutex<HashMap>> — no full code. |
+| P168 | **Java heap map** — Map Java "everything is reference" to Rust ownership — when `Arc`, when plain `&`, when neither. |
+| P169 | **RefCell trap** — Show double `borrow_mut` panic; fix with scoped borrows. |
+| P170 | **Arc vs Rc** — Thread spawn with `Rc` — show error; fix with `Arc`; explain atomic count overhead. |
+| P171 | **Deref coercion** — Why does `fn takes_str(s: &str)` accept `&String`, `&Box<String>`, and `&Rc<String>`? Trace steps. |
+| P172 | **Pick pointer** — Five scenarios (AST node, thread cache, GUI graph, config string, plugin list) — I pick Box/Rc/Arc/RefCell/Weak; you grade. |
+| P173 | **Recursive list** — Draw memory for `Cons(1, Box::new(Cons(2, Nil)))` — stack vs heap boxes. |
+| P174 | **Move out of Box** — What happens after `let s = *box_string`? When idiomatic vs keeping the `Box`? |
+| P175 | **Trait object box** — Three plugin types implement `Plugin` — sketch `Vec<Box<dyn Plugin>>`; why not `Vec<Plugin>`? |
+| P176 | **Handle vs deep clone** — Audit snippet with `Rc<String>` and both `Rc::clone` and `(*rc).clone()` — label cost of each. |
+| P177 | **Weak upgrade** — Parent/child with `Rc` parent and `Weak` child back-ref — I sketch types; you explain cycle break. |
+| P178 | **strong_count debug** — `strong_count` stays at 2 after I thought I dropped all refs — list 5 places handles hide. |
+| P179 | **Immutable then mut** — Hold `let r = cell.borrow()` and call `borrow_mut` — explain panic; fix with nested block. |
+| P180 | **Cell vs RefCell** — Counter `u32` vs `Vec` cache — I pick `Cell` or `RefCell` each; you correct. |
+| P181 | **Rc RefCell graph** — Two nodes share `Rc<RefCell<Node>>` — one updates, one reads — sketch borrow rules on one thread. |
+| P182 | **Compile vs runtime** — Same overlapping-mut pattern: compile error with `&mut` and runtime panic with `RefCell` side by side. |
+| P183 | **Drop order** — Three `Drop` structs in one function — I predict print order; you confirm reverse declaration rule. |
+| P184 | **Rc last handle** — Two `Rc` clones dropped at different times — when does inner `Drop` run? Step through with println in `Drop`. |
+| P185 | **Drop panic** — Explain double-panic abort if `Drop` panics during unwind — link to Ch8. |
+| P186 | **Refactor to smart ptr** — I paste struct with `Box`, `Rc`, or raw tree — you suggest minimal smart pointer fix and justify. |
+| P187 | **Leak hunt** — Sketch `Rc` cycle in observer pattern; refactor one edge to `Weak` and explain count after each drop. |
 
 ## Chapter 11 — Collections
 
 | ID | Prompt |
 |----|--------|
-| P172 | **Loop port** — Rewrite C-style indexed loop as iterator chain; preserve behavior. |
-| P173 | **HashMap merge** — Two maps of scores — merge by max per key; iterator + entry style. |
-| P174 | **entry drill** — Word frequency from `Vec<&str>` using only `.entry` — no double lookup. |
-| P175 | **collect types** — Three `collect()` calls that need type hints — fix with turbofish. |
-| P176 | **Windows** — Detect rising edges in `Vec<f64>` with `.windows(2)`; extend to `.windows(3)`. |
-| P177 | **Performance myth** — Do Rust iterators optimize to loops? When might they not? |
-| P178 | **Pick collection** — Five tasks (dedup, range scan, FIFO, index by id, min-key) — I pick collection each. |
-| P179 | **Set ops** — Tags on two records — union, intersection, difference with `HashSet`. |
-| P180 | **Hash vs BTree** — Same 10k insert + range scan — when HashMap wins vs BTreeMap. |
-| P181 | **Queue anti-pattern** — Review `v.remove(0)` queue loop — cost and `VecDeque` fix. |
-| P182 | **get vs index** — Four access patterns — I pick `[i]` vs `.get(i)` vs `.get_mut` vs `if let Some`. |
-| P183 | **sort dedup** — Dedup `[3,1,4,1,5]` wrong vs right — sort + dedup pipeline. |
-| P184 | **retain vs filter** — Remove evens in-place vs new `Vec` — compare `retain` and `filter().collect()`. |
-| P185 | **Borrow push trap** — Explain `let r = &v[0]; v.push(1)` error; fix with scope. |
-| P186 | **or_insert_with** — Lazy cache: expensive `Vec` built once per key — sketch with `or_insert_with`. |
-| P187 | **insert overwrite** — Track old value on port remap using `insert` return. |
-| P188 | **Stable dedup** — Unique `String` lines preserving first-seen order — no HashSet-only collect. |
-| P189 | **chunks vs windows** — Parse byte stream into 4-byte frames — `chunks(4)` vs `windows(4)` when? |
-| P190 | **Duplicate keys collect** — `collect` to HashMap from duplicate-key pairs — predict final map. |
-| P191 | **Capacity hint** — Read 1M lines into `Vec` — when `with_capacity` matters; sizing rule. |
-| P192 | **Capstone store** — Register id → reading + range scan — pick map type, list three API methods. |
+| P188 | **Loop port** — Rewrite C-style indexed loop as iterator chain; preserve behavior. |
+| P189 | **HashMap merge** — Two maps of scores — merge by max per key; iterator + entry style. |
+| P190 | **entry drill** — Word frequency from `Vec<&str>` using only `.entry` — no double lookup. |
+| P191 | **collect types** — Three `collect()` calls that need type hints — fix with turbofish. |
+| P192 | **Windows** — Detect rising edges in `Vec<f64>` with `.windows(2)`; extend to `.windows(3)`. |
+| P193 | **Performance myth** — Do Rust iterators optimize to loops? When might they not? |
+| P194 | **Pick collection** — Five tasks (dedup, range scan, FIFO, index by id, min-key) — I pick collection each. |
+| P195 | **Set ops** — Tags on two records — union, intersection, difference with `HashSet`. |
+| P196 | **Hash vs BTree** — Same 10k insert + range scan — when HashMap wins vs BTreeMap. |
+| P197 | **Queue anti-pattern** — Review `v.remove(0)` queue loop — cost and `VecDeque` fix. |
+| P198 | **get vs index** — Four access patterns — I pick `[i]` vs `.get(i)` vs `.get_mut` vs `if let Some`. |
+| P199 | **sort dedup** — Dedup `[3,1,4,1,5]` wrong vs right — sort + dedup pipeline. |
+| P200 | **retain vs filter** — Remove evens in-place vs new `Vec` — compare `retain` and `filter().collect()`. |
+| P201 | **Borrow push trap** — Explain `let r = &v[0]; v.push(1)` error; fix with scope. |
+| P202 | **or_insert_with** — Lazy cache: expensive `Vec` built once per key — sketch with `or_insert_with`. |
+| P203 | **insert overwrite** — Track old value on port remap using `insert` return. |
+| P204 | **Stable dedup** — Unique `String` lines preserving first-seen order — no HashSet-only collect. |
+| P205 | **chunks vs windows** — Parse byte stream into 4-byte frames — `chunks(4)` vs `windows(4)` when? |
+| P206 | **Duplicate keys collect** — `collect` to HashMap from duplicate-key pairs — predict final map. |
+| P207 | **Capacity hint** — Read 1M lines into `Vec` — when `with_capacity` matters; sizing rule. |
+| P208 | **Capstone store** — Register id → reading + range scan — pick map type, list three API methods. |
 
 ## Chapter 12 — Closures and the Fn traits
 
 | ID | Prompt |
 |----|--------|
-| P193 | **Fn quiz** — Four closures: I label each Fn / FnMut / FnOnce; you correct and explain capture. |
-| P194 | **move drill** — Thread spawn snippet missing `move` — show compile error and fix. |
-| P195 | **Iterator chain** — `.filter` closure that uses `&config` — why `Fn` not `FnMut`? |
-| P196 | **fn vs closure** — When can you pass `fn()` vs `impl Fn()` to the same helper? |
-| P197 | **Return closure** — Write `make_multiplier(f: f64) -> impl Fn(f64) -> f64` and explain `move`. |
-| P198 | **Double reference** — Fix `.iter().filter(|x| ...)` type error on `Vec<String>`. |
-| P199 | **sort_by** — Sort `Vec<(String, u32)>` by count descending with `sort_by` closure. |
-| P200 | **for_each vs for** — Same side-effect loop twice: `for` vs `.for_each` — style tradeoffs. |
-| P201 | **Box dyn Fn** — Store heterogeneous callbacks in a Vec — sketch trait object version. |
-| P202 | **Capstone** — Pipeline: lines, filter, parse `u16`, sum — all with closures; I write; you review Fn bounds. |
-| P203 | **RefCell bump** — Closure mutates `RefCell<u32>` counter — which Fn trait and why? |
-| P204 | **Callback registry** — Three log filters in `Vec<Box<dyn Fn(&str) -> bool>>` — I add wrong signature; you fix. |
-| P205 | **Loop move trap** — Building `Vec<Box<dyn Fn()>>` in `for` over `String` — show move error and clone fix. |
-| P206 | **sort_by_key** — Same sort with `sort_by_key` — when is key extraction cleaner? |
-| P207 | **retain valid** — Drop invalid `SensorReading` rows with `.retain` — FnMut bound. |
-| P208 | **Fn bound strict** — Helper takes `impl Fn()` but closure mutates — fix signature. |
-| P209 | **Thread move** — `spawn` closure borrows `String` — show error without `move` and fix. |
-| P210 | **Send Box Fn** — When does `Box<dyn Fn() + Send>` matter for thread callbacks? |
-| P211 | **Callback capstone** — Registry + sort pipeline + thread handoff — review Fn bounds on my code. |
-| P212 | **apply_twice generic** — `impl Fn` vs `Box<dyn Fn>` for helper called twice — cost comparison. |
-| P213 | **Async move note** — One `async move` block capturing `String` — same rules as sync closure. |
-| P214 | **Dedup_by closure** — Dedup adjacent `SensorReading` by id with `dedup_by` — FnMut. |
-| P215 | **Filter config** — `.filter` reading `&settings` — prove closure is `Fn` not `FnMut`. |
-| P216 | **FnOnce consume** — Closure that moves `String` out on first call — storage implications. |
-| P217 | **Heterogeneous vec** — Why `Vec<Box<dyn Fn(i32)>>` cannot mix different capture sizes — one paragraph. |
-| P218 | **Iterator sort chain** — `.filter().map().collect()` then `sort_by` — label each closure's Fn trait. |
-| P219 | **Scope vs move** — Compare `thread::scope` borrow closure vs `spawn(move)` — when each. |
-| P220 | **Capstone registry** — Full callback registry filtering logs by severity — I write; you audit traits. |
+| P209 | **Fn quiz** — Four closures: I label each Fn / FnMut / FnOnce; you correct and explain capture. |
+| P210 | **move drill** — Thread spawn snippet missing `move` — show compile error and fix. |
+| P211 | **Iterator chain** — `.filter` closure that uses `&config` — why `Fn` not `FnMut`? |
+| P212 | **fn vs closure** — When can you pass `fn()` vs `impl Fn()` to the same helper? |
+| P213 | **Return closure** — Write `make_multiplier(f: f64) -> impl Fn(f64) -> f64` and explain `move`. |
+| P214 | **Double reference** — Fix `.iter().filter(|x| ...)` type error on `Vec<String>`. |
+| P215 | **sort_by** — Sort `Vec<(String, u32)>` by count descending with `sort_by` closure. |
+| P216 | **for_each vs for** — Same side-effect loop twice: `for` vs `.for_each` — style tradeoffs. |
+| P217 | **Box dyn Fn** — Store heterogeneous callbacks in a Vec — sketch trait object version. |
+| P218 | **Capstone** — Pipeline: lines, filter, parse `u16`, sum — all with closures; I write; you review Fn bounds. |
+| P219 | **RefCell bump** — Closure mutates `RefCell<u32>` counter — which Fn trait and why? |
+| P220 | **Callback registry** — Three log filters in `Vec<Box<dyn Fn(&str) -> bool>>` — I add wrong signature; you fix. |
+| P221 | **Loop move trap** — Building `Vec<Box<dyn Fn()>>` in `for` over `String` — show move error and clone fix. |
+| P222 | **sort_by_key** — Same sort with `sort_by_key` — when is key extraction cleaner? |
+| P223 | **retain valid** — Drop invalid `SensorReading` rows with `.retain` — FnMut bound. |
+| P224 | **Fn bound strict** — Helper takes `impl Fn()` but closure mutates — fix signature. |
+| P225 | **Thread move** — `spawn` closure borrows `String` — show error without `move` and fix. |
+| P226 | **Send Box Fn** — When does `Box<dyn Fn() + Send>` matter for thread callbacks? |
+| P227 | **Callback capstone** — Registry + sort pipeline + thread handoff — review Fn bounds on my code. |
+| P228 | **apply_twice generic** — `impl Fn` vs `Box<dyn Fn>` for helper called twice — cost comparison. |
+| P229 | **Async move note** — One `async move` block capturing `String` — same rules as sync closure. |
+| P230 | **Dedup_by closure** — Dedup adjacent `SensorReading` by id with `dedup_by` — FnMut. |
+| P231 | **Filter config** — `.filter` reading `&settings` — prove closure is `Fn` not `FnMut`. |
+| P232 | **FnOnce consume** — Closure that moves `String` out on first call — storage implications. |
+| P233 | **Heterogeneous vec** — Why `Vec<Box<dyn Fn(i32)>>` cannot mix different capture sizes — one paragraph. |
+| P234 | **Iterator sort chain** — `.filter().map().collect()` then `sort_by` — label each closure's Fn trait. |
+| P235 | **Scope vs move** — Compare `thread::scope` borrow closure vs `spawn(move)` — when each. |
+| P236 | **Capstone registry** — Full callback registry filtering logs by severity — I write; you audit traits. |
 
 ## Chapter 13 — Standard traits and conversions
 
 | ID | Prompt |
 |----|--------|
-| P221 | **Debug vs Display** — When derive `Debug` only vs implement `Display` for a CLI status line? |
-| P222 | **Redacted Debug** — Struct with `api_key: String` — sketch manual `Debug` with `[REDACTED]`. |
-| P223 | **From chain** — `String` → `MyLabel` via `From`; add `From<&str>` without duplicating logic. |
-| P224 | **TryFrom port** — Port validation with custom enum error `OutOfRange`. |
-| P225 | **parse vs TryFrom** — When `s.parse::<u16>()` vs `u16::try_from(x)` vs custom `FromStr`? |
-| P226 | **AsRef drill** — Rewrite three functions taking `&String` to `impl AsRef<str>`. |
-| P227 | **Cow API** — Normalize slug: accept `Cow<str>`, return borrowed if valid else owned. |
-| P228 | **Derive set quiz** — Map key, log line, sortable row, error enum — I list derives each needs. |
-| P229 | **Display impl** — Implement `Display` for `Port(u16)` showing `Port(8080)`. |
-| P230 | **Mini crate API** — Public `HostPort` with `Display`, `TryFrom<&str>` for `host:port` — list impl blocks only. |
-| P231 | **Pretty debug** — Same struct with `{:#?}` vs `{:?}` — when does pretty-print help in tests? |
-| P232 | **Default enum** — Three-variant mode enum — derive `Default` with `#[default]` on `Auto`. |
-| P233 | **Eq on floats** — Struct with `f64` field — show `Eq` derive failure; three fixes. |
-| P234 | **HashMap key** — Why does `UserId(String)` need `Eq + Hash` for `HashMap` keys? |
-| P235 | **FromStr type** — Parse `host:port` into struct — sketch `FromStr` with split. |
-| P236 | **Silent cast trap** — Show `70000i32 as u16` vs `TryFrom` — predict values. |
-| P237 | **From in errors** — Wire `ParseIntError` into `AppError` with `From` — list impl only. |
-| P238 | **AsRef bytes** — Log wire payload — `impl AsRef<[u8]>` accepts `Vec`, slice, array. |
-| P239 | **Borrow lookup** — Explain `HashMap<String, V>.get(&str)` — role of `Borrow<str>`. |
-| P240 | **into_owned** — When caller needs `String` after `Cow` helper — where `into_owned()`? |
-| P241 | **Newtype Display** — Wrap `Vec<u8>` as `HexBytes` — implement `Display` without orphan violation. |
-| P242 | **Derive audit** — Config with secrets + TOML — list safe vs unsafe derives. |
-| P243 | **Capstone traits** — Design `RateLimit` public API: parsing, display, equality — traits only. |
+| P237 | **Debug vs Display** — When derive `Debug` only vs implement `Display` for a CLI status line? |
+| P238 | **Redacted Debug** — Struct with `api_key: String` — sketch manual `Debug` with `[REDACTED]`. |
+| P239 | **From chain** — `String` → `MyLabel` via `From`; add `From<&str>` without duplicating logic. |
+| P240 | **TryFrom port** — Port validation with custom enum error `OutOfRange`. |
+| P241 | **parse vs TryFrom** — When `s.parse::<u16>()` vs `u16::try_from(x)` vs custom `FromStr`? |
+| P242 | **AsRef drill** — Rewrite three functions taking `&String` to `impl AsRef<str>`. |
+| P243 | **Cow API** — Normalize slug: accept `Cow<str>`, return borrowed if valid else owned. |
+| P244 | **Derive set quiz** — Map key, log line, sortable row, error enum — I list derives each needs. |
+| P245 | **Display impl** — Implement `Display` for `Port(u16)` showing `Port(8080)`. |
+| P246 | **Mini crate API** — Public `HostPort` with `Display`, `TryFrom<&str>` for `host:port` — list impl blocks only. |
+| P247 | **Pretty debug** — Same struct with `{:#?}` vs `{:?}` — when does pretty-print help in tests? |
+| P248 | **Default enum** — Three-variant mode enum — derive `Default` with `#[default]` on `Auto`. |
+| P249 | **Eq on floats** — Struct with `f64` field — show `Eq` derive failure; three fixes. |
+| P250 | **HashMap key** — Why does `UserId(String)` need `Eq + Hash` for `HashMap` keys? |
+| P251 | **FromStr type** — Parse `host:port` into struct — sketch `FromStr` with split. |
+| P252 | **Silent cast trap** — Show `70000i32 as u16` vs `TryFrom` — predict values. |
+| P253 | **From in errors** — Wire `ParseIntError` into `AppError` with `From` — list impl only. |
+| P254 | **AsRef bytes** — Log wire payload — `impl AsRef<[u8]>` accepts `Vec`, slice, array. |
+| P255 | **Borrow lookup** — Explain `HashMap<String, V>.get(&str)` — role of `Borrow<str>`. |
+| P256 | **into_owned** — When caller needs `String` after `Cow` helper — where `into_owned()`? |
+| P257 | **Newtype Display** — Wrap `Vec<u8>` as `HexBytes` — implement `Display` without orphan violation. |
+| P258 | **Derive audit** — Config with secrets + TOML — list safe vs unsafe derives. |
+| P259 | **Capstone traits** — Design `RateLimit` public API: parsing, display, equality — traits only. |
 
 ## Chapter 14 — Multithreading
 
 | ID | Prompt |
 |----|--------|
-| P244 | **Race quiz** — Which snippets are data races in C++ but rejected by Rust compiler? |
-| P245 | **Channel design** — Worker pool with mpsc: I describe throughput; you sketch thread count + channel shape. |
-| P246 | **Mutex vs RwLock** — Read-heavy sensor cache — pick primitive and why. |
-| P247 | **Send fix** — I try to move `Rc` into thread; show fix with Arc. |
-| P248 | **Join panic** — What happens if spawned thread panics? Handle in main. |
+| P260 | **Race quiz** — Which snippets are data races in C++ but rejected by Rust compiler? |
+| P261 | **Channel design** — Worker pool with mpsc: I describe throughput; you sketch thread count + channel shape. |
+| P262 | **Mutex vs RwLock** — Read-heavy sensor cache — pick primitive and why. |
+| P263 | **Send fix** — I try to move `Rc` into thread; show fix with Arc. |
+| P264 | **Join panic** — What happens if spawned thread panics? Handle in main. |
 
-| P249 | **RwLock cache** — Sketch `Arc<RwLock<HashMap>>` read-heavy cache; when write starves readers? |
-| P250 | **Mutex vs RwLock** — Same cache with 50% writes — pick primitive and justify. |
-| P251 | **OnceLock init** — `get_or_init` behaviour when called twice — same value guarantee. |
-| P252 | **Scope borrow** — Parallel sum over chunks with `thread::scope` — why plain `spawn` fails. |
-| P253 | **Poison recovery** — Writer panics holding `RwLock` — poisoned `read()` and recovery. |
-| P254 | **Capstone sync** — Lazy config (`OnceLock`), shared cache (`RwLock`), scoped workers — types only. |
+| P265 | **RwLock cache** — Sketch `Arc<RwLock<HashMap>>` read-heavy cache; when write starves readers? |
+| P266 | **Mutex vs RwLock** — Same cache with 50% writes — pick primitive and justify. |
+| P267 | **OnceLock init** — `get_or_init` behaviour when called twice — same value guarantee. |
+| P268 | **Scope borrow** — Parallel sum over chunks with `thread::scope` — why plain `spawn` fails. |
+| P269 | **Poison recovery** — Writer panics holding `RwLock` — poisoned `read()` and recovery. |
+| P270 | **Capstone sync** — Lazy config (`OnceLock`), shared cache (`RwLock`), scoped workers — types only. |
 ## Chapter 15 — Atomics
 
 | ID | Prompt |
 |----|--------|
-| P255 | **Ordering quiz** — For shutdown flag + published config pointer, which orderings? Justify briefly. |
-| P256 | **Counter port** — Replace Mutex counter with AtomicUsize; discuss lost updates with Relaxed. |
-| P257 | **ABA problem** — Explain ABA in 80 words for compare_exchange — no full queue impl. |
-| P258 | **When not** — Three cases atomics are the wrong tool; prefer channels or Mutex. |
-| P259 | **Fence intuition** — Draw happens-before arrow diagram for Release store + Acquire load. |
+| P271 | **Ordering quiz** — For shutdown flag + published config pointer, which orderings? Justify briefly. |
+| P272 | **Counter port** — Replace Mutex counter with AtomicUsize; discuss lost updates with Relaxed. |
+| P273 | **ABA problem** — Explain ABA in 80 words for compare_exchange — no full queue impl. |
+| P274 | **When not** — Three cases atomics are the wrong tool; prefer channels or Mutex. |
+| P275 | **Fence intuition** — Draw happens-before arrow diagram for Release store + Acquire load. |
 
 ## Chapter 16 — Async and Tokio
 
 | ID | Prompt |
 |----|--------|
-| P260 | **Future diagram** — Draw state machine for async fn with two await points. |
-| P261 | **Tokio scaffold** — Generate minimal Tcp echo server skeleton; I fill body. |
-| P262 | **select! scenario** — Cancel slow request when fast path returns — outline `select!`. |
-| P263 | **async vs thread** — 1000 Modbus polls — argue async vs thread pool for latency. |
-| P264 | **blocking fix** — Identify blocking calls in async snippet; suggest `spawn_blocking`. |
-| P265 | **Python asyncio** — Map asyncio gather to Tokio join — API comparison table. |
+| P276 | **Future diagram** — Draw state machine for async fn with two await points. |
+| P277 | **Tokio scaffold** — Generate minimal Tcp echo server skeleton; I fill body. |
+| P278 | **select! scenario** — Cancel slow request when fast path returns — outline `select!`. |
+| P279 | **async vs thread** — 1000 Modbus polls — argue async vs thread pool for latency. |
+| P280 | **blocking fix** — Identify blocking calls in async snippet; suggest `spawn_blocking`. |
+| P281 | **Python asyncio** — Map asyncio gather to Tokio join — API comparison table. |
 
 ## Chapter 17 — Metaprogramming
 
 | ID | Prompt |
 |----|--------|
-| P266 | **Macro vs fn** — Rewrite macro as generic fn if possible; when impossible, say why. |
-| P267 | **derive need** — List derives I want for config struct loaded from TOML — justify each. |
-| P268 | **Hygiene** — Explain macro hygiene in 60 words with `$crate` mention. |
-| P269 | **Debug expand** — Walk me through `cargo expand` on derive Debug output (conceptual). |
-| P270 | **DSL sketch** — Design tiny `command!` macro for CLI subcommands — tokens only. |
-| P271 | **Expansion order** — List compiler phases from tokens to LLVM; where do macros run? |
-| P272 | **Tokens vs types** — Why can a macro compile but expanded code fail? One example. |
-| P273 | **Follow-set why** — Explain in 80 words why `$a:expr = $b:expr` is forbidden in matchers. |
-| P274 | **Scope honesty** — List 5 metaprogramming topics Ch17 skips and where to learn each. |
-| P275 | **Trace checklist** — Give 6 reasons macro code is hard to trace and one mitigation each. |
-| P276 | **Fragment picker** — I describe a DSL shape; you pick `expr`/`ident`/`tt` for each slot. |
-| P277 | **Expr equals fix** — Fix `set_reg!($addr = $val)` matcher; show two valid surface syntaxes. |
-| P278 | **Trailing comma** — Explain `$(x),*` vs `$(x),+` on empty input; show failing and fixed macro. |
-| P279 | **Register DSL** — Extend `register_map!` with a third register; explain `stringify!` arm. |
-| P280 | **Clone expand** — Show conceptual expanded `impl Clone` for struct with two `i32` fields. |
-| P281 | **Enum vs struct** — How does derived `PartialEq` differ for enum vs struct? Sketch match arms. |
-| P282 | **Field bound failure** — Struct with `Mutex<i32>` field + `#[derive(Clone)]` — quote error and fix. |
-| P283 | **Redacted Debug** — When hand-write `Debug` instead of derive on command enum with secrets. |
-| P284 | **Copy vs Clone quiz** — Classify 8 types: Copy, Clone only, or neither; justify. |
-| P285 | **Hot-loop clone audit** — Audit poll loop with `.clone()` each tick; suggest move/`Arc`/borrow. |
-| P286 | **Arc vs derive Clone** — Explain cheap `Arc` clone vs deep `String` clone with one snippet. |
-| P287 | **Serde rename** — Field `poll_ms` in JSON as `pollIntervalMs` — show attr; trap on refactor. |
-| P288 | **thiserror vs manual** — Same error enum: count lines derive vs hand-written (Ch8 style). |
-| P289 | **Float Eq trap** — Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch7. |
-| P290 | **cargo expand walkthrough** — Step-by-step: install, run, read output for one derive. |
-| P291 | **In expansion of** — Decode a 3-note compiler error chain from nested macro + derive. |
-| P292 | **tt vs expr escape** — When switch matcher from `expr` to `tt`; tradeoffs in 80 words. |
-| P293 | **Three-layer trace** — Derive inside attribute inside macro_rules — debug layer by layer. |
-| P294 | **Port to const fn** — Replace tiny numeric macro with `const fn`; when macro still needed? |
-| P295 | **env vs var** — Compare `env!`, `option_env!`, `std::env::var` — table with one use case each. |
-| P296 | **include_str config** — Embed default TOML with `include_str!`; deserialize at startup sketch. |
-| P297 | **Macro vs fn audit** — Mark 6 snippets: should be macro, derive, or plain fn — justify. |
-| P298 | **When not proc macro** — Three scenarios where proc macro is overkill; alternative each. |
-| P299 | **Minimal derive set** — Gateway config + error + CLI: smallest derive list that still ships. |
-| P300 | **Trap quiz** — Mark 8 snippets: empty `+`, double brace, Default enum, Arc Clone, env!, duplicate impl, cfg macro, serde rename. |
-| P301 | **Duplicate register DSL** — Design compile-time error for duplicate keys in register_map! |
-| P302 | **Serde refactor test** — Integration test plan after renaming TOML field with serde attrs. |
-| P303 | **Modbus table macro** — Spec register table macro generating lookup + const max address. |
-| P304 | **Derive soup review** — I paste 40-line struct with 12 derives; trim to minimal set with reasons. |
-| P305 | **For after expr** — Why is `$e:expr for $i:ident in $r:expr` illegal? Show legal `$p:pat in $r:expr` foreach macro. |
-| P306 | **Double-brace fix** — Fix `poll_twice!` macro that mixes `let` and `for` for use in `let x = poll_twice!()`. |
-| P379 | **Derive vs decorator** — I come from Python/Java. Explain why `#[derive(Debug)]` is not a decorator or annotation that runs at call time — what actually happens at compile time? |
-| P380 | **Three kinds quiz** — Classify 8 snippets: derive proc macro, attribute proc macro, function-like macro, compiler attribute (`#[inline]`, `#[cfg]`), field meta parsed inside a derive (`#[serde(rename)]`). |
-| P381 | **tokio::main expand** — Sketch the conceptual expansion of `#[tokio::main] async fn main() { ... }`. Why is this an attribute proc macro, not `#[derive]`? |
-| P382 | **Custom attribute inputs** — For `#[my_attr(some = "config")] fn poll() { ... }`, what two token streams does the proc macro receive? Give two things the macro might emit. |
-| P383 | **Field attr vs item attr** — Contrast `#[serde(rename = "pollIntervalMs")]` on a struct field vs `#[tracing::instrument]` on `fn poll` — same proc-macro kind or not? |
-| P384 | **Custom attribute when** — Three scenarios (poll-loop tracing, type-level JSON mapping, wrapping `main` with a runtime). Pick: custom attribute proc macro, derive, or plain helper fn — justify each. |
-| P385 | **Runtime myth** — Does `#[tracing::instrument]` or `#[test]` run every time I call the function? Explain what runs at compile time vs run time. |
+| P282 | **Macro vs fn** — Rewrite macro as generic fn if possible; when impossible, say why. |
+| P283 | **derive need** — List derives I want for config struct loaded from TOML — justify each. |
+| P284 | **Hygiene** — Explain macro hygiene in 60 words with `$crate` mention. |
+| P285 | **Debug expand** — Walk me through `cargo expand` on derive Debug output (conceptual). |
+| P286 | **DSL sketch** — Design tiny `command!` macro for CLI subcommands — tokens only. |
+| P287 | **Expansion order** — List compiler phases from tokens to LLVM; where do macros run? |
+| P288 | **Tokens vs types** — Why can a macro compile but expanded code fail? One example. |
+| P289 | **Follow-set why** — Explain in 80 words why `$a:expr = $b:expr` is forbidden in matchers. |
+| P290 | **Scope honesty** — List 5 metaprogramming topics Ch17 skips and where to learn each. |
+| P291 | **Trace checklist** — Give 6 reasons macro code is hard to trace and one mitigation each. |
+| P292 | **Fragment picker** — I describe a DSL shape; you pick `expr`/`ident`/`tt` for each slot. |
+| P293 | **Expr equals fix** — Fix `set_reg!($addr = $val)` matcher; show two valid surface syntaxes. |
+| P294 | **Trailing comma** — Explain `$(x),*` vs `$(x),+` on empty input; show failing and fixed macro. |
+| P295 | **Register DSL** — Extend `register_map!` with a third register; explain `stringify!` arm. |
+| P296 | **Clone expand** — Show conceptual expanded `impl Clone` for struct with two `i32` fields. |
+| P297 | **Enum vs struct** — How does derived `PartialEq` differ for enum vs struct? Sketch match arms. |
+| P298 | **Field bound failure** — Struct with `Mutex<i32>` field + `#[derive(Clone)]` — quote error and fix. |
+| P299 | **Redacted Debug** — When hand-write `Debug` instead of derive on command enum with secrets. |
+| P300 | **Copy vs Clone quiz** — Classify 8 types: Copy, Clone only, or neither; justify. |
+| P301 | **Hot-loop clone audit** — Audit poll loop with `.clone()` each tick; suggest move/`Arc`/borrow. |
+| P302 | **Arc vs derive Clone** — Explain cheap `Arc` clone vs deep `String` clone with one snippet. |
+| P303 | **Serde rename** — Field `poll_ms` in JSON as `pollIntervalMs` — show attr; trap on refactor. |
+| P304 | **thiserror vs manual** — Same error enum: count lines derive vs hand-written (Ch8 style). |
+| P305 | **Float Eq trap** — Show `#[derive(Eq)]` on `f64` field failure; two fixes from Ch7. |
+| P306 | **cargo expand walkthrough** — Step-by-step: install, run, read output for one derive. |
+| P307 | **In expansion of** — Decode a 3-note compiler error chain from nested macro + derive. |
+| P308 | **tt vs expr escape** — When switch matcher from `expr` to `tt`; tradeoffs in 80 words. |
+| P309 | **Three-layer trace** — Derive inside attribute inside macro_rules — debug layer by layer. |
+| P310 | **Port to const fn** — Replace tiny numeric macro with `const fn`; when macro still needed? |
+| P311 | **env vs var** — Compare `env!`, `option_env!`, `std::env::var` — table with one use case each. |
+| P312 | **include_str config** — Embed default TOML with `include_str!`; deserialize at startup sketch. |
+| P313 | **Macro vs fn audit** — Mark 6 snippets: should be macro, derive, or plain fn — justify. |
+| P314 | **When not proc macro** — Three scenarios where proc macro is overkill; alternative each. |
+| P315 | **Minimal derive set** — Gateway config + error + CLI: smallest derive list that still ships. |
+| P316 | **Trap quiz** — Mark 8 snippets: empty `+`, double brace, Default enum, Arc Clone, env!, duplicate impl, cfg macro, serde rename. |
+| P317 | **Duplicate register DSL** — Design compile-time error for duplicate keys in register_map! |
+| P318 | **Serde refactor test** — Integration test plan after renaming TOML field with serde attrs. |
+| P319 | **Modbus table macro** — Spec register table macro generating lookup + const max address. |
+| P320 | **Derive soup review** — I paste 40-line struct with 12 derives; trim to minimal set with reasons. |
+| P321 | **For after expr** — Why is `$e:expr for $i:ident in $r:expr` illegal? Show legal `$p:pat in $r:expr` foreach macro. |
+| P322 | **Double-brace fix** — Fix `poll_twice!` macro that mixes `let` and `for` for use in `let x = poll_twice!()`. |
+| P395 | **Derive vs decorator** — I come from Python/Java. Explain why `#[derive(Debug)]` is not a decorator or annotation that runs at call time — what actually happens at compile time? |
+| P396 | **Three kinds quiz** — Classify 8 snippets: derive proc macro, attribute proc macro, function-like macro, compiler attribute (`#[inline]`, `#[cfg]`), field meta parsed inside a derive (`#[serde(rename)]`). |
+| P397 | **tokio::main expand** — Sketch the conceptual expansion of `#[tokio::main] async fn main() { ... }`. Why is this an attribute proc macro, not `#[derive]`? |
+| P398 | **Custom attribute inputs** — For `#[my_attr(some = "config")] fn poll() { ... }`, what two token streams does the proc macro receive? Give two things the macro might emit. |
+| P399 | **Field attr vs item attr** — Contrast `#[serde(rename = "pollIntervalMs")]` on a struct field vs `#[tracing::instrument]` on `fn poll` — same proc-macro kind or not? |
+| P400 | **Custom attribute when** — Three scenarios (poll-loop tracing, type-level JSON mapping, wrapping `main` with a runtime). Pick: custom attribute proc macro, derive, or plain helper fn — justify each. |
+| P401 | **Runtime myth** — Does `#[tracing::instrument]` or `#[test]` run every time I call the function? Explain what runs at compile time vs run time. |
 
 ## Chapter 18 — Unsafe
 
 | ID | Prompt |
 |----|--------|
-| P307 | **Invariant list** — For raw pointer to buffer + length, list 5 invariants safe wrapper must enforce. |
-| P308 | **Soundness** — Explain "safe Rust can't cause UB" vs unsafe — one paragraph; include unsound safe wrapper example. |
-| P309 | **FFI checklist** — Checklist for calling C library from Rust binary. |
-| P310 | **Miri** — What is Miri and when run it relative to unsafe changes? |
-| P311 | **Avoid** — Review use case: speed up JSON — unsafe vs simd crate vs algorithm. |
-| P312 | **Java JNI** — Compare JNI pitfalls to Rust FFI ownership rules. |
-| P313 | **Scope honesty** — List 6 topics Ch18 skips and where to learn each (nomicon, Miri, Pin, …). |
-| P314 | **Aim table** — Fill: why Vec needs `unsafe` internally while `push` stays safe for callers. |
-| P315 | **Promise diagram** — Draw safe API → unsafe block → invariants → caller cannot UB; label soundness. |
-| P316 | **`*const` vs `&T` quiz** — Give 5 snippets: legal ref, needs `unsafe` block, compile error; I classify each. |
-| P317 | **from_raw_parts design** — Design `fn view_frame(ptr, len) -> Result<&[u8], Error>` without `&'static`; list invariants. |
-| P318 | **Dangling audit** — Show stack pointer used after drop; I explain UB; you show Miri-style symptom. |
-| P319 | **Modbus buffer** — Register table as `&[u8]` vs `from_raw_parts` — when is each idiomatic in a gateway? |
-| P320 | **Hex preview port** — Port Level 2 `as_hex_preview` to return `Result` on empty buffer; no `unwrap`. |
-| P321 | **set_len contract** — Document pre/post conditions for `set_len_unchecked`; what breaks `as_slice` if violated? |
-| P322 | **Send proof** — I claim `Rc<*mut u8>` is Send; you disprove with compiler error quote. |
-| P323 | **SerialHandle Sync** — When would `SerialHandle` need `unsafe impl Sync` vs `Arc<Mutex<...>>`? Two sentences each. |
-| P324 | **Ch14 port** — Rewrite Level 4 spawn example using only safe types — when is it impossible? |
-| P325 | **Proc-macro boundary** — Why do serde/tokio crates use `unsafe impl` you don't write? Link Ch17. |
-| P326 | **CString trap** — Show `into_raw` forgotten `from_raw` leak; fix with RAII pattern sketch. |
-| P327 | **Vendor SDK** — Diagram ownership: Rust owns config, C owns connection, callback pointer — boxes and arrows only. |
-| P328 | **serialport hide** — Where does `unsafe` live in a typical serial crate vs my application code? |
-| P329 | **CRC decision** — C `crc16` vs Rust `crc` crate vs hand-rolled — decision tree for production gateway. |
-| P330 | **Trap quiz** — Mark 6 snippets: safe, UB, ordering bug, needs Miri, needs Mutex, unsound safe API. |
-| P331 | **Review rubric** — 10-point code-review checklist for an `unsafe` PR in an automation repo. |
-| P332 | **Test plan** — Unit + Miri + integration tests for new `extern 'C'` wrapper — bullet list only. |
-| P333 | **Borrow checker fight** — I paste fight-the-borrow-checker code; you refactor to safe Rust without `unsafe`. |
-| P334 | **static mut** — Compare `static mut` counter vs `AtomicUsize` from Ch15 — UB vs defined behavior. |
-| P335 | **PlcDriver API** — Design safe `PlcDriver` Rust API over fictional `extern 'C'` — types, `Result`, no raw pointers in public API. |
-| P336 | **Level ladder recap** — Explain Levels 1–5 in one paragraph each for a Java teammate who knows JNI. |
+| P323 | **Invariant list** — For raw pointer to buffer + length, list 5 invariants safe wrapper must enforce. |
+| P324 | **Soundness** — Explain "safe Rust can't cause UB" vs unsafe — one paragraph; include unsound safe wrapper example. |
+| P325 | **FFI checklist** — Checklist for calling C library from Rust binary. |
+| P326 | **Miri** — What is Miri and when run it relative to unsafe changes? |
+| P327 | **Avoid** — Review use case: speed up JSON — unsafe vs simd crate vs algorithm. |
+| P328 | **Java JNI** — Compare JNI pitfalls to Rust FFI ownership rules. |
+| P329 | **Scope honesty** — List 6 topics Ch18 skips and where to learn each (nomicon, Miri, Pin, …). |
+| P330 | **Aim table** — Fill: why Vec needs `unsafe` internally while `push` stays safe for callers. |
+| P331 | **Promise diagram** — Draw safe API → unsafe block → invariants → caller cannot UB; label soundness. |
+| P332 | **`*const` vs `&T` quiz** — Give 5 snippets: legal ref, needs `unsafe` block, compile error; I classify each. |
+| P333 | **from_raw_parts design** — Design `fn view_frame(ptr, len) -> Result<&[u8], Error>` without `&'static`; list invariants. |
+| P334 | **Dangling audit** — Show stack pointer used after drop; I explain UB; you show Miri-style symptom. |
+| P335 | **Modbus buffer** — Register table as `&[u8]` vs `from_raw_parts` — when is each idiomatic in a gateway? |
+| P336 | **Hex preview port** — Port Level 2 `as_hex_preview` to return `Result` on empty buffer; no `unwrap`. |
+| P337 | **set_len contract** — Document pre/post conditions for `set_len_unchecked`; what breaks `as_slice` if violated? |
+| P338 | **Send proof** — I claim `Rc<*mut u8>` is Send; you disprove with compiler error quote. |
+| P339 | **SerialHandle Sync** — When would `SerialHandle` need `unsafe impl Sync` vs `Arc<Mutex<...>>`? Two sentences each. |
+| P340 | **Ch14 port** — Rewrite Level 4 spawn example using only safe types — when is it impossible? |
+| P341 | **Proc-macro boundary** — Why do serde/tokio crates use `unsafe impl` you don't write? Link Ch17. |
+| P342 | **CString trap** — Show `into_raw` forgotten `from_raw` leak; fix with RAII pattern sketch. |
+| P343 | **Vendor SDK** — Diagram ownership: Rust owns config, C owns connection, callback pointer — boxes and arrows only. |
+| P344 | **serialport hide** — Where does `unsafe` live in a typical serial crate vs my application code? |
+| P345 | **CRC decision** — C `crc16` vs Rust `crc` crate vs hand-rolled — decision tree for production gateway. |
+| P346 | **Trap quiz** — Mark 6 snippets: safe, UB, ordering bug, needs Miri, needs Mutex, unsound safe API. |
+| P347 | **Review rubric** — 10-point code-review checklist for an `unsafe` PR in an automation repo. |
+| P348 | **Test plan** — Unit + Miri + integration tests for new `extern 'C'` wrapper — bullet list only. |
+| P349 | **Borrow checker fight** — I paste fight-the-borrow-checker code; you refactor to safe Rust without `unsafe`. |
+| P350 | **static mut** — Compare `static mut` counter vs `AtomicUsize` from Ch15 — UB vs defined behavior. |
+| P351 | **PlcDriver API** — Design safe `PlcDriver` Rust API over fictional `extern 'C'` — types, `Result`, no raw pointers in public API. |
+| P352 | **Level ladder recap** — Explain Levels 1–5 in one paragraph each for a Java teammate who knows JNI. |
 
 ## Chapter 19 — I/O and processes
 
 | ID | Prompt |
 |----|--------|
-| P337 | **Trait refactor** — Refactor file copy loop to generic `copy<R: Read, W: Write>`; discuss error propagation. |
-| P338 | **CSV tool** — Spec for CLI: read two-column CSV, emit `name=value`; I implement with BufRead. |
-| P339 | **Packet layout** — Add CRC byte to 4-byte packet; update encode/decode with XOR — show tests. |
-| P340 | **Command safety** — Review shell=True style command; rewrite without shell when possible. |
-| P341 | **Endian trap** — Quiz: 3 scenarios pick LE vs BE for Modbus-style register. |
-| P342 | **Pipeline** — Design `program A \| program B` using only Rust std (two processes, pipe). |
-| P343 | **Capstone scaffold** — Generate module tree and function signatures for sensor_gateway; no bodies. |
-| P344 | **Serial debug** — I get timeout on read; give systematic checklist (baud, cable, permissions). |
-| P345 | **Retry policy** — Design exponential backoff for Modbus-style poll errors; Rust pseudocode. |
-| P346 | **Log schema** — Propose JSON log lines for sensor events with timestamp and error codes. |
-| P347 | **GPIO next step** — After serial works on Pi, outline migration to gpio-cdev for one LED. |
-| P348 | **Code review** — I paste capstone main loop; review for panic risks and missing flush. |
-| P349 | **read vs read_exact** — Give 3 protocol shapes; I pick `read` loop vs `read_exact` each time; you verify. |
-| P350 | **Cursor test** — Write unit test for `parse_kv_lines` using `Cursor` — no filesystem. |
-| P351 | **BufReader why** — Explain in 60 words why `BufReader` matters for 10k-line log files. |
-| P352 | **Boundary errors** — Sketch `main` mapping `io::Error` to exit code 1 with context path — no `unwrap`. |
-| P353 | **read_to_string trap** — When is `read_to_string` wrong for automation configs? Give size threshold rule. |
-| P354 | **Bit field port** — Java status int with flags — port to Rust `encode` with `\|=` and `&` masks. |
-| P355 | **CRC upgrade** — Replace XOR toy CRC with CRC-16-Modbus — outline steps, no full crate required. |
-| P356 | **Exit status** — Child exited 2 — how should gateway log and retry? Table: fatal vs transient. |
-| P357 | **Env and cwd** — Show `Command` with `.env("PORT","502")` and `.current_dir` — when needed? |
-| P358 | **Sync vs async pick** — Three gateway designs: I pick sync thread vs Tokio per scenario; you justify. |
-| P359 | **serialport traits** — Explain how `serialport` maps to `Read`/`Write` — diagram only. |
-| P360 | **Blocking in async** — Show wrong `std::fs::read` inside `async fn`; fix with `tokio::fs` or `spawn_blocking`. |
-| P361 | **Gateway capstone** — End-to-end: config file → serial poll → JSON log line — module list and error types only. |
-| P362 | **Ch16 bridge** — Same echo server: sketch sync thread version vs Tokio version — tradeoffs table. |
+| P353 | **Trait refactor** — Refactor file copy loop to generic `copy<R: Read, W: Write>`; discuss error propagation. |
+| P354 | **CSV tool** — Spec for CLI: read two-column CSV, emit `name=value`; I implement with BufRead. |
+| P355 | **Packet layout** — Add CRC byte to 4-byte packet; update encode/decode with XOR — show tests. |
+| P356 | **Command safety** — Review shell=True style command; rewrite without shell when possible. |
+| P357 | **Endian trap** — Quiz: 3 scenarios pick LE vs BE for Modbus-style register. |
+| P358 | **Pipeline** — Design `program A \| program B` using only Rust std (two processes, pipe). |
+| P359 | **Capstone scaffold** — Generate module tree and function signatures for sensor_gateway; no bodies. |
+| P360 | **Serial debug** — I get timeout on read; give systematic checklist (baud, cable, permissions). |
+| P361 | **Retry policy** — Design exponential backoff for Modbus-style poll errors; Rust pseudocode. |
+| P362 | **Log schema** — Propose JSON log lines for sensor events with timestamp and error codes. |
+| P363 | **GPIO next step** — After serial works on Pi, outline migration to gpio-cdev for one LED. |
+| P364 | **Code review** — I paste capstone main loop; review for panic risks and missing flush. |
+| P365 | **read vs read_exact** — Give 3 protocol shapes; I pick `read` loop vs `read_exact` each time; you verify. |
+| P366 | **Cursor test** — Write unit test for `parse_kv_lines` using `Cursor` — no filesystem. |
+| P367 | **BufReader why** — Explain in 60 words why `BufReader` matters for 10k-line log files. |
+| P368 | **Boundary errors** — Sketch `main` mapping `io::Error` to exit code 1 with context path — no `unwrap`. |
+| P369 | **read_to_string trap** — When is `read_to_string` wrong for automation configs? Give size threshold rule. |
+| P370 | **Bit field port** — Java status int with flags — port to Rust `encode` with `\|=` and `&` masks. |
+| P371 | **CRC upgrade** — Replace XOR toy CRC with CRC-16-Modbus — outline steps, no full crate required. |
+| P372 | **Exit status** — Child exited 2 — how should gateway log and retry? Table: fatal vs transient. |
+| P373 | **Env and cwd** — Show `Command` with `.env("PORT","502")` and `.current_dir` — when needed? |
+| P374 | **Sync vs async pick** — Three gateway designs: I pick sync thread vs Tokio per scenario; you justify. |
+| P375 | **serialport traits** — Explain how `serialport` maps to `Read`/`Write` — diagram only. |
+| P376 | **Blocking in async** — Show wrong `std::fs::read` inside `async fn`; fix with `tokio::fs` or `spawn_blocking`. |
+| P377 | **Gateway capstone** — End-to-end: config file → serial poll → JSON log line — module list and error types only. |
+| P378 | **Ch16 bridge** — Same echo server: sketch sync thread version vs Tokio version — tradeoffs table. |
 
-| P363 | **Path join** — Config path from `HOME` + `.config/app.toml` — `Path::join` vs string concat. |
-| P364 | **Env default** — `TIMEOUT` env var default 30 — `unwrap_or_else` pattern. |
-| P365 | **Metadata guard** — Reject config over 1MB before `read_to_string`. |
-| P366 | **Stdin fallback** — Port from argv or interactive prompt — one `main` both paths. |
-| P367 | **Line parser** — BufRead lines, skip `#`, parse `key=value` — trailing newline. |
-| P368 | **Capstone CLI** — env path → metadata check → line parse → print port — function list only. |
+| P379 | **Path join** — Config path from `HOME` + `.config/app.toml` — `Path::join` vs string concat. |
+| P380 | **Env default** — `TIMEOUT` env var default 30 — `unwrap_or_else` pattern. |
+| P381 | **Metadata guard** — Reject config over 1MB before `read_to_string`. |
+| P382 | **Stdin fallback** — Port from argv or interactive prompt — one `main` both paths. |
+| P383 | **Line parser** — BufRead lines, skip `#`, parse `key=value` — trailing newline. |
+| P384 | **Capstone CLI** — env path → metadata check → line parse → print port — function list only. |
 
 ## Chapter 20 — Production standards
 
 | ID | Prompt |
 |----|--------|
-| P369 | **Diff review** — Mark each of the 19 checklist rows pass/fail on a 30-line Rust PR with one sentence each. |
-| P370 | **Mega-error refactor** — Split one `AppError` into `ValidateError` + `StorageError`; show boundary mapping. |
-| P371 | **Panic hunt** — Find five panic sources in a snippet; replace with `Option`/`Result`. |
-| P372 | **Clone audit** — Remove three unnecessary clones by fixing signatures to `&str` / `&[T]`. |
-| P373 | **Arc style** — Rewrite `arc.clone()` to `Arc::clone(&arc)`; explain review benefit. |
-| P374 | **Workspace.toml** — Sketch root + two members; shared deps use `{ workspace = true }`. |
-| P375 | **Golden test** — One `assert_eq!(got, want)` + `pretty_assertions`; no per-field asserts. |
-| P376 | **Flaky test fix** — Replace `thread::sleep` in test with injected `Clock` trait. |
-| P377 | **Pre-merge gate** — Checklist-only review of gateway `main.rs` + `lib.rs` — findings only. |
-| P378 | **AI review prompt** — One paragraph prompt for an assistant to verify the Ch20 rules on a Rust diff. |
+| P385 | **Diff review** — Mark each of the 19 checklist rows pass/fail on a 30-line Rust PR with one sentence each. |
+| P386 | **Mega-error refactor** — Split one `AppError` into `ValidateError` + `StorageError`; show boundary mapping. |
+| P387 | **Panic hunt** — Find five panic sources in a snippet; replace with `Option`/`Result`. |
+| P388 | **Clone audit** — Remove three unnecessary clones by fixing signatures to `&str` / `&[T]`. |
+| P389 | **Arc style** — Rewrite `arc.clone()` to `Arc::clone(&arc)`; explain review benefit. |
+| P390 | **Workspace.toml** — Sketch root + two members; shared deps use `{ workspace = true }`. |
+| P391 | **Golden test** — One `assert_eq!(got, want)` + `pretty_assertions`; no per-field asserts. |
+| P392 | **Flaky test fix** — Replace `thread::sleep` in test with injected `Clock` trait. |
+| P393 | **Pre-merge gate** — Checklist-only review of gateway `main.rs` + `lib.rs` — findings only. |
+| P394 | **AI review prompt** — One paragraph prompt for an assistant to verify the Ch20 rules on a Rust diff. |
 
 ---
 
-**Total: 385 prompts** (P001–P378, P379–P385).
+**Total: 401 prompts** (P001–P394, P395–P401).
 
 ## By theme
 
@@ -522,16 +538,16 @@ Find a prompt by ID (`P046` → table below), open the linked chapter for contex
 | Functions / methods | P031–P047 |
 | Iterators | P048–P075 |
 | Enums / match | P088–P115 |
-| Types / traits | P025–P030, P116–P123, P221–P243 |
-| Modules / crates | P129–P148 |
-| Smart pointers | P149–P171 |
-| Collections | P172–P192 |
-| Closures | P193–P220 |
+| Types / traits | P025–P030, P116–P123, P237–P259 |
+| Modules / crates | P129–P164 |
+| Smart pointers | P165–P187 |
+| Collections | P188–P208 |
+| Closures | P209–P236 |
 | Errors / tests | P124–P128 |
-| Concurrency | P244–P265 |
-| Systems / I/O | P337–P368 |
-| Production standards | P369–P378 |
-| Meta / tooling | P001–P005, P266–P306, P379–P385 |
+| Concurrency | P260–P281 |
+| Systems / I/O | P353–P384 |
+| Production standards | P385–P394 |
+| Meta / tooling | P001–P005, P282–P322, P395–P401 |
 
 ## See also
 

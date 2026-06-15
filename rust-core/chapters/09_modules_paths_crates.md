@@ -435,38 +435,54 @@ Common errors in this chapter:
 #### Layout and paths
 
 1. **File tree** — “Design module tree for a CLI that reads config and runs commands. Directories + `mod` lines only, no bodies.”
-2. **Path quiz** — “From `crate::service::worker::run`, how do I reach `crate::config::load`? Show `use` and fully qualified call.”
-3. **lib vs bin** — “What belongs in `main.rs` vs `lib.rs` for a tool with 500 lines of logic?”
+2. **Nested `mod.rs`** — “Draw `ui/theme/themes/` and `ui/theme/palettes/` as a directory tree. When is `foo/mod.rs` better than `foo.rs`?”
+3. **Path quiz** — “From `crate::service::worker::run`, how do I reach `crate::config::load`? Show `use` and fully qualified call.”
+4. **`use crate::`** — “In `app/events.rs`, import `AppState` from `app/state.rs` and `PanelLocation` from `core/location.rs` — write both `use` lines.”
+5. **`super::` siblings** — “`dsp/flowgraph.rs` needs `silence::silenced` from a sibling file under `dsp/`. Show the `use` line (not a path from crate root).”
+6. **lib vs bin** — “What belongs in `main.rs` vs `lib.rs` for a tool with 500 lines of logic?”
+7. **Binary-only** — “No `lib.rs`: list top-level `mod` lines in `main.rs` for a TUI with `core`, `ui`, `app`, and `util` modules. Where does `pub(crate)` fit?”
 
 #### Visibility
 
-4. **pub audit** — “List items that should be `pub` vs private in a library crate exposing `Client::connect`.”
-5. **pub(crate)** — “When is `pub(crate)` better than `pub` for test helpers?”
-6. **Re-export** — “Sketch `pub use` so users see `my_crate::Error` but you wrap `thiserror` internally.”
+8. **pub audit** — “List items that should be `pub` vs private in a library crate exposing `Client::connect`.”
+9. **`pub(super)`** — “`dsp/mod.rs` must call `flowgraph::run`, but `sdr.rs` must not reach it. Show `mod flowgraph;` and `pub(super) fn run` — who can call `run`?”
+10. **Facade module** — “`ui/mod.rs` has `mod renderer;` and `pub use renderer::Renderer;`. Why not `pub mod renderer`?”
+11. **Barrel re-export** — “`config/mod.rs` exposes `Station` and `load_stations` without callers writing `config::stations::`. Sketch `pub mod` + `pub use` lines.”
+12. **`pub(crate)`** — “Name three helpers that should be `pub(crate)` in a binary crate (shared across `app/`, `ui/`, `main`) but must not be `pub`.”
+13. **`pub(crate) mod`** — “`theme/mod.rs` keeps `palettes` visible inside the crate only. Show `pub(crate) mod palettes;` vs `pub mod palettes` — what breaks for external callers?”
+14. **`pub mod` vs `mod`** — “In `browser/mod.rs`, `viewer_image` is private but `viewer` is `pub mod`. What can code outside `browser/` import?”
+15. **Re-export dep** — “Sketch `pub use` so users see `my_crate::Error` but you wrap `thiserror` internally.”
 
 #### Crates and workspaces
 
-7. **Workspace split** — “Two crates: `core` library + `cli` binary. Write `Cargo.toml` dependency path only.”
-8. **Integration test** — “Where does `tests/smoke.rs` live and how does it `use` the library?”
-9. **Orphan fix** — “I want `Display` on `Vec<u8>` — show newtype wrapper module layout.”
+16. **Workspace split** — “Two crates: `core` library + `cli` binary. Write `Cargo.toml` dependency path only.”
+17. **Integration test** — “Where does `tests/smoke.rs` live and how does it `use` the library?”
+18. **Orphan fix** — “I want `Display` on `Vec<u8>` — show newtype wrapper module layout.”
+19. **Lib name split** — “Tauri package `sdr_fm` uses `[lib] name = \"sdr_fm_lib\"` and `main` calls `sdr_fm_lib::run()`. Why not name the lib `sdr_fm`?”
 
 #### Practice
 
-10. **Split monolith** — “Given one `main.rs` with config + parser + runner, name three modules and what each owns.”
-11. **cfg test** — “Explain why `mod tests` uses `#[cfg(test)]` and `use super::*`.”
-12. **Capstone** — “Generate `src/` tree for `sensor_core` library + `sensor_cli` binary in one workspace; I implement.”
+20. **Domain layers** — “Split a file manager TUI into `core/` (no ratatui), `ui/` (drawing), `app/` (state + events). What must never live in `core/`?”
+21. **Split monolith** — “Given one `main.rs` with config + parser + runner, name three modules and what each owns.”
+22. **cfg test** — “Explain why `mod tests` uses `#[cfg(test)]` and `use super::*`.”
+23. **Leaf tests** — “`dsp/mod.rs` and `core/settings.rs` each have `#[cfg(test)] mod tests`. Why co-locate tests in submodule files instead of only at `lib.rs`?”
+24. **Capstone** — “Generate `src/` tree for `sensor_core` library + `sensor_cli` binary in one workspace; I implement.”
 
 #### Features and cfg
 
-13. **Feature flag** — "Add `serial` feature gating `mod serial_io` — write `Cargo.toml` `[features]` and one `#[cfg]` line."
-14. **cfg vs cfg!** — "Same debug log twice: `#[cfg(debug_assertions)]` block vs `if cfg!(debug_assertions)` — what stays in release binary?"
-15. **Optional dep** — "Wire optional `tokio` behind feature `async` — show `[features]` and `dep:tokio` line."
-16. **Platform gate** — "Sketch `#[cfg(target_os = "linux")]` module for `/dev/ttyUSB0` path only on Linux."
+25. **Feature flag** — "Add `serial` feature gating `mod serial_io` — write `Cargo.toml` `[features]` and one `#[cfg]` line."
+26. **cfg vs cfg!** — "Same debug log twice: `#[cfg(debug_assertions)]` block vs `if cfg!(debug_assertions)` — what stays in release binary?"
+27. **Optional dep** — "Wire optional `tokio` behind feature `async` — show `[features]` and `dep:tokio` line."
+28. **Platform module** — "Sketch `#[cfg(target_os = \"linux\")] pub mod linux_home_trash;` in `core/mod.rs` — what happens on macOS builds?"
+29. **Platform stub fn** — "Same `fn process_is_root() -> bool` on Unix (real check) and Windows (always `false`). Show the `#[cfg(unix)]` / `#[cfg(not(unix))]` pair."
+30. **Empty stub fn** — "`disable_spellcheck()` runs real code on macOS and `pub fn disable_spellcheck() {}` elsewhere. Why compile the module on all targets instead of gating the whole file?"
+31. **Target deps** — "Add `libc` only on Unix in `Cargo.toml`: show `[target.'cfg(unix)'.dependencies]` block."
 
 #### Integration and docs
 
-17. **Integration layout** — "Draw tree for `tests/load_config.rs` calling public `load()` — what is invisible to the test?"
-18. **pub use prelude** — "Users should call `my_crate::connect` not `my_crate::internal::connect` — show re-export."
-19. **doc hidden** — "When to mark helper `#[doc(hidden)]` on a public re-export surface?"
-20. **Capstone crate** — "Design `gateway` crate: `serial` feature, integration test, `///` on public parse fn — tree + TOML only."
+32. **Integration layout** — "Draw tree for `tests/load_config.rs` calling public `load()` — what is invisible to the test?"
+33. **pub use prelude** — "Users should call `my_crate::connect` not `my_crate::internal::connect` — show re-export."
+34. **Module docs** — "Top of `core/mod.rs` describes what the module owns. Show a `//!` inner doc comment (two lines) vs `///` on a single `pub fn`."
+35. **doc hidden** — "When to mark helper `#[doc(hidden)]` on a public re-export surface?"
+36. **Capstone crate** — "Design `gateway` crate: `serial` feature, integration test, `///` on public parse fn — tree + TOML only."
 

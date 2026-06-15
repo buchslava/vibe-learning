@@ -62,6 +62,27 @@ Two separate problems:
 
 Different primitive types (`u16` vs `String`) already prevent some swaps — the real footgun is **two parameters of the same type**, plus **open-coded status values**.
 
+### Misleading — type aliases rename, they do not create types
+
+A **type alias** (`type UnitId = u8`) is only a synonym. The compiler still treats `UnitId`, `Register`, and `u8` as the **same** type — nicer names in signatures, but none of the swap protection below.
+
+```rust
+// Playground — misleading
+type UnitId = u8;
+type Register = u8;
+
+fn write_register(unit: UnitId, reg: Register, value: u16) {
+    let _ = (unit, reg, value);
+}
+
+fn main() {
+    write_register(3, 1, 100);
+    write_register(1, 3, 100); // still compiles — both args are u8
+}
+```
+
+Use aliases when you want **shorter spelling of one identity** — e.g. `pub type Result<T> = std::result::Result<T, GatewayError>` ([Chapter 8](08_errors_and_testing.md)). Use **struct newtypes** when two domain concepts share a representation but must stay distinct.
+
 ### Strong — newtypes for identity, enums for state
 
 ```rust
@@ -117,6 +138,15 @@ fn main() {
 |-----|--------|
 | `UnitId` / `Register` | Swapping arguments is a **type error**, not a silent wrong write. |
 | `DeviceStatus` enum | States are **named variants** — add `Degraded` and the compiler lists every `match` to update. |
+
+Struct newtypes vs type aliases for the same underlying `u8`:
+
+| Capability | `type X = u8` | `struct X { ... }` |
+|------------|---------------|---------------------|
+| Prevent same-primitive argument swaps | No — still `u8` | Yes — distinct nominal types |
+| Separate `impl` blocks and traits | No — one `impl` for `u8` | Yes — `impl UnitId`, `impl Display for Register`, … |
+| Implement foreign traits (orphan rule) | No | Yes — wrap and `impl` on your struct ([Chapter 7](07_structs_traits_generics.md)) |
+| Validation at construction | Any `u8` passes through | `UnitId::new(n)?`, `TryFrom<u8>`, private fields |
 
 **Why:** newtypes attach **identity** to values that share a representation (`u8`, `u16`, `String`). Enums attach **behaviour** to state instead of scattered integer checks. Together they turn whole classes of field and wiring bugs into compile-time failures ([Chapter 6](06_types_enums_pattern_matching.md), [Chapter 7](07_structs_traits_generics.md)).
 

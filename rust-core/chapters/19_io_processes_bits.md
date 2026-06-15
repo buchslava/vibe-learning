@@ -296,7 +296,7 @@ Same **traits** mentally. Async adds `.await` and a runtime. [Chapter 16](16_asy
 // }
 ```
 
-Poll loops: set **read timeout**, log the port on error, and **retry with backoff** (Afterparty P345). Do not spin tight on failure.
+Poll loops: set **read timeout**, log the port on error, and **retry with backoff** (Afterparty P361). Do not spin tight on failure.
 
 ## CLI utility — paths, env, and time
 
