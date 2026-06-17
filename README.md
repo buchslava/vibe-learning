@@ -7,7 +7,7 @@ A learning hub — practical books and exercises for developers who already writ
 | Book | Path | Focus |
 |------|------|--------|
 | **Rust Core** | [`rust-core/`](rust-core/) | Language fundamentals: ownership, types, traits, concurrency, std I/O |
-| *(more coming)* | — | Future tracks under this umbrella |
+| **Rust Extended** | [`rust-extended/`](rust-extended/) | 14 deep-cut articles + Cargo demos for topics deferred from the core track |
 
 ## Start here
 

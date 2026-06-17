@@ -1,0 +1,9 @@
+[package]
+name = "demo_variance"
+version = "0.1.0"
+edition = "2021"
+default-run = "demo_variance"
+
+[[bin]]
+name = "demo_variance"
+path = "src/main.rs"

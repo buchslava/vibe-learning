@@ -1,0 +1,9 @@
+[package]
+name = "demo_hrtb"
+version = "0.1.0"
+edition = "2021"
+default-run = "demo_hrtb"
+
+[[bin]]
+name = "demo_hrtb"
+path = "src/main.rs"

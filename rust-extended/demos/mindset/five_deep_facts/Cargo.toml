@@ -1,0 +1,8 @@
+[package]
+name = "five_deep_facts"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "five_deep_facts"
+path = "src/main.rs"

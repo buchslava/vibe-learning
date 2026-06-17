@@ -1,0 +1,11 @@
+[package]
+name = "demo_async_trait"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+
+[[bin]]
+name = "demo_async_trait"
+path = "src/main.rs"

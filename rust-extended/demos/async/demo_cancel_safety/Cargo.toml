@@ -1,0 +1,11 @@
+[package]
+name = "demo_cancel_safety"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+
+[[bin]]
+name = "demo_cancel_safety"
+path = "src/main.rs"

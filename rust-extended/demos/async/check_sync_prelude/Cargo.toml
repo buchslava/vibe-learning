@@ -1,0 +1,11 @@
+[package]
+name = "check_sync_prelude"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+
+[[bin]]
+name = "check_sync_prelude"
+path = "src/main.rs"

@@ -1,0 +1,9 @@
+[package]
+name = "demo_coherence"
+version = "0.1.0"
+edition = "2021"
+default-run = "demo_coherence"
+
+[[bin]]
+name = "demo_coherence"
+path = "src/main.rs"

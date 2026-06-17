@@ -1,0 +1,8 @@
+[package]
+name = "demo_gats"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "demo_gats"
+path = "src/main.rs"

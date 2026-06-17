@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "demos/mindset/five_deep_facts",
+    "demos/async/check_sync_prelude",
+    "demos/async/demo_pin",
+    "demos/async/demo_cancel_safety",
+    "demos/async/demo_async_trait",
+    "demos/type-system/demo_variance",
+    "demos/type-system/demo_hrtb",
+    "demos/type-system/demo_gats",
+    "demos/type-system/demo_coherence",
+    "demos/memory/demo_drop_order",
+    "demos/memory/demo_drop_check",
+    "demos/memory/demo_niche",
+    "demos/memory/demo_maybe_uninit",
+    "demos/memory/demo_miri",
+]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "time", "sync"] }
