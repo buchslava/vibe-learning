@@ -513,24 +513,63 @@ fn broken() -> &str {
 
 The owner dies at the end of `broken`; the caller cannot hold `&str` afterward. Return owned `String`, or borrow from the caller’s data ([Chapter 5](05_lifetimes.md)).
 
-**6. `&mut` to one slice element vs whole `Vec`**
+**6. Two `&mut` element borrows on one `Vec`**
 
 ```rust
 // Playground — does not compile
 fn main() {
     let mut frame = vec![0u8; 4];
     let a = &mut frame[0];
-    let b = &mut frame[1]; // usually ok — different elements
+    let b = &mut frame[1]; // ERROR: second mutable borrow of `frame`
     *a = 1;
     *b = 2;
-
-    let whole = &mut frame; // ERROR if `a` still live: borrow of entire vec
-    // whole.push(5);
     println!("{:?}", frame);
 }
 ```
 
-Borrowing **overlapping** parts of the same collection is the subtle case. Prefer one `&mut` to the whole `Vec`, or index without holding two element borrows across a mutating call.
+Even when indices differ, `&mut frame[i]` borrows the **whole** `Vec` mutably — the compiler does not track “this element only.” Two element refs at once are two mutable borrows of the same owner.
+
+**Fix — mutate by index (no simultaneous refs):**
+
+```rust
+// Playground
+fn main() {
+    let mut frame = vec![0u8; 4];
+    frame[0] = 1;
+    frame[1] = 2;
+    println!("{:?}", frame);
+}
+```
+
+**Fix — `split_at_mut` for two non-overlapping subslices:**
+
+```rust
+// Playground
+fn main() {
+    let mut frame = vec![0u8; 4];
+    let (left, right) = frame.split_at_mut(2);
+    left[0] = 1;
+    right[0] = 2;
+    println!("{:?}", frame);
+}
+```
+
+Each subslices borrow is disjoint; the compiler can prove they do not alias.
+
+**Related trap — `&mut` to whole `Vec` while an element borrow is still live:**
+
+```rust
+// Playground — does not compile
+fn main() {
+    let mut frame = vec![0u8; 4];
+    let a = &mut frame[0];
+    let whole = &mut frame; // ERROR: `frame` already borrowed through `a`
+    whole.push(5);
+    *a = 1;
+}
+```
+
+End the element borrow (drop `a`’s scope) before `push` or other calls that need `&mut` to the entire collection.
 
 ### When the compiler says no
 
