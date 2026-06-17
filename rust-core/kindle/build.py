@@ -71,6 +71,7 @@ APPENDICES: list[Path] = [
 ]
 
 MERMAID_RE = re.compile(r"```mermaid\n.*?```", re.DOTALL)
+CHAPTER_H1_RE = re.compile(r"^# Chapter \d+:\s*", re.MULTILINE)
 INTERNAL_LINK_RE = re.compile(
     r"\[([^\]]+)\]\((?:\.\./)?(?:chapters/|appendix/)?[\w./-]+\.md(?:#[\w-]+)?\)"
 )
@@ -276,7 +277,19 @@ def wrap_code_blocks(text: str, width: int = CODE_WRAP_WIDTH) -> str:
     return "".join(out)
 
 
-def preprocess(text: str) -> str:
+def normalize_chapter_heading(text: str, *, path: Path | None = None) -> str:
+    """Align PDF chapter numbers with source titles.
+
+    Pandoc ``--number-sections`` prepends ``Chapter N.`` in headers and TOC.
+    Source files also use ``# Chapter N: Title`` — strip the manual prefix so
+    headers read ``Chapter 1. Paradigm Shift``, not ``Chapter 2. Chapter 1: …``.
+    """
+    if path and path.name == "preface.md":
+        text = re.sub(r"^# Preface\s*$", "# Preface {-}", text, count=1, flags=re.MULTILINE)
+    return CHAPTER_H1_RE.sub("# ", text)
+
+
+def preprocess(text: str, *, path: Path | None = None) -> str:
     text = normalize_unicode(text)
     text = MERMAID_RE.sub(
         "\n\n*[Diagram omitted in print edition — see the web repository.]*\n\n",
@@ -290,6 +303,7 @@ def preprocess(text: str) -> str:
     text = split_table_header_code_rows(text)
     text = fix_table_rows(text)
     text = wrap_code_blocks(text)
+    text = normalize_chapter_heading(text, path=path)
     return text.strip() + "\n\n"
 
 
@@ -307,7 +321,7 @@ def appendix_break() -> str:
 \\appendix
 ```
 
-# Appendices
+# Appendices {-}
 
 """
 
@@ -325,13 +339,13 @@ def assemble_book() -> Path:
         for path in files:
             if not path.exists():
                 raise FileNotFoundError(path)
-            chunks.append(preprocess(path.read_text(encoding="utf-8")))
+            chunks.append(preprocess(path.read_text(encoding="utf-8"), path=path))
 
     chunks.append(appendix_break())
     for path in APPENDICES:
         if not path.exists():
             raise FileNotFoundError(path)
-        chunks.append(preprocess(path.read_text(encoding="utf-8")))
+        chunks.append(preprocess(path.read_text(encoding="utf-8"), path=path))
 
     book.write_text("".join(chunks), encoding="utf-8")
     return book
