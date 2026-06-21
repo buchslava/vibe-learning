@@ -877,3 +877,5 @@ fn main() {}
 6. **Workspace.toml** — “Sketch root + two members; all shared deps use `{ workspace = true }`.”
 7. **Golden test** — “Parser output: one `assert_eq!(got, want)` + `pretty_assertions`; no per-field asserts.”
 8. **Flaky test fix** — “Replace `thread::sleep` in test with injected `Clock` trait.”
+9. **Pre-merge gate** — "Checklist-only review of gateway `main.rs` + `lib.rs` — findings only."
+10. **AI review prompt** — "One paragraph prompt for an assistant to verify the Ch20 rules on a Rust diff."

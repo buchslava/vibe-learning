@@ -10,20 +10,24 @@ Most of this chapter is **Cargo only** — you need a filesystem and `cargo buil
 
 Module tree, `pub`, and Cargo layout — not publishing or semver policy.
 
-| This chapter covers | Deferred |
-|---------------------|----------|
+
+| This chapter covers                   | Deferred                       |
+| ------------------------------------- | ------------------------------ |
 | Module tree, `pub`, `use`, workspaces | `cargo publish`, semver policy |
-| `#[cfg]` and Cargo `[features]` | Full cross-compilation matrix |
-| Unit and integration tests | Fuzzing, property tests |
-| `///` docs and `cargo doc` | Custom rustdoc themes |
+| `#[cfg]` and Cargo `[features]`       | Full cross-compilation matrix  |
+| Unit and integration tests            | Fuzzing, property tests        |
+| `///` docs and `cargo doc`            | Custom rustdoc themes          |
+
 
 ## Crate, package, and workspace
 
-| Term | Meaning |
-|------|---------|
-| **Crate** | One library (`rlib`) or binary (`bin`) the compiler builds from a root file |
-| **Package** | One `Cargo.toml` + source that produces one or more crates |
-| **Workspace** | Several packages in one repo sharing one `Cargo.lock` |
+
+| Term          | Meaning                                                                     |
+| ------------- | --------------------------------------------------------------------------- |
+| **Crate**     | One library (`rlib`) or binary (`bin`) the compiler builds from a root file |
+| **Package**   | One `Cargo.toml` + source that produces one or more crates                  |
+| **Workspace** | Several packages in one repo sharing one `Cargo.lock`                       |
+
 
 A default binary package looks like:
 
@@ -80,21 +84,25 @@ pub fn app_name() -> &'static str {
 }
 ```
 
-| Form | Use when |
-|------|----------|
-| `mod foo { ... }` | tiny helpers, tests, one-off nesting |
-| `mod foo;` + `foo.rs` | normal production split |
+
+| Form                  | Use when                             |
+| --------------------- | ------------------------------------ |
+| `mod foo { ... }`     | tiny helpers, tests, one-off nesting |
+| `mod foo;` + `foo.rs` | normal production split              |
+
 
 ## Paths: `self`, `super`, `crate`
 
 Paths mirror the module tree:
 
-| Prefix | Points to |
-|--------|-----------|
-| `crate::` | root of **this** crate |
-| `super::` | parent module |
-| `self::` | current module (often omitted) |
+
+| Prefix     | Points to                      |
+| ---------- | ------------------------------ |
+| `crate::`  | root of **this** crate         |
+| `super::`  | parent module                  |
+| `self::`   | current module (often omitted) |
 | `foo::bar` | child module `foo`, item `bar` |
+
 
 ```rust
 // Playground
@@ -121,13 +129,15 @@ fn main() {
 
 By default, items are **private** to their module. Mark what callers may use:
 
-| Visibility | Visible from |
-|------------|--------------|
-| (none) | same module + child modules |
-| `pub` | anywhere that can reach the path |
-| `pub(crate)` | anywhere in this crate |
-| `pub(super)` | parent module |
-| `pub(in path::to::module)` | specific ancestor branch |
+
+| Visibility                 | Visible from                     |
+| -------------------------- | -------------------------------- |
+| (none)                     | same module + child modules      |
+| `pub`                      | anywhere that can reach the path |
+| `pub(crate)`               | anywhere in this crate           |
+| `pub(super)`               | parent module                    |
+| `pub(in path::to::module)` | specific ancestor branch         |
+
 
 ```rust
 // Playground
@@ -181,10 +191,12 @@ Callers write `use my_crate::Deserialize` instead of depending on path details y
 
 ## Binary vs library crate
 
-| Crate | Root file | Typical role |
-|-------|-----------|--------------|
-| Binary | `src/main.rs` | CLI entry, `fn main`, thin wiring |
-| Library | `src/lib.rs` | reusable logic, most `pub` API, unit tests |
+
+| Crate   | Root file     | Typical role                               |
+| ------- | ------------- | ------------------------------------------ |
+| Binary  | `src/main.rs` | CLI entry, `fn main`, thin wiring          |
+| Library | `src/lib.rs`  | reusable logic, most `pub` API, unit tests |
+
 
 **Cargo only** — binary calling library in the same package:
 
@@ -294,12 +306,14 @@ fn main() {
 }
 ```
 
-| Attribute | Effect |
-|-----------|--------|
-| `#[cfg(test)]` | compiled only for `cargo test` |
-| `#[cfg(debug_assertions)]` | debug builds only |
-| `#[cfg(feature = "serial")]` | enabled when feature is on |
-| `cfg!(feature = "serial")` | **runtime** bool — code still compiled |
+
+| Attribute                    | Effect                                 |
+| ---------------------------- | -------------------------------------- |
+| `#[cfg(test)]`               | compiled only for `cargo test`         |
+| `#[cfg(debug_assertions)]`   | debug builds only                      |
+| `#[cfg(feature = "serial")]` | enabled when feature is on             |
+| `cfg!(feature = "serial")`   | **runtime** bool — code still compiled |
+
 
 `#[cfg(...)]` removes code at compile time. `if cfg!(...) { ... }` keeps both branches in the binary.
 
@@ -401,17 +415,18 @@ fn main() {
 
 Use `# Examples`, `# Errors`, and `# Panics` sections for items callers depend on. Hide internal helpers with `#[doc(hidden)]` when re-exporting.
 
-
 ## When the compiler says no
 
 Common errors in this chapter:
 
-| Error (typical) | Cause | Fix |
-|-----------------|-------|-----|
-| file not found for module `foo` | missing `foo.rs` or `foo/mod.rs` | create file or use inline `mod` |
-| private item | forgot `pub` on fn/struct | add `pub` or use `pub(crate)` |
-| unresolved import | wrong path or typo | `use crate::...` from crate root |
-| found duplicate module | `mod foo;` twice | one declaration per module |
+
+| Error (typical)                 | Cause                            | Fix                              |
+| ------------------------------- | -------------------------------- | -------------------------------- |
+| file not found for module `foo` | missing `foo.rs` or `foo/mod.rs` | create file or use inline `mod`  |
+| private item                    | forgot `pub` on fn/struct        | add `pub` or use `pub(crate)`    |
+| unresolved import               | wrong path or typo               | `use crate::...` from crate root |
+| found duplicate module          | `mod foo;` twice                 | one declaration per module       |
+
 
 ## Idiom spotlight
 
@@ -437,52 +452,52 @@ Common errors in this chapter:
 1. **File tree** — “Design module tree for a CLI that reads config and runs commands. Directories + `mod` lines only, no bodies.”
 2. **Nested `mod.rs`** — “Draw `ui/theme/themes/` and `ui/theme/palettes/` as a directory tree. When is `foo/mod.rs` better than `foo.rs`?”
 3. **Path quiz** — “From `crate::service::worker::run`, how do I reach `crate::config::load`? Show `use` and fully qualified call.”
-4. **`use crate::`** — “In `app/events.rs`, import `AppState` from `app/state.rs` and `PanelLocation` from `core/location.rs` — write both `use` lines.”
-5. **`super::` siblings** — “`dsp/flowgraph.rs` needs `silence::silenced` from a sibling file under `dsp/`. Show the `use` line (not a path from crate root).”
+4. **use crate::** — “In `app/events.rs`, import `AppState` from `app/state.rs` and `PanelLocation` from `core/location.rs` — write both `use` lines.”
+5. **super:: siblings** — “`dsp/flowgraph.rs` needs `silence::silenced` from a sibling file under `dsp/`. Show the `use` line (not a path from crate root).”
 6. **lib vs bin** — “What belongs in `main.rs` vs `lib.rs` for a tool with 500 lines of logic?”
 7. **Binary-only** — “No `lib.rs`: list top-level `mod` lines in `main.rs` for a TUI with `core`, `ui`, `app`, and `util` modules. Where does `pub(crate)` fit?”
 
 #### Visibility
 
-8. **pub audit** — “List items that should be `pub` vs private in a library crate exposing `Client::connect`.”
-9. **`pub(super)`** — “`dsp/mod.rs` must call `flowgraph::run`, but `sdr.rs` must not reach it. Show `mod flowgraph;` and `pub(super) fn run` — who can call `run`?”
-10. **Facade module** — “`ui/mod.rs` has `mod renderer;` and `pub use renderer::Renderer;`. Why not `pub mod renderer`?”
-11. **Barrel re-export** — “`config/mod.rs` exposes `Station` and `load_stations` without callers writing `config::stations::`. Sketch `pub mod` + `pub use` lines.”
-12. **`pub(crate)`** — “Name three helpers that should be `pub(crate)` in a binary crate (shared across `app/`, `ui/`, `main`) but must not be `pub`.”
-13. **`pub(crate) mod`** — “`theme/mod.rs` keeps `palettes` visible inside the crate only. Show `pub(crate) mod palettes;` vs `pub mod palettes` — what breaks for external callers?”
-14. **`pub mod` vs `mod`** — “In `browser/mod.rs`, `viewer_image` is private but `viewer` is `pub mod`. What can code outside `browser/` import?”
-15. **Re-export dep** — “Sketch `pub use` so users see `my_crate::Error` but you wrap `thiserror` internally.”
+1. **pub audit** — “List items that should be `pub` vs private in a library crate exposing `Client::connect`.”
+2. **pub(super)** — “`dsp/mod.rs` must call `flowgraph::run`, but `sdr.rs` must not reach it. Show `mod flowgraph;` and `pub(super) fn run` — who can call `run`?”
+3. **Facade module** — “`ui/mod.rs` has `mod renderer;` and `pub use renderer::Renderer;`. Why not `pub mod renderer`?”
+4. **Barrel re-export** — “`config/mod.rs` exposes `Station` and `load_stations` without callers writing `config::stations::`. Sketch `pub mod` + `pub use` lines.”
+5. **pub(crate)** — “Name three helpers that should be `pub(crate)` in a binary crate (shared across `app/`, `ui/`, `main`) but must not be `pub`.”
+6. **pub(crate) mod** — “`theme/mod.rs` keeps `palettes` visible inside the crate only. Show `pub(crate) mod palettes;` vs `pub mod palettes` — what breaks for external callers?”
+7. **pub mod vs mod** — “In `browser/mod.rs`, `viewer_image` is private but `viewer` is `pub mod`. What can code outside `browser/` import?”
+8. **Re-export dep** — “Sketch `pub use` so users see `my_crate::Error` but you wrap `thiserror` internally.”
 
 #### Crates and workspaces
 
-16. **Workspace split** — “Two crates: `core` library + `cli` binary. Write `Cargo.toml` dependency path only.”
-17. **Integration test** — “Where does `tests/smoke.rs` live and how does it `use` the library?”
-18. **Orphan fix** — “I want `Display` on `Vec<u8>` — show newtype wrapper module layout.”
-19. **Lib name split** — “Tauri package `sdr_fm` uses `[lib] name = \"sdr_fm_lib\"` and `main` calls `sdr_fm_lib::run()`. Why not name the lib `sdr_fm`?”
+1. **Workspace split** — “Two crates: `core` library + `cli` binary. Write `Cargo.toml` dependency path only.”
+2. **Integration test** — “Where does `tests/smoke.rs` live and how does it `use` the library?”
+3. **Orphan fix** — “I want `Display` on `Vec<u8>` — show newtype wrapper module layout.”
+4. **Lib name split** — “Tauri package `sdr_fm` uses `[lib] name = \"sdr_fm_lib\"` and `main` calls `sdr_fm_lib::run()`. Why not name the lib `sdr_fm`?”
 
 #### Practice
 
-20. **Domain layers** — “Split a file manager TUI into `core/` (no ratatui), `ui/` (drawing), `app/` (state + events). What must never live in `core/`?”
-21. **Split monolith** — “Given one `main.rs` with config + parser + runner, name three modules and what each owns.”
-22. **cfg test** — “Explain why `mod tests` uses `#[cfg(test)]` and `use super::*`.”
-23. **Leaf tests** — “`dsp/mod.rs` and `core/settings.rs` each have `#[cfg(test)] mod tests`. Why co-locate tests in submodule files instead of only at `lib.rs`?”
-24. **Capstone** — “Generate `src/` tree for `sensor_core` library + `sensor_cli` binary in one workspace; I implement.”
+1. **Domain layers** — “Split a file manager TUI into `core/` (no ratatui), `ui/` (drawing), `app/` (state + events). What must never live in `core/`?”
+2. **Split monolith** — “Given one `main.rs` with config + parser + runner, name three modules and what each owns.”
+3. **cfg test** — “Explain why `mod tests` uses `#[cfg(test)]` and `use super::`*.”
+4. **Leaf tests** — “`dsp/mod.rs` and `core/settings.rs` each have `#[cfg(test)] mod tests`. Why co-locate tests in submodule files instead of only at `lib.rs`?”
+5. **Capstone** — “Generate `src/` tree for `sensor_core` library + `sensor_cli` binary in one workspace; I implement.”
 
 #### Features and cfg
 
-25. **Feature flag** — "Add `serial` feature gating `mod serial_io` — write `Cargo.toml` `[features]` and one `#[cfg]` line."
-26. **cfg vs cfg!** — "Same debug log twice: `#[cfg(debug_assertions)]` block vs `if cfg!(debug_assertions)` — what stays in release binary?"
-27. **Optional dep** — "Wire optional `tokio` behind feature `async` — show `[features]` and `dep:tokio` line."
-28. **Platform module** — "Sketch `#[cfg(target_os = \"linux\")] pub mod linux_home_trash;` in `core/mod.rs` — what happens on macOS builds?"
-29. **Platform stub fn** — "Same `fn process_is_root() -> bool` on Unix (real check) and Windows (always `false`). Show the `#[cfg(unix)]` / `#[cfg(not(unix))]` pair."
-30. **Empty stub fn** — "`disable_spellcheck()` runs real code on macOS and `pub fn disable_spellcheck() {}` elsewhere. Why compile the module on all targets instead of gating the whole file?"
-31. **Target deps** — "Add `libc` only on Unix in `Cargo.toml`: show `[target.'cfg(unix)'.dependencies]` block."
+1. **Feature flag** — "Add `serial` feature gating `mod serial_io` — write `Cargo.toml` `[features]` and one `#[cfg]` line."
+2. **cfg vs cfg!** — "Same debug log twice: `#[cfg(debug_assertions)]` block vs `if cfg!(debug_assertions)` — what stays in release binary?"
+3. **Optional dep** — "Wire optional `tokio` behind feature `async` — show `[features]` and `dep:tokio` line."
+4. **Platform module** — "Sketch `#[cfg(target_os = \"linux\")] pub mod linux_home_trash;` in `core/mod.rs` — what happens on macOS builds?"
+5. **Platform stub fn** — "Same `fn process_is_root() -> bool` on Unix (real check) and Windows (always `false`). Show the `#[cfg(unix)]` / `#[cfg(not(unix))]` pair."
+6. **Empty stub fn** — "`disable_spellcheck()` runs real code on macOS and `pub fn disable_spellcheck() {}` elsewhere. Why compile the module on all targets instead of gating the whole file?"
+7. **Target deps** — "Add `libc` only on Unix in `Cargo.toml`: show `[target.'cfg(unix)'.dependencies]` block."
 
 #### Integration and docs
 
-32. **Integration layout** — "Draw tree for `tests/load_config.rs` calling public `load()` — what is invisible to the test?"
-33. **pub use prelude** — "Users should call `my_crate::connect` not `my_crate::internal::connect` — show re-export."
-34. **Module docs** — "Top of `core/mod.rs` describes what the module owns. Show a `//!` inner doc comment (two lines) vs `///` on a single `pub fn`."
-35. **doc hidden** — "When to mark helper `#[doc(hidden)]` on a public re-export surface?"
-36. **Capstone crate** — "Design `gateway` crate: `serial` feature, integration test, `///` on public parse fn — tree + TOML only."
+1. **Integration layout** — "Draw tree for `tests/load_config.rs` calling public `load()` — what is invisible to the test?"
+2. **pub use prelude** — "Users should call `my_crate::connect` not `my_crate::internal::connect` — show re-export."
+3. **Module docs** — "Top of `core/mod.rs` describes what the module owns. Show a `//!` inner doc comment (two lines) vs `///` on a single `pub fn`."
+4. **doc hidden** — "When to mark helper `#[doc(hidden)]` on a public re-export surface?"
+5. **Capstone crate** — "Design `gateway` crate: `serial` feature, integration test, `///` on public parse fn — tree + TOML only."
 

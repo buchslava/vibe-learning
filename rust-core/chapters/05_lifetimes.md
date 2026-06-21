@@ -228,6 +228,10 @@ Error: **missing lifetime specifier** on `text`.
 
 ```rust
 // Playground — uncomment `drop` to see the error
+struct Excerpt<'a> {
+    text: &'a str,
+}
+
 fn main() {
     let novel = String::from("Call me Ishmael.");
     let first = novel.split('.').next().unwrap_or("");

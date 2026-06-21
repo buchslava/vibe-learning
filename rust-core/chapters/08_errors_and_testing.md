@@ -607,7 +607,7 @@ Format the **`Display`** message for `Multiple` variants to list each sub-error 
 
 ## Extension traits on `Option`
 
-Hand-written parsers repeat `ok_or_else` for required fields. An **extension trait** on `Option<T>` centralizes the error shape ([Chapter 7](07_structs_traits_generics.md#extension-traits-in-your-crate)):
+Hand-written parsers repeat `ok_or_else` for required fields. An **extension trait** on `Option<T>` centralizes the error shape (pattern from [Chapter 3 — Extension traits](03_functions.md#extension-traits--add-behaviour-without-newtypes)):
 
 ```rust
 // Playground
@@ -645,25 +645,28 @@ Name constructors on the error enum (`ParseError::missing_field(...)`) keep call
 
 ### Custom error edge cases
 
-**Wrong — `Result<T, String>` in a library public API:**
-
-```rust
-// Playground — works, but avoid in libraries
-pub fn connect(host: &str) -> Result<(), String> {
-    Err("timeout".into()) // callers cannot match variants — only string compare
-}
-```
-
 **Wrong — panic inside error path:**
 
 ```rust
 // Playground — anti-pattern
+#[derive(Debug)]
+enum AppError {
+    BadPort(String),
+}
+
 fn bad(s: &str) -> Result<u16, AppError> {
-    s.parse().unwrap_or_else(|_| panic!("bad port {}", s))
+    Ok(s.parse::<u16>().unwrap_or_else(|_| panic!("bad port {}", s))) // should use map_err, not panic
+}
+
+fn main() {
+    let _ = bad("502"); // ok path
+    // bad("oops");     // runtime panic — defeats Result
 }
 ```
 
 **Match at boundary for operator-facing messages:**
+
+This is the **typed** version of the boundary pattern from [Chapter 6](06_types_enums_pattern_matching.md#resultt-e--errors-as-values): helpers return structured errors; `main` turns each variant into a message an operator can act on.
 
 ```rust
 // Playground
@@ -692,6 +695,29 @@ fn main() {
     }
 }
 ```
+
+**Two layers in one example:**
+
+| Layer | Function | Role |
+|-------|----------|------|
+| **Interior** | `set_port` | validate input, return `Result<u16, AppError>` — uses `?` and `map_err`, **no printing** |
+| **Boundary** | `main` | `match` on `Result` — pick the **operator message** per variant |
+
+**What `set_port("80")` does step by step:**
+
+1. `"80".parse()` → `Ok(80)` — valid number, so no `Parse` error.
+2. `80 < 1024` → `Err(AppError::OutOfRange(80))` — business rule: privileged ports need root.
+3. `main` matches `OutOfRange(80)` → prints `port 80 needs root`.
+
+**Why typed variants beat `Result<T, String>`:**
+
+| | `AppError` enum | plain `String` |
+|---|-----------------|----------------|
+| Caller distinguishes failure kinds | `match` on `Parse` vs `OutOfRange` | string compare / contains |
+| Compiler checks exhaustiveness | must handle every variant | easy to miss a case |
+| Refactor | rename variant → compile errors at call sites | silent string drift |
+
+Interior code **names the failure** (`Parse`, `OutOfRange`); boundary code **explains it to a human**. Keep `Display` / `thiserror` messages on the enum for logging; save custom wording for `main` / CLI / HTTP when the audience differs.
 
 ## Errors and enums
 
@@ -1030,7 +1056,7 @@ mod mock_tests {
 fn main() {}
 ```
 
-Use **`RefCell`** or **`Mutex`** in mocks when the trait takes `&self` but tests need interior mutability. Async traits use the same pattern with **`#[async_trait]`** and **`#[tokio::test]`** ([Chapter 16](16_async_tokio.md#async-trait-boundaries-for-testing)).
+Use **`RefCell`** or **`Mutex`** in mocks when the trait takes `&self` but tests need interior mutability. Async traits use the same pattern with **`#[async_trait]`** and **`#[tokio::test]`**.
 
 ### Golden-file and shared parser tests
 

@@ -4,6 +4,8 @@
 
 Concurrency models differ by language. **Python** threads fight the GIL for CPU work. **Java** threads share the heap with locks. Rust threads are **OS threads**. **Safe Rust** blocks many data races at compile time via `Send` and `Sync`. Use channels and mutexes when sharing is real.
 
+Threading is a **large topic** — scheduling, deadlocks, lock granularity, pools, atomics, async, and cross-process IPC each deserve their own deep dive. **This chapter is a starter only:** spawn/join, one channel pattern, and shared state with `Arc<Mutex<T>>`. Treat it as vocabulary and first working examples, not production concurrency design.
+
 ## Scope — a brief tour
 
 Intro to OS threads, channels, and `Arc<Mutex<T>>` — not pools, IPC, or lock-free depth.
@@ -195,7 +197,7 @@ In the loop, **`Arc::clone(&counter)`** gives each thread a **handle** to the **
 
 - Prints **`count = 4`** — each of four threads incremented once; no lost updates.
 - Without **`Mutex`**, sharing `&mut` across threads would not compile — Rust blocks the data race at compile time.
-- **Lock poisoning:** if a thread **panics while holding the lock**, others get **`PoisonError`** on `lock()` — the lock may be inconsistent ([Chapter 8](08_errors_and_testing.md)).
+- **Lock poisoning:** if a thread **panics while holding the lock**, others get **`PoisonError`** on `lock()` — see [Lock poisoning](#lock-poisoning--what-it-is) below.
 
 ### Level 5 — Hard: `Send` trap — `Rc` cannot enter a thread
 
@@ -382,7 +384,37 @@ fn main() {
 
 **RwLock vs Mutex:** use `RwLock` when reads dominate; `Mutex` is simpler when writes are frequent or critical sections are tiny.
 
-**Poisoned lock:** if a writer panics, `read()` returns `Err`. Log and rebuild cache, or use `into_inner()` on the poison error to recover the inner value.
+### Lock poisoning — what it is
+
+If a thread **panics while holding** a `Mutex` or `RwLock`, Rust marks that lock **poisoned**. The panic might have stopped mid-update — the protected value may be **inconsistent** (half-written counter, broken struct invariant).
+
+| Step | What happens |
+|------|----------------|
+| Thread panics inside `lock()` / `write()` guard | Lock flagged poisoned; guard drops during unwind |
+| Another thread calls `lock()` / `read()` / `write()` | Returns **`Err(PoisonError<...>)`**, not a normal guard |
+| You call `.unwrap()` on that `Result` | **Panics again** — “poisoned lock” |
+
+Poisoning is a **warning**, not automatic repair. The next thread must decide: fail fast, rebuild state, or recover data deliberately.
+
+```rust
+// Playground — pattern only; poison happens when a holder panics
+use std::sync::{Arc, Mutex};
+
+fn main() {
+    let data = Arc::new(Mutex::new(0));
+    // if some thread panicked while holding this mutex:
+    match data.lock() {
+        Ok(guard) => println!("value = {}", *guard),
+        Err(poisoned) => {
+            eprintln!("lock poisoned — rebuilding or using recovered value");
+            let guard = poisoned.into_inner(); // still gives you MutexGuard<T>
+            println!("recovered value = {}", *guard);
+        }
+    }
+}
+```
+
+**Practical rule:** treat poison like a serious fault in automation services — log it, drop bad cache, or restart the worker. Use **`into_inner()`** only when you accept the data may be corrupt. See [Chapter 8 — panic and unwind](08_errors_and_testing.md#panic-unwind-and-why-it-is-not-result).
 
 ## Techniques at a glance
 

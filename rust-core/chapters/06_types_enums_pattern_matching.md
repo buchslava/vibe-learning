@@ -185,7 +185,16 @@ fn main() {
 }
 ```
 
-At **boundaries** (`main`, HTTP handler, CLI), match on `Result` and map to user-facing messages. **Inside** helpers, prefer `?` to bubble `Err` up.
+**Where to `match` vs where to use `?`:** errors have to stop somewhere. Split your code into two layers:
+
+| Layer | Where | What to do | Why |
+|-------|-------|------------|-----|
+| **Boundary** | `main`, CLI entry, HTTP handler, test harness | `match` (or `if let`) on `Result` — print, log, set exit code, return HTTP 400 | No caller above you to propagate to; **you** decide the user-facing outcome |
+| **Interior** | parsers, validators, `load_config`, anything called by other Rust code | `?` to return `Err` early; keep the happy path flat | Callers choose how to handle failure; helpers stay reusable |
+
+In the example above, `parse_port` is **interior** — it returns `Result<u16, String>` and lets the caller decide. `main` is the **boundary** — it matches once and turns `Err(msg)` into `eprintln!(...)`. If `main` used `?` instead, it would need its own `-> Result<..., ...>` signature and something *above* `main` to handle failure (Rust binaries often use a `main -> Result` wrapper for that — [Chapter 8](08_errors_and_testing.md)).
+
+**Rule of thumb:** library and helper functions **return** `Result`; the outermost layer **consumes** `Result` and converts it to human output or process exit status. Do not `unwrap` in the middle; do not `match` on every line inside a ten-function call stack.
 
 ## Custom enums — sum types
 
@@ -279,6 +288,40 @@ The return type is a **borrowed string slice** (`&str`), not an owned `String`. 
 
 So `label` does **not** borrow from `m` or from any local variable. It only returns pointers to immortal literals. That is why the signature can be `&'static str` without a generic `'a` parameter.
 
+**What if you call `label(Mode::Auto)` many times?**
+
+```rust
+label(Mode::Auto);
+label(Mode::Auto);
+label(Mode::Auto);
+```
+
+Nothing new is allocated. The bytes for `"auto"` are written into the **program binary once** at compile time. Every call returns another **`&str`** — a pointer and length pair — pointing at **those same bytes**:
+
+> **Rust Reference — [String literal](https://doc.rust-lang.org/reference/glossary.html#string-literal):** “A string literal is a string stored directly in the final binary, and so will be valid for the `'static` duration.” Its type is `&'static str`.
+>
+> **Rust Reference — [String literal expressions](https://doc.rust-lang.org/reference/expressions/literal-expr.html#string-literals):** the expression’s type is `&'static str`; its value is “a reference to a **statically allocated** `str` containing the UTF-8 encoding of the represented string.”
+>
+> **The Rust Book — [What is Ownership?](https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html):** “In the case of a string literal, we know the contents at compile time, so the text is **hardcoded directly into the final executable**.”
+>
+> **Rust By Example — [`'static` lifetime](https://doc.rust-lang.org/rust-by-example/scope/lifetime/static_lifetime.html):** a string literal “is stored in the **read-only memory of the binary**”; when the binding goes out of scope, “the data **remains in the binary**.”
+>
+> **`str` primitive — [std docs](https://doc.rust-lang.org/stable/std/primitive.str.html):** string literals are `&'static str` and “guaranteed to be valid for the duration of the **entire program**.”
+
+```
+binary:  ... | a u t o | ...
+              ^
+              |____ all calls return &str here
+```
+
+| Per call | What happens |
+|----------|----------------|
+| Memory for `"auto"` text | unchanged — one copy for the whole process |
+| Return value | a fresh `&str` value (reference), not a fresh string on the heap |
+| Cost | tiny — match + return a pointer; no `String` allocation, no copying of `"auto"` |
+
+You can call `label` in a loop, print and discard the result, or store many `&'static str` bindings — they all refer to the same immortal `"auto"` / `"manual"` slices. That is why `'static` is safe here: the data outlives every call site, every loop iteration, and every variable that holds the returned reference.
+
 **Wrong — return `&str` pointing at a local `String`:**
 
 ```rust
@@ -307,7 +350,26 @@ fn main() {
 }
 ```
 
-Use `&'static str` for fixed catalog strings; use `String` (or `&str` with an explicit lifetime tied to an input) when the text depends on borrowed or formatted data — [Chapter 5](05_lifetimes.md) covers the contract, [Chapter 2](02_types.md) covers `String` vs `&str`.
+**What if you call `label_owned(Mode::Auto)` many times?**
+
+Yes — **each call allocates fresh heap memory**, even though the source text is the same `"auto"` literal.
+
+| Per call to `label_owned` | What happens |
+|---------------------------|--------------|
+| `.to_string()` | copies `"auto"` bytes from the binary into a **new** heap `String` |
+| Return value | an **owned** `String` — separate allocation every time |
+| After use | when that `String` is dropped, the heap block is freed |
+
+```rust
+for _ in 0..1000 {
+    let s = label_owned(Mode::Auto); // 1000 separate heap allocations
+    println!("{}", s);               // each `s` dropped at end of iteration
+}
+```
+
+Contrast with `label` → `&'static str`: a thousand calls still point at the **one** `"auto"` slice in the binary — no heap copy per call.
+
+For this enum, `label` is the lighter choice. Prefer `&'static str` for fixed catalog strings; reach for `String` when you need ownership (append, cross a thread, store in a struct) or build text at run time — [Chapter 5](05_lifetimes.md) covers lifetimes, [Chapter 2](02_types.md) covers `String` vs `&str`.
 
 **Add a variant — compiler forces updates:**
 
@@ -574,6 +636,17 @@ fn main() {
 
 **Wrong — fixed-length slice on variable input:**
 
+The pattern `[method, path]` means **exactly two** elements — no more, no less. The code compiles, but real input often has a different length:
+
+| Input | `[method, path]` matches? | What happens |
+|-------|---------------------------|--------------|
+| `["GET", "/only"]` | yes | prints `GET /only` |
+| `["GET", "/only", "HTTP/1.1"]` | **no** — three elements | falls through to `_` → `"bad request"` |
+| `["GET"]` | **no** — one element | `"bad request"` |
+| `[]` | **no** | `"bad request"` |
+
+So a valid three-token request line is rejected even though the first two tokens are fine. Rust does not warn — the `_` arm makes the match exhaustive.
+
 ```rust
 // Playground — logic bug, not compile error
 fn main() {
@@ -585,7 +658,39 @@ fn main() {
 }
 ```
 
-Three or one token hits `_` — use `[method, path @ ..]` or check length explicitly.
+**Fix when you need at least a method and one path token** — allow extra trailing tokens with `..`:
+
+```rust
+// Playground
+fn main() {
+    for words in [
+        &["GET", "/only"][..],
+        &["GET", "/only", "HTTP/1.1"][..],
+        &["GET"][..],
+    ] {
+        match words {
+            [method, path, ..] => println!("ok: {} {}", method, path),
+            _ => println!("bad request"),
+        }
+    }
+    // ok: GET /only
+    // ok: GET /only        ← third token ignored, not rejected
+    // bad request          ← only one token
+}
+```
+
+**Fix when the path itself can span multiple tokens** — bind the remainder as a sub-slice with `@ ..`:
+
+```rust
+match words {
+    [method, path @ ..] if !path.is_empty() => {
+        println!("{} {:?}", method, path); // path: ["/only"] or ["/only", "HTTP/1.1"]
+    }
+    _ => println!("bad request"),
+}
+```
+
+Or skip pattern length entirely and check explicitly: `if words.len() >= 2 { ... }`.
 
 **Empty slice:**
 
@@ -676,12 +781,12 @@ Common errors in this chapter:
 
 #### Advanced patterns
 
-17. **Slice split** — "Parse `POST /api/v1/run HTTP/1.1` with `[method, path @ .., _ver]` — I write; you handle single-token input."
-18. **matches refactor** — "Replace 6-arm `match` that returns `bool` with `matches!` — show before/after on `Mode` enum."
-19. **if let chain** — "Parse `host:port:extra` — chain should reject extra segments; fix my broken parser."
-20. **@ binding quiz** — "Three arms with `@` ranges for port classes — I label which values hit which arm."
-21. **Exhaustive slice** — "`[a, b]` on `Vec` of len 1 or 3 — predict `_` arm vs bug; suggest `..` rest pattern."
-22. **matches vs match** — "When must you keep full `match` instead of `matches!`? Give one example returning `String`."
-23. **Guard + @** — "Match port `n @ 1024..=65535` with guard `n % 2 == 0` — sketch arm."
-24. **Capstone parse** — "Frame header `[sync, len @ 1..=255, payload @ ..]` from byte slice — sketch `match` arms only."
+21. **Slice split** — "Parse `POST /api/v1/run HTTP/1.1` with `[method, path @ .., _ver]` — I write; you handle single-token input."
+22. **matches refactor** — "Replace 6-arm `match` that returns `bool` with `matches!` — show before/after on `Mode` enum."
+23. **if let chain** — "Parse `host:port:extra` — chain should reject extra segments; fix my broken parser."
+24. **@ binding quiz** — "Three arms with `@` ranges for port classes — I label which values hit which arm."
+25. **Exhaustive slice** — "`[a, b]` on `Vec` of len 1 or 3 — predict `_` arm vs bug; suggest `..` rest pattern."
+26. **matches vs match** — "When must you keep full `match` instead of `matches!`? Give one example returning `String`."
+27. **Guard + @** — "Match port `n @ 1024..=65535` with guard `n % 2 == 0` — sketch arm."
+28. **Capstone parse** — "Frame header `[sync, len @ 1..=255, payload @ ..]` from byte slice — sketch `match` arms only."
 

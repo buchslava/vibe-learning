@@ -579,6 +579,29 @@ fn main() {
 }
 ```
 
+**Cheap or expensive?** It depends on the input — that is the point of `Cow`.
+
+| Call | Path | Cost |
+|------|------|------|
+| `normalize(Cow::Borrowed("hello"))` | no spaces → return `s` unchanged | **cheap** — one scan (`contains`), **no heap allocation**, still borrows original bytes |
+| `normalize(Cow::Borrowed("hello world"))` | spaces → `replace` | **pays** — allocates a new `String`, copies/transforms every byte |
+
+Trace the cheap case: `Cow::Borrowed("hello")` goes in; `contains(' ')` is false; the function returns the same `Cow::Borrowed` — zero copies beyond the read-only scan.
+
+Trace the expensive case: `replace(' ', "_")` always builds a **new** owned string — you cannot mutate a borrowed `&str` in place when the result might be longer or when the source is shared.
+
+**Compared to always returning `String`:**
+
+```rust
+fn normalize_always(s: &str) -> String {
+    s.replace(' ', "_") // allocates even when s has no spaces
+}
+```
+
+Even `"hello"` gets a fresh heap allocation. With `Cow`, most inputs that need **no change** skip allocation entirely.
+
+**Rule of thumb:** `Cow` is worth it when **many** call sites pass borrowed data and **only some** inputs need transformation. If every call already owns a `String` or always needs a new buffer, take/return `String` and skip `Cow`.
+
 | Variant | When |
 |---------|------|
 | `Cow::Borrowed(&T)` | no allocation; return as-is |
@@ -838,7 +861,7 @@ Common errors in this chapter:
 
 #### API design and capstone
 
-21. **Newtype Display** — “Wrap `Vec<u8>` as `HexBytes` — implement `Display` without orphan violation.”
-22. **Derive audit** — “Config with secrets + TOML — list safe vs unsafe derives.”
-23. **Mini crate API** — “Public `HostPort { host, port }` with `Display`, `TryFrom<&str>` for `host:port` — list impl blocks only.”
-24. **Capstone** — “Design public API for `RateLimit { max: u32, window_secs: u64 }`: parsing, display, equality — traits only, no bodies.”
+22. **Newtype Display** — “Wrap `Vec<u8>` as `HexBytes` — implement `Display` without orphan violation.”
+23. **Derive audit** — “Config with secrets + TOML — list safe vs unsafe derives.”
+24. **Mini crate API** — “Public `HostPort { host, port }` with `Display`, `TryFrom<&str>` for `host:port` — list impl blocks only.”
+25. **Capstone** — “Design public API for `RateLimit { max: u32, window_secs: u64 }`: parsing, display, equality — traits only, no bodies.”

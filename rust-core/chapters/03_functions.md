@@ -276,7 +276,9 @@ Inside a `fn -> Result<...>` body, **`?`** propagates errors upward. You will us
 
 ## `impl Trait` in return position
 
-Return an iterator without naming the concrete adapter type:
+Iterator pipelines chain adapters (`map`, `filter`, `take`, …). The **concrete** type of that chain is often long and brittle — e.g. `Take<IntoIter<f64>>` — and it changes every time you add or remove a step. Writing that type in the signature is noisy and couples callers to your implementation.
+
+`impl Trait` in the return position names **what callers need** (here: “something iterable that yields `f64`”) while the compiler keeps track of the real adapter type. You get static dispatch with no heap allocation — unlike `Box<dyn Iterator<...>>`.
 
 ```rust
 // Playground
@@ -293,11 +295,35 @@ fn main() {
 }
 ```
 
-Every return path must produce the **same** concrete type. Different iterator types in each arm fail to compile. Use `Box<dyn Iterator<Item = f64>>` or an enum instead.
+**Reading the signature:**
+
+| Piece | Meaning |
+|-------|---------|
+| `impl Iterator<Item = f64>` | returns *some* type that implements `Iterator` and yields `f64`; callers can `.collect()`, `.sum()`, etc. without knowing the concrete adapter |
+| `+ '_` | the returned iterator may borrow from `readings`; `'_` asks the compiler to infer that lifetime from the `&[f64]` parameter |
+
+Inside the body, `sorted.into_iter().take(n)` is one specific iterator type. You never spell it out — Rust monomorphizes a version of `top_readings` for that exact chain at compile time.
+
+**One concrete type per function:** `impl Trait` here does **not** mean “any iterator.” The compiler picks **one** concrete return type for the entire function, and every `return` path must produce exactly that type. Branches that build different adapters fail:
+
+```rust
+// Playground — does not compile
+fn pick(flag: bool) -> impl Iterator<Item = i32> {
+    if flag {
+        vec![1, 2].into_iter()   // Vec<i32>::IntoIter
+    } else {
+        [3, 4].into_iter()       // std::array::IntoIter<i32, 2> — different type
+    }
+}
+```
+
+When you truly need different iterator shapes per path, erase the type: `Box<dyn Iterator<Item = f64>>` (heap + dynamic dispatch) or an enum wrapping each variant. See [Function edge cases](#function-edge-cases) below and [Chapter 4: Iterators](04_iterators.md).
 
 ## Draining with `mem::take`
 
-Move inner data out of a struct while leaving a valid empty value behind ([Chapter 10](10_smart_pointers_interior_mutability.md)):
+**The problem:** A struct accumulates data in a field — here, bytes in a `Vec`. Eventually you want to **hand that data to the caller** and start fresh, but you only have `&mut self`. You cannot write `out.extend(self.inner)` — that would **move** `inner` out of `buf` while `buf` still exists, leaving a hole the compiler rejects.
+
+**The aim:** Move the accumulated `Vec` to the caller **and** leave `buf` in a valid, reusable state (empty, ready for the next batch). `std::mem::take` is the standard idiom for that ([Chapter 10](10_smart_pointers_interior_mutability.md)).
 
 ```rust
 // Playground
@@ -314,12 +340,33 @@ impl Buffer {
 fn main() {
     let mut buf = Buffer { inner: vec![1, 2, 3] };
     let mut batch = Vec::new();
+    println!("before: buf.inner={:?} batch={:?}", buf.inner, batch);
     buf.drain_into(&mut batch);
-    println!("batch={:?} buf={:?}", batch, buf.inner);
+    println!("after:  buf.inner={:?} batch={:?}", buf.inner, batch);
+    // before: buf.inner=[1, 2, 3]  batch=[]
+    // after:  buf.inner=[]         batch=[1, 2, 3]
 }
 ```
 
-`take` replaces `inner` with `Vec::default()` — safe because an empty `Vec` is valid.
+**What `take` does:** it replaces the field with `T::default()` and **returns the old value**.
+
+| Step | `buf.inner` | value returned by `take` |
+|------|-------------|--------------------------|
+| before call | `[1, 2, 3]` | — |
+| `take(&mut self.inner)` | `[]` (empty `Vec`, via `Default`) | `vec![1, 2, 3]` (moved out) |
+| `out.extend(...)` | `[]` | appended into caller's `batch` |
+
+`buf` is still a valid `Buffer` — just with an empty `inner`. You can keep using it; no need to drop and recreate the struct.
+
+**Alternatives and why they differ:**
+
+| Approach | Effect |
+|----------|--------|
+| `fn drain(self) -> Vec<u8>` | moves the whole `Buffer` — caller owns the vec, but **consumes** the struct |
+| `self.inner.clear()` | empties in place — caller never gets ownership of the old allocation |
+| `mem::take(&mut self.inner)` | caller gets the `Vec` (and its capacity); struct stays alive, field reset to empty |
+
+**When you see this:** log/event batch flushes, connection write buffers handed to I/O, any “accumulate, then hand off the batch” API.
 
 ## `where` clauses — readable bounds
 
@@ -346,7 +393,21 @@ Same contract as `fn log_pair<T: Display, U: Display>(...)` — pick whichever r
 
 ## Error constructor factories
 
-Production error enums often expose **named constructors** instead of spelling struct variants at every call site. Accept **`impl Into<String>`** so callers pass `&str`, `String`, or anything string-like:
+Parse failures are usually **enum variants** with named fields — e.g. `BadValue { field, raw }`. You could build them inline at every call site:
+
+```rust
+ParseError::BadValue { field: "port".into(), raw: raw.into() }
+```
+
+That gets repetitive, and it is easy to swap `field` and `raw`. Production enums add **named constructors** — small functions on `impl ParseError` — so call sites stay short and consistent:
+
+```rust
+ParseError::bad_value("port", raw)   // same variant, clearer intent
+```
+
+Those constructors take **`impl Into<String>`** instead of `String`. Callers pass `&str` literals (`"port"`), borrowed slices (`raw`), or owned `String`; the constructor calls `.into()` inside and stores owned strings in the enum. No `.to_string()` clutter at every error site.
+
+The example wires both ideas together: `missing_field` and `bad_value` are the factories; `parse_port_field` calls them instead of spelling variants:
 
 ```rust
 // Playground
@@ -358,7 +419,7 @@ enum ParseError {
 
 impl ParseError {
     #[inline]
-    pub fn missing_field(field: impl Into<String>, record: impl Into<String>) -> Self {
+    fn missing_field(field: impl Into<String>, record: impl Into<String>) -> Self {
         Self::MissingField {
             field: field.into(),
             record: record.into(),
@@ -366,7 +427,7 @@ impl ParseError {
     }
 
     #[inline]
-    pub fn bad_value(field: impl Into<String>, raw: impl Into<String>) -> Self {
+    fn bad_value(field: impl Into<String>, raw: impl Into<String>) -> Self {
         Self::BadValue {
             field: field.into(),
             raw: raw.into(),
@@ -374,22 +435,34 @@ impl ParseError {
     }
 }
 
-fn parse_port_field(raw: &str) -> Result<u16, ParseError> {
+fn parse_port_field(raw: Option<&str>) -> Result<u16, ParseError> {
+    let raw = raw.ok_or_else(|| ParseError::missing_field("port", "config"))?;
     raw.parse()
         .map_err(|_| ParseError::bad_value("port", raw))
 }
 
 fn main() {
-    println!("{:?}", parse_port_field("502"));
-    println!("{:?}", parse_port_field("oops"));
+    for raw in [Some("502"), Some("oops"), None] {
+        match parse_port_field(raw) {
+            Ok(p) => println!("ok: {p}"),
+            Err(ParseError::MissingField { field, record }) => {
+                println!("missing field {field} in {record}")
+            }
+            Err(ParseError::BadValue { field, raw }) => {
+                println!("bad value for {field}: {raw}")
+            }
+        }
+    }
 }
 ```
 
-| Pattern | Why |
-|---------|-----|
-| `impl Into<String>` | one constructor accepts literals and owned strings |
-| `#[inline]` on tiny wrappers | hints the compiler on hot parser paths — no runtime cost |
-| named fn vs raw variant | call sites read like intent; field names stay consistent |
+| Piece in the example | What it demonstrates |
+|----------------------|----------------------|
+| `fn missing_field(...)` / `fn bad_value(...)` on `impl ParseError` | **named constructors** — hide variant struct syntax |
+| `impl Into<String>` on parameters | callers pass `"port"` or `raw` (`&str`); `.into()` runs inside the constructor |
+| `ParseError::missing_field("port", "config")` | factory call when the field is absent (`None`) |
+| `ParseError::bad_value("port", raw)` | factory call when the value fails to parse |
+| `match` in `main` | consumers still see the enum variants; factories are only for **building** errors |
 
 Use this in library crates with **`thiserror`** enums ([Chapter 8](08_errors_and_testing.md)) — the constructors stay even when `Display` is derived.
 
@@ -446,11 +519,11 @@ When you need a helper on a type you do not own, define a **trait in your crate*
 ```rust
 // Playground
 trait TrimOrEmpty {
-    fn trim_or_empty(self) -> &str;
+    fn trim_or_empty(&self) -> &str;
 }
 
-impl TrimOrEmpty for &str {
-    fn trim_or_empty(self) -> &str {
+impl TrimOrEmpty for str {
+    fn trim_or_empty(&self) -> &str {
         self.trim()
     }
 }
@@ -464,11 +537,13 @@ fn main() {
 }
 ```
 
+Implement for **`str`** with **`&self`**, not `for &str` with `self` by value. When the method returns `&str`, the compiler must tie that borrow to the receiver — `&self` makes that relationship explicit. Call sites still write `raw.trim_or_empty()` on a `&str`; method resolution handles the rest.
+
 Keep extension traits **small and focused** — one concern per trait, not a grab-bag of unrelated methods.
 
 ### Function edge cases
 
-**Wrong — mismatched `impl Trait` return arms:**
+**Wrong — mismatched `impl Trait` return arms:** see [impl Trait in return position](#impl-trait-in-return-position) for the full explanation. Minimal repro:
 
 ```rust
 // Playground — does not compile
@@ -493,10 +568,6 @@ Common errors in this chapter:
 | use of moved value | took `String` by value, caller uses again | borrow with `&str` or clone |
 | cannot borrow as mutable | `&mut` while `&` still alive | shrink borrow scope |
 | type annotations needed | generic `T` unknown | turbofish or annotate call site |
-
-## Idiom spotlight
-
-> **Borrow in parameters, own at boundaries.** Library helpers take `&str` and `&[u8]`; store `String` / `Vec` only when the data outlives the call or crosses a thread/channel boundary.
 
 ## Go deeper
 

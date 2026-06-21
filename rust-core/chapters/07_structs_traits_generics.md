@@ -45,7 +45,7 @@ If you know **Java** or **Python**, a **trait** names a **capability** any type 
 | Optional polymorphism | always reference types / ABCs                       | `dyn Trait` only when you need mixed-type collections                       |
 
 
-You will use traits everywhere: `Display`, `Clone`, `Iterator`, custom `Measurable` / `Summary` in automation code. Start with `impl Trait for MyType` and `fn f(x: &impl Trait)`; reach for `dyn Trait` later when types truly differ at runtime (see below).
+You will use traits everywhere: `Display`, `Clone`, `Iterator`, custom `Measurable` / `Summary` in automation code. Start with `impl Trait for MyType` and `fn f(x: &impl Trait)`; reach for `dyn Trait` when you need [mixed types in one collection](#dyn-trait--mixed-types-in-one-collection) (full detail in [Trait objects](#trait-objects-dyn-trait) below).
 
 ```rust
 // Playground
@@ -275,36 +275,25 @@ fn main() {
 }
 ```
 
-#### Calling the trait’s default method from your override
+#### Calling the trait’s default from your override
 
-Yes — `other.default_label()` deliberately calls the **default body written on the trait**, not your override. That is how you reuse the trait’s fallback for some cases (here, `OverTemp`) while customising others (`CommLost`).
+You want two behaviours in one `label` override:
 
-**Footgun:** `HasCode::label(other)` or `other.label()` inside `impl HasCode for Fault` still dispatches to **this override** and can recurse forever. Extract the default into a separate trait method (here `default_label`) or inline `format!("code {}", other.code())`.
+| Variant | Desired output |
+|---------|----------------|
+| `CommLost` | custom string — `"communication lost"` |
+| `OverTemp` | shared default — `"code {n}"` from the trait |
 
+The trait exposes **`default_label`** for the shared path. In the override, `other.default_label()` calls **that trait method’s body** — not your `label` override:
 
-| Call                     | What runs                                                                                             |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `fault.label()`          | **Dynamic dispatch on the impl** — always the overridden `label` in `impl HasCode for Fault`          |
-| `fault.default_label()` | **Default trait body** — `format!("code {}", self.code())`, which still uses your overridden `code()` |
+| Call in `impl HasCode for Fault` | What runs |
+|----------------------------------|-----------|
+| `other.default_label()` | trait default: `format!("code {}", other.code())` |
+| `other.label()` | **this override again** → infinite recursion on `OverTemp` |
 
+That is why the trait names the fallback `default_label` instead of reusing `label`. Same idea as Java’s `HasCode.super.label()` — call the default implementation, not your override.
 
-**Not Java overloading.** Rust has **no** method overloading (same name, different parameter lists). There is only one `label(&self) -> String` here. What looks like “pick another version” is **explicit qualified call syntax**: `Trait::method(receiver)`. This is sometimes called UFCS (universal function call syntax).
-
-**Closer Java analogy:** a **default interface method**, not overloads:
-
-```java
-// Java — conceptual parallel
-interface HasCode {
-    int code();
-    default String label() { return "code " + code(); }
-}
-class Fault implements HasCode {
-    public String label() {
-        if (isCommLost()) return "communication lost";
-        return HasCode.super.label(); // call default, not recurse into self.label()
-    }
-}
-```
+**Footgun:** never write `other.label()` inside `fn label` unless you mean to recurse. Use `other.default_label()`, or inline `format!("code {}", other.code())`.
 
 **Wrong — “call the override again” (infinite recursion on `OverTemp`):**
 
@@ -320,7 +309,7 @@ impl HasCode for Fault {
 }
 ```
 
-Use `other.default_label()` (or duplicate the default logic) when you want the **trait default**; use `other.label()` only when you intend the **full override path** (including for `CommLost`).
+The `OverTemp` arm above is the bug — `other.label()` never reaches the trait default.
 
 #### One `impl` block per trait (not `impl A, B for T`)
 
@@ -417,11 +406,95 @@ fn main() {
 }
 ```
 
-`SetSpeedLog` is the **struct side** of the same automation model. The enum is the wire/command shape (`Stop`, `SetSpeed(1500)`); the struct is the persisted audit row (`at` + `rpm`). `Command::to_log` bridges them — only `SetSpeed` produces a `SetSpeedLog`; `Stop` returns `None`.
+**Two shapes for one domain:**
 
-Both types share `#[derive(...)]` because you typically want the same tooling (`Debug`, `Clone`, equality) on commands and the records they generate. What `#[derive]` is (compile-time codegen, not annotations/decorators), ecosystem vs custom derives — [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes).
+| Type | Role | Example |
+|------|------|---------|
+| `Command` (enum) | wire / control message | `Stop`, `SetSpeed(1500)` |
+| `SetSpeedLog` (struct) | persisted audit row | `{ at: timestamp, rpm: 1500 }` |
 
-`PartialEq`/`Eq` on enums requires every payload type to be comparable. A variant holding `f64` forces you to drop `Eq` or model floats differently — see edge cases below.
+`Command::to_log` converts between them: `SetSpeed(rpm)` → `Some(SetSpeedLog { ... })`; `Stop` → `None` (nothing to log).
+
+Both types carry the same `#[derive(Debug, Clone, PartialEq, Eq)]` — commands and the rows they produce usually need the same test/debug tooling. `#[derive]` generates trait impls at compile time (not runtime annotations); details in [Chapter 17: Derive attributes](17_metaprogramming.md#derive-attributes).
+
+**Derive constraint:** `PartialEq`/`Eq` on an enum requires every payload type to support it. A variant with `f64` breaks `Eq` — use integers, drop `Eq`, or model floats differently (see edge cases below).
+
+### `dyn Trait` — mixed types in one collection
+
+So far, traits use **static dispatch**: `fn print_summary(item: &impl Summary)` and `impl Measurable for SensorReading` are resolved at **compile time** — the compiler generates specialized code per concrete type (no vtable).
+
+Use **`dyn Trait`** when several **different struct types** must sit in the **same collection** or pass through one function parameter type. **Yes — this is Rust’s runtime polymorphism**, closest to a **Java interface reference** or Python duck typing through a shared protocol — but Rust makes you opt in explicitly; it is not the default for every trait call.
+
+| Approach | Type in signature | Dispatch | Typical use |
+|----------|-------------------|----------|-------------|
+| `impl Trait` / generics | `&impl Measurable` | static — monomorphized | helper called with one concrete type at a time |
+| `&dyn Trait` | borrowed trait object | dynamic — vtable lookup | `&[&dyn Measurable]` — stack values, mixed types |
+| `Box<dyn Trait>` | owned trait object on heap | dynamic | `Vec<Box<dyn Measurable>>` — store plug-ins for process lifetime |
+
+**Java habit vs Rust:**
+
+| Java | Rust (`dyn`) | Same idea? |
+|------|--------------|------------|
+| `interface Measurable { double value(); }` | `trait Measurable { fn value(&self) -> f64; }` | shared contract |
+| `class TempSensor implements Measurable` | `impl Measurable for TempSensor` | type opts in |
+| `Measurable s = new TempSensor();` | `let s: Box<dyn Measurable> = Box::new(TempSensor { ... });` | variable typed as interface/trait, holds concrete type |
+| `List<Measurable> sensors = List.of(new TempSensor(), new PressSensor());` | `Vec<Box<dyn Measurable>> = vec![Box::new(...), Box::new(...)];` | mixed concrete types in one collection |
+| `s.value()` — virtual dispatch via vtable | `s.value()` on `&dyn Measurable` — vtable lookup at runtime | **yes — dynamic dispatch** |
+
+**Key differences from Java:**
+
+| Java | Rust |
+|------|------|
+| Interface references are the **usual** polymorphism style | **`impl Trait` / generics first** — `dyn` only when you need type erasure in a collection or factory |
+| Every object reference is already a pointer | `dyn Measurable` is **unsized** (`!Sized`) — must live behind `&`, `Box`, `Arc`, … |
+| `List<Measurable>` homogenizes references automatically | `Vec<Box<dyn Measurable>>` — **`Box` required** because `TempSensor` and `PressSensor` have different sizes |
+| Inheritance + `implements` | **no inheritance** — flat structs + separate `impl` blocks |
+| Most interface methods work in collections | only **object-safe** traits become `dyn` (see below) |
+
+A **`dyn Measurable`** value is a **fat pointer** (like a Java object reference carrying type info for virtual calls): address of the concrete sensor **plus** a vtable pointer for `impl Measurable`. Because each struct has a different size, `dyn Measurable` cannot sit on the stack by itself — hence `&dyn` or `Box<dyn>`.
+
+```rust
+// Playground
+trait Measurable {
+    fn value(&self) -> f64;
+}
+
+struct TempSensor { celsius: f64 }
+struct PressSensor { bar: f64 }
+
+impl Measurable for TempSensor {
+    fn value(&self) -> f64 { self.celsius }
+}
+impl Measurable for PressSensor {
+    fn value(&self) -> f64 { self.bar }
+}
+
+fn average(sensors: &[&dyn Measurable]) -> f64 {
+    let sum: f64 = sensors.iter().map(|s| s.value()).sum();
+    sum / sensors.len() as f64
+}
+
+fn main() {
+    let t = TempSensor { celsius: 20.0 };
+    let p = PressSensor { bar: 1.2 };
+
+    // borrow different struct types through one trait interface
+    println!("avg = {}", average(&[&t, &p]));
+
+    // owning heterogeneous Vec — each element is Box<dyn Measurable>
+    let bank: Vec<Box<dyn Measurable>> = vec![
+        Box::new(TempSensor { celsius: 22.0 }),
+        Box::new(PressSensor { bar: 0.9 }),
+    ];
+    for s in &bank {
+        println!("{}", s.value());
+    }
+}
+```
+
+**Object-safe traits only:** not every trait can become `dyn Trait`. Methods must use `&self` (or `&mut self`) — the vtable lists instance methods with a fixed shape. Traits with associated functions without `self`, generic methods, or `-> Self` returns often fail — see the edge case below and [Object safety](#object-safety--not-every-trait-can-be-dyn).
+
+For a **closed set** of variants (`SensorReading::Temp | Press | …`), an **`enum` + `match`** is usually better than `Vec<Box<dyn _>>` — no vtable, exhaustiveness checking. Use `dyn` when the set of concrete types is **open** (plug-ins, drivers loaded at runtime).
 
 ### Enums + traits edge cases and compiler traps
 
@@ -507,20 +580,22 @@ Idiomatic fix: `fn full(&self) -> String` and match on references, or merge into
 
 You can `impl Display for YourEnum`, or wrap `Vec<u8>` in a newtype `struct Frame(pub Vec<u8>);` and implement there.
 
-**Wrong — assume `dyn Trait` works with every trait:**
+**Wrong — trait not object-safe (cannot build `dyn Trait`):**
+
+The working `Measurable` trait above uses `fn value(&self)`. This trait adds `fn read() -> f64` **without `self`** — the vtable cannot list it, so `dyn` fails:
 
 ```rust
 // Playground — does not compile
-trait Measurable {
+trait RawReading {
     fn value(&self) -> f64;
     fn read() -> f64; // no `self` — not object-safe
 }
 
-// let items: Vec<Box<dyn Measurable>> = ...;
-// ERROR: trait `Measurable` is not dyn compatible
+// let items: Vec<Box<dyn RawReading>> = vec![...];
+// ERROR: trait `RawReading` is not dyn compatible
 ```
 
-Only **object-safe** traits can become `dyn Trait` — `&self` methods, no generic methods on the trait itself. Enums with trait impls usually use **static dispatch** (`impl Trait` / generics) instead.
+**Fix:** make every callable method take `&self`, split static helpers into free functions, or skip `dyn` and use an `enum` / generics instead. More traps (`-> Self`, generic methods, `dyn` by value) — [Object safety](#object-safety--not-every-trait-can-be-dyn) below.
 
 **Wrong — `Eq` on enum with `f64` payload:**
 
@@ -590,6 +665,8 @@ fn main() {
 
 ## Trait objects (`dyn Trait`)
 
+[Above](#dyn-trait--mixed-types-in-one-collection) introduced `&dyn Trait` and `Box<dyn Trait>`. This section expands on fat pointers, factories, `impl` vs `dyn` vs `enum`, and object-safety traps.
+
 **Generics and `impl Trait`** pick the concrete type at **compile time** — monomorphized, no vtable.
 
 **`dyn Trait`** is runtime polymorphism through a vtable — like Java interface references or Python duck typing at runtime. Prefer `impl Trait` when types are known at compile time; use `dyn Trait` for mixed-type collections.
@@ -643,7 +720,26 @@ fn main() {
 }
 ```
 
-`Box` in the `Vec` **homogenizes** size: every element is one pointer pair. Without `Box`, Rust cannot lay out a vector of different struct sizes in one array.
+**Why `Vec` needs `Box<dyn Greeter>`:**
+
+A `Vec` stores elements **back-to-back in memory**. Every slot must be the **same byte width** so the CPU can jump to index `i` with `base + i * stride`.
+
+| What you try | Problem |
+|--------------|---------|
+| `Vec<En>` mixed with `Fr` | `En` and `Fr` may have **different sizes** — one array cannot hold both inline |
+| `Vec<dyn Greeter>` | `dyn Greeter` is **unsized** — Rust does not know how many bytes one slot needs |
+| `Vec<Box<dyn Greeter>>` | **works** — each slot is exactly one `Box` (same size every time) |
+
+`Box::new(En)` and `Box::new(Fr)` move the concrete values to the **heap**. The `Vec` only stores identical `Box<dyn Greeter>` handles — each a **fat pointer** (data address + vtable address), same width for every element:
+
+```
+Vec slot:  [ Box<dyn> | Box<dyn> | Box<dyn> ]   ← fixed-size slots
+                |          |
+                v          v
+             heap En    heap Fr                 ← different sizes OK off-heap
+```
+
+That is what “homogenize” means here: the collection stores **uniform handles**, not the varying struct bodies. Java does this implicitly — every `Measurable` reference in an `ArrayList` is one pointer width. Rust makes the heap indirection explicit with `Box`.
 
 ### When `dyn Trait` is idiomatic
 
@@ -725,7 +821,24 @@ fn main() {
 }
 ```
 
-`-> impl Greeter` cannot replace this if the two arms return **different** concrete types. `impl Trait` in return position hides a **single** concrete type per function body. For “either `En` or `Fr`”, use `Box<dyn Greeter>` or an `enum`.
+**Why `-> Box<dyn Greeter>` and not `-> impl Greeter`?**
+
+`impl Greeter` in return position means: “this function returns **one** concrete type, picked at compile time — the same type on **every** return path.”
+
+| `match` arm | Concrete type returned |
+|-------------|------------------------|
+| `"fr" => ...` | `Fr` |
+| `_ => ...` | `En` |
+
+Two different types → no single hidden concrete type → `-> impl Greeter` **does not compile**.
+
+| Return type | Works here? | Why |
+|-------------|-------------|-----|
+| `-> impl Greeter` | no | each arm must return the **same** struct (`En` *or* `Fr`, not both) |
+| `-> Box<dyn Greeter>` | yes | erases to one pointer type; runtime picks `En` or `Fr` |
+| `-> GreeterKind` (enum) | yes | closed set — `enum { En(En), Fr(Fr) }` + `match` at call site |
+
+Use **`Box<dyn Trait>`** when the caller only needs the trait interface. Use an **`enum`** when the variant set is fixed in your crate and you want exhaustiveness without heap allocation.
 
 ### `impl Trait` vs `dyn Trait` vs `enum`
 
@@ -862,19 +975,46 @@ fn main() {
 }
 ```
 
-Returning `&dyn Greeter` from a function that creates locals **does not compile** (dangling):
+**Returning `&dyn Greeter` from locals — two compile errors:**
+
+Inside one function, borrowing locals works — `pick_in_place` above keeps `en`/`fr` alive for the whole call. Returning that borrow to the **caller** fails: `en`/`fr` are dropped when `broken` returns, so the trait object would dangle.
 
 ```rust
-// Playground — does not compile
+// Playground — does not compile (include Greeter / En / Fr from above, or full copy below)
+trait Greeter {
+    fn greet(&self) -> String;
+}
+struct En;
+struct Fr;
+impl Greeter for En { fn greet(&self) -> String { "Hello".into() } }
+impl Greeter for Fr { fn greet(&self) -> String { "Bonjour".into() } }
+
 fn broken(use_fr: bool) -> &dyn Greeter {
     let en = En;
     let fr = Fr;
     if use_fr { &fr } else { &en }
-    // ERROR: returns a reference to data owned by the current function
+    // ERROR E0106: missing lifetime specifier on `&dyn Greeter`
+    // Rust asks: how long does this borrow live? You must name a lifetime.
 }
+
+fn main() {}
 ```
 
-Return `Box<dyn Greeter>` when the callee allocates/chooses the value.
+If you add a lifetime (`fn broken<'a>(...) -> &'a dyn Greeter`), the compiler reaches the real problem:
+
+```
+ERROR E0515: cannot return value referencing local variable `en` / `fr`
+```
+
+The return type promises a borrow, but `en` and `fr` are **owned by `broken` and destroyed at `}`** — nothing for the caller to borrow from.
+
+| Situation | Works? | Pattern |
+|-----------|--------|---------|
+| Use `&dyn Greeter` inside the same function | yes | `pick_in_place` — locals outlive the borrow |
+| Return `&dyn Greeter` to caller from locals | no | E0106, then E0515 |
+| Return owned trait object to caller | yes | `-> Box<dyn Greeter>` — `greeter_for` above |
+
+**Fix:** when the factory **creates** the value, return **`Box<dyn Greeter>`** (or pass a caller-owned buffer in). Use **`&dyn Greeter`** only when borrowing something the **caller** already owns.
 
 **Auto traits on trait objects:** `Box<dyn AlarmSink + Send + Sync>` when the handler crosses thread boundaries; omit when single-threaded.
 
@@ -948,48 +1088,7 @@ fn main() {
 | `PortValidator` | business rule isolated from I/O |
 | generic orchestrator | one function, many backend pairs |
 
-In async services, the same split applies with `async fn` traits — see [Chapter 16 — async trait boundaries](16_async_tokio.md#async-trait-boundaries-for-testing).
-
-## Strategy enum — closed dispatch without a top-level vtable
-
-When you have a **fixed set** of backends, an internal **`enum`** often beats `Box<dyn Trait>` at the runner layer. Each variant holds its parser/state; one `match` dispatches:
-
-```rust
-// Playground
-enum SourceKind {
-    Modbus { unit_id: u8 },
-    OpcUa { endpoint: String },
-}
-
-impl SourceKind {
-    fn default_port(&self) -> u16 {
-        match self {
-            SourceKind::Modbus { .. } => 502,
-            SourceKind::OpcUa { .. } => 4840,
-        }
-    }
-
-    fn label(&self) -> &str {
-        match self {
-            SourceKind::Modbus { .. } => "modbus",
-            SourceKind::OpcUa { .. } => "opcua",
-        }
-    }
-}
-
-fn run_source(src: &SourceKind) {
-    println!("{} on port {}", src.label(), src.default_port());
-}
-
-fn main() {
-    run_source(&SourceKind::Modbus { unit_id: 1 });
-    run_source(&SourceKind::OpcUa {
-        endpoint: "opc://plc".into(),
-    });
-}
-```
-
-Use **`enum` + `match`** when variants are known at compile time in your crate. Use **`dyn Trait`** when plug-ins arrive at runtime from outside. Many production runners combine both: enum at the top, `impl Stream` or trait objects **inside** a variant when needed.
+In async services, the same split applies with `async fn` traits and the **`async_trait`** crate — see [Chapter 8 — trait mocks](08_errors_and_testing.md#trait-based-mocks--test-orchestration-not-io).
 
 ## Transform traits — parse once, map to domain
 
@@ -1034,35 +1133,6 @@ fn main() {
 ```
 
 Each source (Modbus, OPC-UA, CSV) can implement the same transform trait on its row type. The runner stays generic over “anything that becomes `StoredReading`”.
-
-## Extension traits in your crate
-
-Extension traits add methods without wrapping every value in a newtype. Typical targets: **`Option<T>`** for required-field checks, **`&str`** for normalizers ([Chapter 13](13_standard_traits.md#extension-traits-on-str)), **`Stream`** adapters in async pipelines ([Chapter 16](16_async_tokio.md)).
-
-```rust
-// Playground
-trait RequiredField<T> {
-    fn required(self, name: &str) -> Result<T, String>;
-}
-
-impl<T> RequiredField<T> for Option<T> {
-    fn required(self, name: &str) -> Result<T, String> {
-        self.ok_or_else(|| format!("missing field '{name}'"))
-    }
-}
-
-fn parse_id(raw: Option<&str>) -> Result<u32, String> {
-    let s = raw.required("device_id")?;
-    s.parse().map_err(|e| e.to_string())
-}
-
-fn main() {
-    println!("{:?}", parse_id(Some("42")));
-    println!("{:?}", parse_id(None));
-}
-```
-
-Implement extension traits in the **same module** as the error type they produce — keeps `?` chains readable in hand-written parsers.
 
 ## Associated types and supertraits
 
@@ -1184,10 +1254,6 @@ fn main() {
 ```
 
 `Loggable: Display` means "anything loggable must also be displayable." The default method can call `Display` formatting inside the trait.
-
-### Associated types and object safety
-
-Traits with `type Item` or `type Err` can still be object-safe when methods don't return bare `Self`. `Clone` returns `Self` — that is why `dyn Clone` is awkward. `Iterator` is object-safe, but boxing iterators is rare; prefer `impl Iterator` or generics.
 
 ### UFCS when two traits share a method name
 

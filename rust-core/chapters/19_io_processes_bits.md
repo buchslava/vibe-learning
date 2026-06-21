@@ -344,13 +344,26 @@ Check `metadata().len()` before allocating a huge buffer — cheap guard for unt
 
 ### Stdin prompt alongside args
 
+**Not a Playground example** — `read_line` blocks until Enter; the online Playground has no interactive stdin and will hang. Run locally with Cargo instead.
+
+**Playground — args path only** (pass a fake port via how you invoke — in Playground, hard-code or skip stdin):
+
 ```rust
-// Playground — stdin blocks until Enter (compile-only in CI)
+// Playground
+fn main() {
+    let port = std::env::args().nth(1).unwrap_or_else(|| "502".into());
+    println!("using port {}", port);
+}
+```
+
+**Cargo only — full pattern** (run `cargo run -- 8080` for args, or `cargo run` then type at the prompt):
+
+```rust
+// Cargo only
 use std::io::{self, Write};
 
 fn main() -> io::Result<()> {
-    let arg_port = std::env::args().nth(1);
-    let port = if let Some(p) = arg_port {
+    let port = if let Some(p) = std::env::args().nth(1) {
         p
     } else {
         print!("port: ");
@@ -364,7 +377,7 @@ fn main() -> io::Result<()> {
 }
 ```
 
-Args for scripts; stdin for interactive runs — same binary, two entry paths.
+Args for scripts and automation; stdin when a human runs the binary in a terminal — same program, two entry paths.
 
 ### Timeout with `Duration`
 
@@ -430,6 +443,8 @@ Interactive CLI tools sometimes need a **pseudo-terminal** (line discipline, ech
 - [Chapter 17: Metaprogramming](17_metaprogramming.md) — `include_str!`, serde JSON serialize/deserialize
 - [Chapter 18: Unsafe](18_unsafe_and_internals.md) — FFI and safe wrappers over I/O handles
 - [Chapter 20: Production standards](20_production_standards.md) — review checklist before merge
+
+### Afterparty
 
 #### Read / Write and buffering
 

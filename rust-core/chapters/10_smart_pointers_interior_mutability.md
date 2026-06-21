@@ -133,7 +133,23 @@ fn main() {
 
 ### Cycles and `Weak`
 
-Cycles (`A` holds `Rc<B>`, `B` holds `Rc<A>`) leak memory — counts never hit zero. Break cycles with **`Weak`**: a non-owning handle that does not keep the allocation alive.
+`Rc` tracks a **strong count**: while it is > 0, the heap allocation stays alive. Every `Rc::clone` increments it; every drop decrements it. When it hits zero, the value is freed.
+
+**The cycle problem:** if `A` holds `Rc<B>` and `B` holds `Rc<A>`, each keeps the other’s count ≥ 1 — neither drops, memory leaks forever.
+
+**`Weak<T>`** is a **non-owning** handle. It does **not** bump the strong count, so it cannot keep the allocation alive by itself. Think of it as “I know where this value is, but I’m not an owner.”
+
+| Handle | Owns the data? | Keeps allocation alive? |
+|--------|----------------|-------------------------|
+| `Rc<T>` (strong) | yes — shared ownership | yes — while any strong ref exists |
+| `Weak<T>` | no — observer only | no — target may already be gone |
+
+**Two operations:**
+
+| API | What it does |
+|-----|--------------|
+| `Rc::downgrade(&strong)` | create a `Weak` from a live `Rc` — does not increase strong count |
+| `weak.upgrade()` | try to get `Option<Rc<T>>` — `Some` if the value still exists, `None` if all strong refs were dropped |
 
 ```rust
 // Playground — conceptual pattern (no cycle formed)
@@ -143,12 +159,20 @@ fn main() {
     let strong = Rc::new(42);
     let weak: Weak<i32> = Rc::downgrade(&strong);
     println!("upgrade = {:?}", weak.upgrade()); // Some(42) while strong lives
-    drop(strong);
-    println!("after drop = {:?}", weak.upgrade()); // None
+    drop(strong);                              // strong count → 0, value freed
+    println!("after drop = {:?}", weak.upgrade()); // None — target gone
 }
 ```
 
-Parent/child trees often use `Rc` for the parent and `Weak` for the back-pointer to child or parent.
+**Breaking a cycle:** keep the “main” direction as `Rc` (parent → child) and the back-link as `Weak` (child → parent). When the parent is dropped, its strong refs go away; the child’s `Weak` upgrade returns `None` instead of pinning dead memory.
+
+```
+Parent ──Rc──▶ Child
+   ▲              │
+   └── Weak ──────┘   ← back-link does not keep Parent alive
+```
+
+**Typical tree pattern:** `parent: Rc<Node>`, `children: Vec<Rc<Node>>`, `parent_link: Weak<Node>` on each child. The child can ask “is my parent still alive?” with `parent_link.upgrade()` without preventing the parent from being dropped.
 
 ### Rc / Arc edge cases
 
@@ -239,7 +263,7 @@ fn main() {
 **Wrong — re-enter `borrow_mut` while guard lives:**
 
 ```rust
-// Playground — panics
+// Playground — panics at runtime
 use std::cell::RefCell;
 
 fn bump_twice(cell: &RefCell<i32>) {
@@ -247,6 +271,11 @@ fn bump_twice(cell: &RefCell<i32>) {
     let mut g2 = cell.borrow_mut(); // panic — g1 still alive
     *g1 += 1;
     *g2 += 1;
+}
+
+fn main() {
+    let cell = RefCell::new(0);
+    bump_twice(&cell); // panics: `RefCell` already mutably borrowed
 }
 ```
 

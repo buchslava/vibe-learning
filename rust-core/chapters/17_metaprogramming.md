@@ -151,6 +151,39 @@ fn main() {
 
 **What happened:** `ident` captures names; `literal` captures `u16` values; repetition builds a `match` over `stringify!` keys — all at compile time, zero runtime parsing of a table file.
 
+**Reading the matcher** — `($($name:ident = $addr:literal),* $(,)?) => {{`:
+
+```
+register_map!(temp = 0x01, pressure = 0x02)
+                 └─ one repetition ─┘  └─ second ─┘
+```
+
+| Piece | Meaning |
+|-------|---------|
+| `$( ... ),*` | Repeat **zero or more** times, separated by **commas** |
+| `$name:ident` | Capture an **identifier** token (`temp`, `pressure`) |
+| `=` | Literal `=` in the input — not a capture |
+| `$addr:literal` | Capture a **literal** (`0x01`, `0x02`, `502`, …) |
+| `$(,)?` | Optional **trailing comma** after the last entry (`temp = 0x01,` is OK) |
+| `=> {{` … `}}` | Expand to a **block** that defines `addr_of` and **returns** that function |
+
+For `register_map!(temp = 0x01, pressure = 0x02)`, the macro expands roughly to:
+
+```rust
+{
+    fn addr_of(name: &str) -> Option<u16> {
+        match name {
+            "temp" => Some(0x01),      // stringify!(temp) + $addr
+            "pressure" => Some(0x02),
+            _ => None,
+        }
+    }
+    addr_of   // block’s value — caller gets the lookup fn
+}
+```
+
+Each `$( stringify!($name) => Some($addr), )*` in the macro body runs **once per** `name = addr` pair in the invocation — that is how one macro call generates many `match` arms.
+
 ### Hygiene and `$crate`
 
 Exported macros should use `$crate::` for paths inside **your** crate so re-exports and dependency trees resolve correctly. Macro-generated `let` names are **hygienic** — they won't accidentally shadow or capture caller locals.

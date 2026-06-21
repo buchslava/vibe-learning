@@ -443,66 +443,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Use **`match`** on the inner `Result` when one failure should not abort the whole batch (as above for seed `3`).
 
-### Async trait boundaries for testing
-
-Async methods in traits are not natively object-safe without **`async_trait`** (crate). Production and test code share one interface — MongoDB in prod, mock in tests ([Chapter 8 — trait mocks](08_errors_and_testing.md#trait-based-mocks--test-orchestration-not-io)):
-
-```rust
-// Cargo project
-// async-trait = "0.1"
-use async_trait::async_trait;
-use std::sync::{Arc, Mutex};
-
-#[async_trait]
-trait PipelineEffects: Send + Sync {
-    async fn write_batch(&self, tags: &[&str]) -> Result<usize, String>;
-}
-
-struct LiveEffects;
-
-#[async_trait]
-impl PipelineEffects for LiveEffects {
-    async fn write_batch(&self, tags: &[&str]) -> Result<usize, String> {
-        Ok(tags.len())
-    }
-}
-
-struct MockEffects {
-    pub calls: Mutex<Vec<Vec<String>>>,
-}
-
-#[async_trait]
-impl PipelineEffects for MockEffects {
-    async fn write_batch(&self, tags: &[&str]) -> Result<usize, String> {
-        self.calls
-            .lock()
-            .unwrap()
-            .push(tags.iter().map(|s| s.to_string()).collect());
-        Ok(tags.len())
-    }
-}
-
-async fn run_pipeline(effects: Arc<dyn PipelineEffects>) -> Result<(), String> {
-    effects.write_batch(&["temp", "press"]).await?;
-    Ok(())
-}
-
-#[tokio::main]
-async fn main() -> Result<(), String> {
-    let live: Arc<dyn PipelineEffects> = Arc::new(LiveEffects);
-    run_pipeline(live).await?;
-
-    let mock: Arc<dyn PipelineEffects> = Arc::new(MockEffects {
-        calls: Mutex::new(Vec::new()),
-    });
-    run_pipeline(Arc::clone(&mock)).await?;
-    assert_eq!(mock.calls.lock().unwrap().len(), 1);
-    Ok(())
-}
-```
-
-Bounds **`Send + Sync`** on the trait allow **`Arc<dyn PipelineEffects>`** across tasks. Keep the trait **small** — same decomposition advice as [Chapter 7](07_structs_traits_generics.md#trait-decomposition--small-interfaces).
-
 ### Pipeline sketch — reader task, channel, workers
 
 Long-running services decouple **read throughput** from **write latency** with bounded channels. One task pulls documents/frames; workers consume batches:

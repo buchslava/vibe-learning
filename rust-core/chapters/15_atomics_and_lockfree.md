@@ -16,6 +16,48 @@ Practical atomics for counters and flags — not lock-free data structures or fo
 | Shared flags/counters in **threads and async** | `crossbeam`, hand-rolled lock-free DS |
 | When **not** to use atomics | SIMD atomics, `portable-atomic` edge cases |
 
+## Memory ordering — `Ordering` cheat sheet
+
+Every atomic operation takes an **`Ordering`**. It answers two questions:
+
+1. **Is this read/write on the atomic word indivisible?** — yes for **all** orderings.
+2. **Do other threads see my non-atomic writes in a predictable order?** — only for **some** orderings.
+
+| Ordering | Valid on | What it synchronizes | Plain language |
+|----------|----------|----------------------|----------------|
+| **`Relaxed`** | `load`, `store`, RMW | **This atomic word only** — no ordering for other memory | “Count reliably; I don’t publish other data through this op.” |
+| **`Acquire`** | `load`, RMW (success) | Reads **after** this load see writes that happened **before** a **`Release`** on the **same** atomic | Reader: “When I see the new flag/version, I see the data the writer prepared.” |
+| **`Release`** | `store`, RMW (success) | Writes **before** this store are visible to threads that later **`Acquire`**-load the same atomic | Writer: “I finish writing config, **then** I publish the flag/version.” |
+| **`AcqRel`** | RMW only (`fetch_add`, `compare_exchange`, …) | **Both** — successful RMW releases prior writes and acquires prior releases | “Update and publish (or consume and publish) in one atomic step.” |
+| **`SeqCst`** | all ops | **Global** total order among all `SeqCst` ops — strongest, easiest mental model, often slightly slower | “I want one strict worldwide timeline when in doubt.” |
+
+**Handoff pattern** (used in Levels 1 and 4):
+
+```
+writer:  write config buffer  →  atomic.store(..., Release)
+reader:  atomic.load(Acquire)  →  read config buffer   // sees writer's data
+```
+
+**`compare_exchange` has two orderings** (Level 3):
+
+```rust
+counter.compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Relaxed)
+//                                                  ^ success          ^ failure (retry path)
+```
+
+Use **`Relaxed`** on failure when you only loop and retry; use **`AcqRel`** on success when the RMW participates in a handoff.
+
+**Quick pick:**
+
+| Scenario | Ordering |
+|----------|----------|
+| Packet / poll / frame counter — nothing else depends on it | `Relaxed` |
+| Shutdown flag, version number, “data ready” bit + other shared fields | `Release` (writer) + `Acquire` (reader) |
+| CAS / `fetch_add` that caps or publishes in one step | `AcqRel` on success |
+| Low-frequency flag, want simplest model | `SeqCst` everywhere on that atomic |
+
+Official reference: [std::sync::atomic::Ordering](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html).
+
 ## Where atomics fit — threads, async, and Chapter 14
 
 Atomics solve **concurrent read/write of one machine word** without a **`Mutex` lock**. They appear in **OS-thread** code ([Chapter 14](14_multithreading.md)) and **async** services ([Chapter 16](16_async_tokio.md)). Same types, same rules.
@@ -46,11 +88,21 @@ A **data race** (informal): two threads access the **same memory**, at least one
 | **Atomic operations** | `fetch_add(1, Ordering::Relaxed)` | **defined** — each op is indivisible for that word |
 | **Visibility bug** (ordering) | flag set with `Relaxed` but reader never sees prior writes to other fields | **defined atomic op**, **wrong logic** — use Release/Acquire |
 
-**Logic race vs memory race:**
+**Two different problems atomics address:**
 
-- **`fetch_add`** on `AtomicUsize` does **not lose increments** — hardware makes the RMW atomic.
-- Plain **`+= 1`** on shared `mut` (in C or `unsafe` Rust) **can** lose updates — two threads read 5, both write 6.
-- **`Relaxed`** is fine for **standalone metrics**; it is **wrong** when a flag must publish **other memory** (config buffer, shutdown state) — see Level 4–5.
+| Problem | Non-atomic `counter += 1` | `fetch_add` on `AtomicUsize` |
+|---------|---------------------------|------------------------------|
+| **Lost updates** | Thread A and B both read `5`, both write `6` → count is **6**, not **7** | Hardware **read-modify-write** is one indivisible step — **no lost increments** |
+| Where it shows up | C shared `mut`, `static mut` + `unsafe` in Rust | `Atomic*` with any `Ordering` |
+
+**Ordering is a separate issue:** even when increments are not lost, **`Relaxed`** only guarantees atomicity of **that one word**. It does **not** guarantee that other threads see writes you made **before** updating a flag or counter.
+
+| Use case | Ordering |
+|----------|----------|
+| Standalone metric (packet count, sample tally) | `Relaxed` — usually enough |
+| Flag that means “other data is ready” (config buffer, shutdown) | `Release` on writer, `Acquire` on reader — see Levels 4–5 |
+
+So: **`fetch_add` fixes lost increments**; **`Release`/`Acquire` fix visibility** of *other* memory. You need both ideas when a flag publishes state beyond the atomic itself.
 
 **Conceptual anti-pattern (UB — not safe Rust):**
 
@@ -97,11 +149,39 @@ fn main() {
 }
 ```
 
-**What happened:**
+**What happened — step by step:**
 
-- Main sleeps ~20 ms, sets shutdown **`true`**, worker exits loop, prints **`worker stopped`**, **`join`** succeeds.
-- **`Release` store** (main) + **`Acquire` load** (worker) = **happens-before**: worker **sees** all memory writes main made **before** the `store(true)`.
-- Same pattern works behind **`Arc<AtomicBool>`** in **`tokio::spawn`** ([Chapter 16](16_async_tokio.md)) — tasks poll `load(Acquire)` between `.await` points.
+| Step | Who | Action |
+|------|-----|--------|
+| 1 | main | Creates `shutdown = false`, spawns worker with a clone of the same `Arc` |
+| 2 | worker | Loops: `load(Acquire)` → still `false` → sleep 5 ms, repeat |
+| 3 | main | Sleeps 20 ms, then `store(true, Release)` |
+| 4 | worker | Next `load(Acquire)` → `true` → exits loop, prints **`worker stopped`** |
+| 5 | main | `join()` returns — worker finished cleanly |
+
+**Why atomics and these orderings?**
+
+**Not a plain `bool`:** two threads reading/writing the same `bool` without synchronization is a **data race** (undefined behavior in C; blocked or unsafe in Rust). `AtomicBool` makes each load/store safe.
+
+**Not `Relaxed` (for this pattern):** `Relaxed` only promises “this one flag updates correctly.” It does **not** promise that the worker sees **other** data main wrote earlier (logs flushed, config updated, port number set). For a **stop signal that goes with other setup**, use a matched pair:
+
+| Who | Code | Simple meaning |
+|-----|------|----------------|
+| main | `store(true, Release)` | “I finished my other work — **now** I turn on shutdown.” |
+| worker | `load(Acquire)` | “If I see shutdown on, I also see that other work.” |
+
+**Picture it like a doorbell:**
+
+1. Main prepares the package (writes config, flushes logs, …).
+2. Main rings the bell — `store(true, Release)`.
+3. Worker hears the bell — `load(Acquire)`.
+4. Worker opens the door and uses the package.
+
+Steps 1–3 must stay in that order across threads. **`Release` + `Acquire`** is how Rust asks the CPU for that guarantee. (Formal name: **happens-before** — main’s earlier writes **happen before** the worker’s reads that follow the `Acquire`.)
+
+**In this tiny example** the flag is the only shared value, so `Relaxed` would often still stop the loop. We show **`Release` / `Acquire`** because real services almost always mean “stop **and** read the state I prepared first” — Level 4 adds a **config + version** to make that explicit.
+
+Same layout with **`Arc<AtomicBool>`** inside **`tokio::spawn`** ([Chapter 16](16_async_tokio.md)): tasks call `load(Acquire)` between `.await` points instead of `thread::sleep`.
 
 ### Level 2 — Elementary: `fetch_add` counter
 
@@ -186,9 +266,43 @@ fn main() {
 
 **What happened:**
 
-- Starts at **98**; four threads race to increment; at most **2** succeed → prints **`capped at 100`** (never exceeds `MAX`).
-- **`compare_exchange_weak`** may fail spuriously — **always retry** in a loop.
-- **`AcqRel`** on success: typical for RMW that publishes/consumes in one step.
+- Counter starts at **98**; four threads race to increment; at most **2** succeed → prints **`capped at 100`** (never exceeds `MAX`).
+
+**Reading `compare_exchange_weak`:**
+
+```rust
+counter.compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Relaxed)
+//                            ^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+//                            expected   new value    success order     failure order
+```
+
+| Argument | Value here | Meaning |
+|----------|------------|---------|
+| **expected** | `current` (from prior `load`) | “I think the counter is still this.” |
+| **new** | `current + 1` | “If so, write this instead.” |
+| **success** ordering | `AcqRel` | If swap succeeds — atomic RMW with acquire+release semantics |
+| **failure** ordering | `Relaxed` | If swap fails — only the atomic word is consulted; no extra sync |
+
+**One CAS attempt, atomically:**
+
+```
+if counter == expected { counter = new; Ok(expected) }
+else                   { Err(actual_value_now) }
+```
+
+That check-and-write is **one indivisible step** — unlike `load` then `store` separately, where another thread can sneak in between.
+
+**Why the loop retries:**
+
+| Failure reason | What happened |
+|----------------|---------------|
+| **Contention** | Another thread incremented between your `load` and CAS — `Err(actual)`; re-read and try again |
+| **Cap reached** | `current >= MAX` — exit before CAS |
+| **Spurious** (`_weak` only) | Hardware may fail even when values match — **retry**, same as a lost race |
+
+Use **`compare_exchange_weak` in loops** (cheaper on some CPUs). Use **`compare_exchange`** (strong) when you need at most one attempt and no spurious failure.
+
+**Trace from 98:** two threads can reach 99 and 100; the rest see `current >= MAX` or lose CAS races once value is 100 — cap holds without a mutex.
 
 ### Level 4 — Medium: Release/Acquire publish pattern
 
@@ -314,21 +428,35 @@ fn main() {
 }
 ```
 
-**What happened:**
+**What happened — trace the run:**
 
-- Worker increments **`polls`** several times with **`Relaxed`** (metrics-only).
-- Supervisor prints poll count, sets **`shutdown`** with **`Release`**, worker observes **`Acquire`** and exits.
-- In **async** ([Chapter 16](16_async_tokio.md)): replace `thread::spawn` with `tokio::spawn`, same `Arc<Gateway>` — atomics unchanged.
+| Step | Thread | Code | Effect |
+|------|--------|------|--------|
+| 1 | main | `Arc::new(Gateway { polls: 0, shutdown: false })` | One shared struct on the heap |
+| 2 | main | `Arc::clone` → `worker_gw`, `thread::spawn` | Worker gets its own handle to the **same** `Gateway` |
+| 3 | worker | `load(Acquire)` → `false` | Keep polling |
+| 4 | worker | `sleep(5ms)`, `polls.fetch_add(1, Relaxed)` | Bump metric only — repeats each loop (~5 ms apart) |
+| 5 | main | `sleep(25ms)` | Lets worker run several poll cycles |
+| 6 | main | `polls.load(Relaxed)` → prints **`metrics polls=…`** (often **4–5**, timing-dependent) | Supervisor reads stats — **`Relaxed`** OK: counter is standalone |
+| 7 | main | `shutdown.store(true, Release)` | “Stop now” — **`Release`** publishes the shutdown signal |
+| 8 | worker | next `load(Acquire)` → `true` | Sees shutdown — **`Acquire`** pairs with main’s **`Release`** |
+| 9 | worker | loop exits, thread ends | No more `fetch_add` |
+| 10 | main | `join()` → **`supervisor done`** | Clean shutdown |
 
-## Memory ordering (practical subset)
+**Why two different orderings in one struct?**
 
-| Ordering | Typical use | Example |
-|----------|-------------|---------|
-| **`Relaxed`** | Standalone counters, stats | frames processed, bytes read, poll count |
-| **`Release`** | Publish — “data is ready” | store shutdown `true` after flushing state |
-| **`Acquire`** | Observe — “I see your prior writes” | worker checks shutdown flag |
-| **`AcqRel`** | Read-modify-write (CAS, `fetch_add` handoff) | Level 3 cap counter |
-| **`SeqCst`** | Simplest global order; slightly slower | low-frequency flags when unsure |
+| Field | Ordering | Reason |
+|-------|----------|--------|
+| `polls` | `Relaxed` on `fetch_add` / `load` | Only counts polls — no other memory is “published” through this counter |
+| `shutdown` | `Acquire` (worker) / `Release` (main) | Stop signal — same doorbell pattern as Level 1; use when shutdown implies “main is done setting up” |
+
+Both fields sit in one `Gateway`, but each atomic picks the ordering that matches its job — see [Ordering cheat sheet](#memory-ordering--ordering-cheat-sheet).
+
+**Async note:** swap `thread::spawn` for `tokio::spawn` ([Chapter 16](16_async_tokio.md)); keep `Arc<Gateway>` and the same `load`/`store`/`fetch_add` calls between `.await` points.
+
+## Memory ordering — recap
+
+Full table and handoff patterns are in [Memory ordering — `Ordering` cheat sheet](#memory-ordering--ordering-cheat-sheet) at the top. After the examples, the practical rule is:
 
 **When `Relaxed` is wrong:** any atomic that **guards other memory** (config version, shutdown + shared buffer) needs **Release/Acquire** (or **`Mutex`**).
 

@@ -83,25 +83,66 @@ The iterator method picks the **element type** the whole pipeline sees:
 | `v.iter_mut()` | `&mut T` | still `v` |
 | `v.into_iter()` | `T` | moved out of `v`; `v` is empty/unusable |
 
-**Common habit in Java/Python-style loops:** iterating a list does not destroy the list. In Rust, `for x in v` is **`into_iter`** — equivalent to consuming `v`. That surprises newcomers and is a common compile-error source.
+**Common habit in Java/Python-style loops:** iterating a list does not destroy the list. In Rust, `for x in v` is **`into_iter`** — it moves the **whole collection** into the loop, not just the elements you touch in the body.
+
+**Borrow the collection — use it again after the loop:**
 
 ```rust
-// Playground — uncomment ONE wrong line at a time to see the error
+// Playground
 fn main() {
     let v = vec![String::from("a"), String::from("b")];
 
     for s in &v {
-        println!("{}", s); // borrows each &String
+        println!("{}", s); // each step: &String (borrow)
     }
-    println!("{:?}", v); // ok — v still owned here
-
-    let v2 = vec![1, 2, 3];
-    for n in v2 {
-        println!("{}", n); // moves each i32 out of v2
-    }
-    // println!("{:?}", v2); // ERROR: value used after move
+    println!("{:?}", v); // ok — v was never moved
 }
 ```
+
+**Consume by value — the vec is gone after the loop**, even when the body does nothing with each item:
+
+```rust
+// Playground — does not compile
+fn main() {
+    let v2 = vec![1, 2, 3];
+
+    for n in v2 {
+        // empty body — still consumes v2 via into_iter()
+        let _ = n; // i32 is Copy, but the Vec itself is not
+    }
+    println!("{:?}", v2); // ERROR: v2 moved into the for loop
+}
+```
+
+`for n in v2` desugars to `IntoIterator::into_iter(v2)` — **`self` takes ownership of the vec**. The loop body never runs `println!`, but the iterator still walks every slot and pulls each `i32` out (a cheap copy for `Copy` types). When the loop ends, **`v2` is moved**, not the individual numbers you skipped printing.
+
+**Same rule with a conditional body** — using only one element does not leave the rest behind:
+
+```rust
+// Playground — does not compile
+fn main() {
+    let v2 = vec![String::from("a"), String::from("b"), String::from("c")];
+
+    for s in v2 {
+        if s == "b" {
+            println!("{}", s); // only this one is printed
+        }
+        // "a" and "c" were still moved out of the vec on their turns
+        // and dropped here when `s` goes out of scope
+    }
+    println!("{:?}", v2); // ERROR: v2 moved into the for loop
+}
+```
+
+Each loop step **moves the next element out of the vec** into `s`. Non-`Copy` values like `String` cannot be put back; unprinted items are dropped at the end of that iteration. The vec is empty and unusable when the loop finishes — same as if you had printed every item.
+
+| Loop form | What moves | Use `v` after the loop? |
+|-----------|------------|-------------------------|
+| `for x in &v` | nothing — borrows elements | yes |
+| `for x in &mut v` | nothing — mutably borrows elements | yes |
+| `for x in v` | **the whole `v`** into the iterator; each element on its turn | no |
+
+**Fix when you need the collection back:** iterate a borrow — `for x in &v` — or clone what you need before the loop.
 
 **Wrong pipeline — owned vs borrowed mismatch:**
 
@@ -177,15 +218,31 @@ fn main() {
 
 ### Why closures see `&&i32` (double reference)
 
-On `v.iter()`, each `Item` is `&i32`. Adapter methods like `.filter()` pass **`&Item`** to your closure — so the parameter is `&&i32`.
+Two `&` layers stack — one from the iterator, one from `.filter()`:
 
-| Closure param | Meaning |
-|---------------|---------|
-| `|x|` | `x` is `&&i32`; `*x` coerces to `i32` in expressions |
-| `|&x|` | destructures one layer → `x: &i32` |
-| `|&&x|` | destructures to `x: i32` |
+1. **`.iter()`** yields `&i32` — a borrow of each element in the vec.
+2. **`.filter()`** passes **`&` + that item** to your closure — it only checks the element, it does not take it.
 
-Pick one style and stay consistent in a chain. Mixing `.iter()` with a closure that expects owned `i32` without peeling references is a frequent compile error.
+```
+&  +  &i32  =  &&i32
+```
+
+That is the whole story for `v.iter().filter(...)`. The table below shows how the same rule plays out for `.map()` (which takes the item directly, without an extra `&`):
+
+| Chain | `Item` | `.filter` closure gets | `.map` closure gets |
+|-------|--------|------------------------|---------------------|
+| `v.iter()` | `&i32` | `&&i32` | `&i32` |
+| `v.into_iter()` | `i32` | `&i32` | `i32` |
+
+**Three ways to write the same filter** — pick one style and stay consistent:
+
+| Closure param | Type of binding | Works for `% 2`? |
+|---------------|-----------------|------------------|
+| `\|x\|` | `x: &&i32` | yes — `*`/`%` auto-deref through references |
+| `\|&x\|` | `x: &i32` | yes — one layer peeled |
+| `\|&&x\|` | `x: i32` | yes — two layers peeled; most explicit |
+
+Mixing `.iter()` with a closure that expects owned `i32` without peeling any reference layer is a frequent compile error.
 
 The `Iterator` trait lives in `std` and defines `.next() -> Option<Item>`. Calling `.iter()` on standard types covers most code — when you need a custom walk, see [Implementing Iterator](#implementing-iterator) below and [Chapter 7 — associated types](07_structs_traits_generics.md#associated-types-and-supertraits).
 
@@ -315,12 +372,14 @@ fn main() {
 
 **Wrong — collecting references, then dropping the owner:**
 
+`drop(value)` (from `std::mem::drop`) **ends the value's lifetime early** — it runs cleanup (same as when a variable goes out of scope at `}`) and frees the owned data. Values normally drop automatically at scope end; you call `drop` only when you need to release something *before* the closing brace. Here the example tries to destroy `lines` while `tags` still holds `&str` slices pointing into it:
+
 ```rust
 // Playground — does not compile
 fn main() {
     let lines: Vec<String> = vec![String::from("PORT=502")];
     let tags: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
-    drop(lines);
+    drop(lines); // explicit early destroy — would free the strings `tags` points at
     // println!("{:?}", tags); // would dangle — often fails earlier:
     // tags borrows `lines`, so drop(lines) is ERROR while tags is alive
 }
@@ -355,36 +414,36 @@ fn main() {
 
 ## Implementing Iterator
 
-Most code uses `.iter()` on collections. When you own the walk logic — port ranges, non-empty lines, frame parsing — implement `Iterator` yourself.
+Most code uses `.iter()` on collections. When you own the walk logic — numeric ranges, non-empty lines, frame parsing — implement `Iterator` yourself.
 
-### Port range scanner
+### Inclusive range counter
 
-Scan Modbus-style ports 502–505 without building a `Vec` first:
+Walk integers `1..=5` without building a `Vec` first — useful for sample indices, tick counts, or any stepped sequence:
 
 ```rust
 // Playground
-struct PortScan {
-    next_port: u16,
+struct RangeCounter {
+    next: u16,
     end: u16,
 }
 
-impl Iterator for PortScan {
+impl Iterator for RangeCounter {
     type Item = u16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_port > self.end {
+        if self.next > self.end {
             return None;
         }
-        let p = self.next_port;
-        self.next_port += 1;
-        Some(p)
+        let n = self.next;
+        self.next += 1;
+        Some(n)
     }
 }
 
 fn main() {
-    let ports: Vec<u16> = PortScan { next_port: 502, end: 505 }.collect();
-    let sum: u16 = PortScan { next_port: 502, end: 504 }.sum();
-    println!("ports={:?} sum={}", ports, sum);
+    let values: Vec<u16> = RangeCounter { next: 1, end: 5 }.collect();
+    let sum: u16 = RangeCounter { next: 1, end: 4 }.sum(); // 1 + 2 + 3 + 4
+    println!("values={:?} sum={}", values, sum);
 }
 ```
 
@@ -431,26 +490,26 @@ State lives in the struct fields. `next` returns `None` when the inner iterator 
 
 ```rust
 // Playground
-struct PortScan {
-    next_port: u16,
+struct RangeCounter {
+    next: u16,
     end: u16,
 }
 
-impl Iterator for PortScan {
+impl Iterator for RangeCounter {
     type Item = u16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_port > self.end {
+        if self.next > self.end {
             return None;
         }
-        let p = self.next_port;
-        self.next_port += 1;
-        Some(p)
+        let n = self.next;
+        self.next += 1;
+        Some(n)
     }
 }
 
 fn main() {
-    let scan = PortScan { next_port: 502, end: 501 };
+    let scan = RangeCounter { next: 5, end: 4 }; // empty range: start already past end
     let n = scan.count();
     println!("{}", n); // 0
 }
@@ -566,7 +625,7 @@ Read the **first** error top-down; iterator chains confuse the borrow checker, b
 
 #### Custom iterators
 
-23. **PortScan impl** — "Implement `Iterator` for ports 502..=505; collect to `Vec` and sum with `.sum()` — show `type Item` and `fn next` only."
+23. **RangeCounter impl** — "Implement `Iterator` for integers 1..=5; collect to `Vec` and sum with `.sum()` — show `type Item` and `fn next` only."
 24. **Skip blanks** — "Config string with empty lines — write `NonEmptyLines` iterator that trims and skips `''`; collect keys before `=`."
 25. **Infinite take** — "Counter from 0 without end — why must you `.take(n)` before `.collect()`? Show hang vs bounded collect."
 26. **IntoIterator pair** — "Same struct: implement `Iterator` and `IntoIterator` so both `scan.next()` and `for p in scan` work — minimal impl blocks."
