@@ -9,6 +9,7 @@ description: |
   Draft edition. A Rust language track for developers already comfortable in another language.
   Ownership, traits, concurrency, and production habits — without framework churn.
 publisher: "Vibe Learning"
+titlepage: false
 documentclass: book
 classoption: oneside
 geometry: "paperwidth=6in,paperheight=9in,margin=0.7in,bindingoffset=0.15in"

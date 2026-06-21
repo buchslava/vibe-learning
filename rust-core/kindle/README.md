@@ -1,6 +1,6 @@
 # Kindle / KDP PDF build
 
-Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica. The PDF title page shows **Draft edition** (see `metadata.yaml`).
+Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica. **Page 1 is the custom cover** (`cover-page.tex`). Pandoc’s `\maketitle` is disabled in `header.tex` (Pandoc 3.x would otherwise insert a title page before the cover).
 
 - Preface + chapters 1–20 (all six parts)
 - Appendices: Playground Guide, Java/Python/Rust map, AI Prompt Index
@@ -9,6 +9,24 @@ Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica.
 - **Hard-wrapped** code lines (~48 cols) so nothing overflows the 6×9 page
 - Pipe tables sanitized for LaTeX (`&` in cells, empty header → **Aspect** for equal column widths)
 - Mermaid diagrams replaced with a short print-edition note
+
+## Cover
+
+Page 1 is a custom **6×9 cover** (no duplicate Pandoc title page):
+
+| File | Role |
+|------|------|
+| `cover-page.tex` | TikZ cover inserted via `--include-before-body` |
+| `cover-art.svg` | Reference artwork (web preview, KDP thumbnail mockups) |
+| `rust-logo-icons8.svg` | Rust logo source ([Icons8](https://icons8.com)) |
+| `rust-logo-icons8.png` | Raster used by XeLaTeX on the cover |
+| `rust-logo.svg` | Official Rust vector ([rust-lang/rust-artwork](https://github.com/rust-lang/rust-artwork), CC-BY) |
+
+Cover logo by [Icons8](https://icons8.com). Official Rust artwork in `rust-logo.svg` is CC-BY (Rust Foundation); not used on the cover. This book is not affiliated with or endorsed by the Rust project.
+
+Design: full-bleed dark ground, high-contrast title hierarchy, official logo on a neutral plate on the right. Edit layout in `cover-page.tex`; colors in `header.tex` (`cover*` definitions).
+
+Rebuild after cover edits: `python3 kindle/build.py`
 
 ## Requirements
 

@@ -368,6 +368,8 @@ def run_pandoc(book: Path) -> None:
         str(KINDLE / "metadata.yaml"),
         "--include-in-header",
         str(KINDLE / "header.tex"),
+        "--include-before-body",
+        str(KINDLE / "cover-page.tex"),
         "--syntax-highlighting=tango",
         "--resource-path",
         f"{ROOT}:{ROOT / 'chapters'}:{ROOT / 'appendix'}",
