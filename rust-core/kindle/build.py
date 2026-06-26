@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import base64
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +15,14 @@ KINDLE = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 BUILD = KINDLE / "build"
 OUTPUT = DIST / "Rust-Core-Kindle.pdf"
+COVER_SVG = KINDLE / "cover-art.svg"
+COVER_JPG = KINDLE / "cover-page.jpg"
+COVER_LOGO = KINDLE / "rust-logo-icons8.png"
+# 6×9 in @ 300 DPI — matches print trim; JPEG keeps Android viewers happy.
+COVER_PX_W = 1800
+COVER_PX_H = 2700
+# Bump when rasterization logic changes (invalidates cached cover-page.jpg).
+COVER_RENDER_ID = "cairosvg-v3"
 
 PARTS: list[tuple[str, list[Path]]] = [
     (
@@ -351,6 +361,109 @@ def assemble_book() -> Path:
     return book
 
 
+def _cover_source_mtime() -> float:
+    stamp = KINDLE / ".cover-render-stamp"
+    paths = [COVER_SVG, COVER_LOGO, KINDLE / "cover-page.tex", stamp]
+    return max(p.stat().st_mtime for p in paths if p.exists())
+
+
+def _cover_needs_render() -> bool:
+    stamp = KINDLE / ".cover-render-stamp"
+    if not COVER_JPG.exists():
+        return True
+    if not stamp.exists() or stamp.read_text(encoding="utf-8").strip() != COVER_RENDER_ID:
+        return True
+    return COVER_JPG.stat().st_mtime < _cover_source_mtime()
+
+
+def _cover_svg_with_inlined_logo() -> bytes:
+    """cairosvg does not resolve external href= PNGs — inline as data URI."""
+    if not COVER_LOGO.exists():
+        raise FileNotFoundError(COVER_LOGO)
+    svg_text = COVER_SVG.read_text(encoding="utf-8")
+    logo_uri = "data:image/png;base64," + base64.b64encode(COVER_LOGO.read_bytes()).decode(
+        "ascii"
+    )
+    svg_text = svg_text.replace('href="rust-logo-icons8.png"', f'href="{logo_uri}"')
+    svg_text = re.sub(
+        r'(<image\b[^>]*)\shref="[^"]*"',
+        rf'\1 href="{logo_uri}" xlink:href="{logo_uri}"',
+        svg_text,
+        count=1,
+    )
+    return svg_text.encode("utf-8")
+
+
+def _svg_to_png_cairosvg(svg: Path, png: Path) -> bool:
+    try:
+        import cairosvg
+    except ImportError:
+        return False
+    cairosvg.svg2png(
+        bytestring=_cover_svg_with_inlined_logo(),
+        write_to=str(png),
+        output_width=COVER_PX_W,
+        output_height=COVER_PX_H,
+    )
+    return png.exists()
+
+
+def _svg_to_png_rsvg(svg: Path, png: Path) -> bool:
+    exe = shutil.which("rsvg-convert")
+    if not exe:
+        return False
+    subprocess.run(
+        [exe, "-w", str(COVER_PX_W), "-h", str(COVER_PX_H), "-o", str(png), str(svg)],
+        check=True,
+    )
+    return png.exists()
+
+
+def _svg_to_png(svg: Path, png: Path) -> None:
+    if _svg_to_png_cairosvg(svg, png) or _svg_to_png_rsvg(svg, png):
+        return
+    raise RuntimeError(
+        "Cannot rasterize cover-art.svg. Install one of:\n"
+        "  pip install cairosvg Pillow\n"
+        "  brew install librsvg   # provides rsvg-convert"
+    )
+
+
+def _png_to_jpeg(png: Path, jpg: Path) -> None:
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise RuntimeError(
+            "Pillow is required to build the mobile-safe cover JPEG. "
+            "Install with: pip install Pillow"
+        ) from exc
+    with Image.open(png) as im:
+        rgb = im.convert("RGB")
+        if rgb.size != (COVER_PX_W, COVER_PX_H):
+            raise RuntimeError(
+                f"Cover PNG is {rgb.size}, expected {(COVER_PX_W, COVER_PX_H)} — "
+                "check the SVG rasterizer (do not use qlmanage thumbnails)."
+            )
+        rgb.save(jpg, "JPEG", quality=92, optimize=True, progressive=True)
+
+
+def render_cover_jpeg() -> Path:
+    """Rasterize cover-art.svg to a flat JPEG (no alpha/transparency for mobile PDF viewers)."""
+    if not _cover_needs_render():
+        return COVER_JPG
+
+    if not COVER_SVG.exists():
+        raise FileNotFoundError(COVER_SVG)
+
+    tmp_png = KINDLE / "cover-page.tmp.png"
+    _svg_to_png(COVER_SVG, tmp_png)
+    _png_to_jpeg(tmp_png, COVER_JPG)
+    tmp_png.unlink(missing_ok=True)
+    (KINDLE / ".cover-render-stamp").write_text(COVER_RENDER_ID, encoding="utf-8")
+    print(f"  → {COVER_JPG} ({COVER_JPG.stat().st_size // 1024} KB, mobile-safe JPEG)")
+    return COVER_JPG
+
+
 def run_pandoc(book: Path) -> None:
     DIST.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -384,6 +497,8 @@ def main() -> int:
     print("Assembling markdown…")
     book = assemble_book()
     print(f"  → {book} ({book.stat().st_size // 1024} KB)")
+    print("Rendering cover JPEG (mobile-safe page 1)…")
+    render_cover_jpeg()
     print("Generating PDF (xelatex — may take a few minutes)…")
     run_pandoc(book)
     size_mb = OUTPUT.stat().st_size / (1024 * 1024)

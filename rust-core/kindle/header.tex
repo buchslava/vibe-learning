@@ -10,28 +10,11 @@
 \usepackage{etoolbox}
 \usepackage{calc}
 \usepackage{graphicx}
-\usepackage{tikz}
-\usetikzlibrary{calc, shadows, positioning}
-\usepackage{pagecolor}
+\usepackage{eso-pic}
 
-% Custom cover (cover-page.tex via --include-before-body) replaces Pandoc \maketitle.
+% Custom cover (cover-page.jpg via --include-before-body) replaces Pandoc \maketitle.
 % Pandoc 3.x emits \maketitle whenever title metadata is set, before include-before-body.
 \renewcommand{\maketitle}{}
-
-% Cover palette (cover-page.tex) — 60/30/10: dark ground, light type, orange accent
-\definecolor{coverdark}{RGB}{26,26,46}
-\definecolor{coverorange}{RGB}{206,66,43}
-\definecolor{coverwhite}{RGB}{255,255,255}
-\definecolor{coverlight}{RGB}{209,213,219}
-\definecolor{covermuted}{RGB}{107,114,128}
-\definecolor{coverneutral}{RGB}{242,242,244}
-\definecolor{coverneutraledge}{RGB}{216,216,220}
-% legacy names (unused by current cover; kept for easy palette experiments)
-\definecolor{coverpaper}{RGB}{255,248,240}
-\definecolor{covercream}{RGB}{255,243,234}
-\definecolor{coverink}{RGB}{26,26,46}
-\definecolor{coverline}{RGB}{232,222,211}
-\definecolor{coverteal}{RGB}{20,184,166}
 
 \setlist{nosep,leftmargin=*}
 \captionsetup{font=small,skip=4pt}

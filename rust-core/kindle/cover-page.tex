@@ -1,72 +1,10 @@
-% Custom cover — page 1 of the PDF (see build.py, metadata titlepage: false).
-\begingroup
+% Mobile-safe cover: flat JPEG at exact 6×9 in (no newgeometry — avoids blank page 1).
+% JPEG is regenerated from cover-art.svg by kindle/build.py before each build.
 \thispagestyle{empty}
-\pagecolor{coverdark}
-\enlargethispage{2\baselineskip}
-
-\begin{tikzpicture}[remember picture, overlay]
-  \coordinate (NW) at (current page.north west);
-  \coordinate (NE) at (current page.north east);
-  \coordinate (SW) at (current page.south west);
-  \coordinate (SE) at (current page.south east);
-
-  % top accent rule
-  \fill[coverorange] (NW) rectangle ($(NE) + (0,-0.11in)$);
-
-  % Rust logo (Icons8 — kindle/rust-logo-icons8.png)
-  \coordinate (LOGO) at ($(SE) + (-1.55in, 3.35in)$);
-  \fill[coverneutral] (LOGO) circle (1.38in);
-  \draw[coverneutraledge, line width=0.7pt] (LOGO) circle (1.38in);
-  \node[anchor=center, inner sep=0pt]
-    at (LOGO) {%
-      \includegraphics[width=2.05in]{kindle/rust-logo-icons8.png}%
-    };
-
-  % imprint
-  \node[anchor=north west, text=coverlight, opacity=0.72]
-    at ($(NW) + (0.62in,-0.52in)$) {%
-      {\fontfamily{phv}\fontsize{8}{9.5}\selectfont\textls[160]{VIBE LEARNING}}%
-    };
-
-  % draft badge
-  \begin{scope}[shift={($(NE) + (-1.48in,-0.95in)$)}, rotate=-8]
-    \draw[coverorange, line width=1pt, rounded corners=3pt]
-      (-0.58in,-0.19in) rectangle (0.58in,0.19in);
-    \node[text=coverorange] {%
-      {\fontfamily{phv}\bfseries\fontsize{8}{9}\selectfont\textls[130]{DRAFT}}%
-    };
-  \end{scope}
-
-  % title — one line, dual color (sans bold; thumbnail-readable)
-  \node[anchor=north west, inner sep=0pt]
-    at ($(NW) + (0.62in,-1.22in)$) {%
-      {\fontfamily{phv}\bfseries\fontsize{44}{46}\selectfont
-        {\color{coverwhite}Rust}\,{\color{coverorange}Core}}%
-    };
-
-  % subtitle — serif, two explicit lines (no auto-wrap / hyphenation)
-  \node[anchor=north west, text=coverlight, inner sep=0pt]
-    at ($(NW) + (0.62in,-1.98in)$) {%
-      {\fontsize{11}{13.5}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000
-        Language fundamentals for programmers}%
-    };
-  \node[anchor=north west, text=coverlight, inner sep=0pt]
-    at ($(NW) + (0.62in,-2.30in)$) {%
-      {\fontsize{11}{13.5}\selectfont coming from another language}%
-    };
-
-  % author — bottom of cover (divider above name + year)
-  \fill[coverorange] ($(SW) + (0.62in,0.96in)$) rectangle ++(0.72in,0.055in);
-  \node[anchor=west, text=coverlight, opacity=0.88, inner sep=0pt]
-    at ($(SW) + (0.62in,0.68in)$) {%
-      {\fontfamily{phv}\fontsize{8}{9.5}\selectfont\textls[100]{VIACHESLAV CHUB}}%
-    };
-  \node[anchor=west, text=coverlight, opacity=0.62, inner sep=0pt]
-    at ($(SW) + (0.62in,0.48in)$) {%
-      {\fontfamily{phv}\fontsize{7.5}{9}\selectfont 2026}%
-    };
-\end{tikzpicture}
-
+\AddToShipoutPicture*{%
+  \AtPageLowerLeft{%
+    \includegraphics[width=6in,height=9in,keepaspectratio=false]{kindle/cover-page.jpg}%
+  }%
+}
+\null
 \clearpage
-\pagecolor{white}
-\endgroup

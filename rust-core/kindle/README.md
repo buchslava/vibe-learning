@@ -12,19 +12,19 @@ Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica.
 
 ## Cover
 
-Page 1 is a custom **6×9 cover** (no duplicate Pandoc title page):
+Page 1 is a **flat JPEG cover** pasted full bleed at 6×9 in via `eso-pic` (no `\newgeometry`, which caused a blank first page and clipped the image on mobile).
 
 | File | Role |
 |------|------|
-| `cover-page.tex` | TikZ cover inserted via `--include-before-body` |
-| `cover-art.svg` | Reference artwork (web preview, KDP thumbnail mockups) |
-| `rust-logo-icons8.svg` | Rust logo source ([Icons8](https://icons8.com)) |
-| `rust-logo-icons8.png` | Raster used by XeLaTeX on the cover |
+| `cover-page.tex` | Inserts `cover-page.jpg` full bleed via `--include-before-body` |
+| `cover-page.jpg` | Generated at build time (not hand-edited) |
+| `cover-art.svg` | Cover source artwork — edit this, then rebuild |
+| `rust-logo-icons8.svg` / `.png` | Rust logo ([Icons8](https://icons8.com)) |
 | `rust-logo.svg` | Official Rust vector ([rust-lang/rust-artwork](https://github.com/rust-lang/rust-artwork), CC-BY) |
 
-Cover logo by [Icons8](https://icons8.com). Official Rust artwork in `rust-logo.svg` is CC-BY (Rust Foundation); not used on the cover. This book is not affiliated with or endorsed by the Rust project.
+Cover rasterization needs **Pillow** (`pip install Pillow`) and **cairosvg** (`pip install cairosvg`), or **rsvg-convert** (librsvg). Do not use macOS `qlmanage` — it crops/distorts the cover.
 
-Design: full-bleed dark ground, high-contrast title hierarchy, official logo on a neutral plate on the right. Edit layout in `cover-page.tex`; colors in `header.tex` (`cover*` definitions).
+Cover logo by [Icons8](https://icons8.com). This book is not affiliated with or endorsed by the Rust project.
 
 Rebuild after cover edits: `python3 kindle/build.py`
 
