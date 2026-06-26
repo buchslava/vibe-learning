@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -376,6 +377,39 @@ def run_pandoc(book: Path) -> None:
     ]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True, cwd=ROOT)
+    _sanitize_pdf_for_mobile(OUTPUT)
+
+
+def _sanitize_pdf_for_mobile(pdf: Path) -> None:
+    """Rewrite to PDF 1.4 with embedded fonts (Android / GitHub viewers)."""
+    gs = shutil.which("gs")
+    if not gs:
+        print(
+            "  ! Ghostscript (gs) not found — PDF may fail on Android. "
+            "Install: brew install ghostscript"
+        )
+        return
+    tmp = pdf.with_suffix(".mobile.pdf")
+    subprocess.run(
+        [
+            gs,
+            "-sDEVICE=pdfwrite",
+            "-dCompatibilityLevel=1.4",
+            "-dPDFSETTINGS=/prepress",
+            "-dEmbedAllFonts=true",
+            "-dSubsetFonts=true",
+            "-dCompressFonts=true",
+            "-dDetectDuplicateImages=true",
+            "-dNOPAUSE",
+            "-dBATCH",
+            "-dQUIET",
+            f"-sOutputFile={tmp}",
+            str(pdf),
+        ],
+        check=True,
+    )
+    tmp.replace(pdf)
+    print(f"  → sanitized for mobile ({pdf.name}, PDF 1.4)")
 
 
 def main() -> int:

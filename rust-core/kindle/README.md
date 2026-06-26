@@ -14,6 +14,7 @@ Produces a single **6×9 in** PDF tuned for Amazon Kindle and KDP print replica.
 
 - [Pandoc](https://pandoc.org/) 3.x
 - XeLaTeX (MacTeX, TeX Live, etc.)
+- [Ghostscript](https://ghostscript.com/) (`gs`) — rewrites the PDF to **1.4** for Android / mobile viewers
 
 ## Build
 
@@ -22,6 +23,8 @@ python3 kindle/build.py
 ```
 
 Output: **`dist/Rust-Core-Kindle.pdf`**
+
+**Android / GitHub:** Do not rely on in-browser PDF preview (Chrome often shows *“Error rendering embedded code”*). Download the file and open it in a local PDF app. The build runs a Ghostscript pass so page 1 renders on Android’s built-in viewer.
 
 ## Kindle upload tips
 
