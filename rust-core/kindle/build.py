@@ -15,6 +15,9 @@ KINDLE = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 BUILD = KINDLE / "build"
 OUTPUT = DIST / "Rust-Core-Kindle.pdf"
+BODY_PDF = BUILD / "Rust-Core-Kindle-body.pdf"
+COVER_PDF = BUILD / "cover-only.pdf"
+COVER_ONLY_TEX = KINDLE / "cover-only.tex"
 COVER_SVG = KINDLE / "cover-art.svg"
 COVER_JPG = KINDLE / "cover-page.jpg"
 COVER_LOGO = KINDLE / "rust-logo-icons8.png"
@@ -464,6 +467,58 @@ def render_cover_jpeg() -> Path:
     return COVER_JPG
 
 
+def build_cover_pdf() -> Path:
+    """One-page cover PDF (simple structure — mobile + GitHub friendly)."""
+    BUILD.mkdir(parents=True, exist_ok=True)
+    if not COVER_JPG.exists():
+        render_cover_jpeg()
+    cmd = [
+        "xelatex",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        f"-output-directory={BUILD}",
+        str(COVER_ONLY_TEX),
+    ]
+    subprocess.run(cmd, check=True, cwd=ROOT)
+    if not COVER_PDF.exists():
+        raise RuntimeError(f"Cover PDF not produced: {COVER_PDF}")
+    # Keep page 1 only — article class sometimes emits a trailing blank page.
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        from PyPDF2 import PdfReader, PdfWriter  # type: ignore[no-redef]
+    reader = PdfReader(str(COVER_PDF))
+    if len(reader.pages) != 1:
+        writer = PdfWriter()
+        writer.add_page(reader.pages[0])
+        single = COVER_PDF.with_suffix(".1page.pdf")
+        with single.open("wb") as handle:
+            writer.write(handle)
+        single.replace(COVER_PDF)
+    print(f"  → {COVER_PDF} ({len(PdfReader(str(COVER_PDF)).pages)} page)")
+    return COVER_PDF
+
+
+def _merge_pdfs(first: Path, second: Path, out: Path) -> None:
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        try:
+            from PyPDF2 import PdfReader, PdfWriter  # type: ignore[no-redef]
+        except ImportError as exc:
+            raise RuntimeError(
+                "PDF merge requires pypdf. Install with: pip install pypdf"
+            ) from exc
+    writer = PdfWriter()
+    for path in (first, second):
+        reader = PdfReader(str(path))
+        for page in reader.pages:
+            writer.add_page(page)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("wb") as handle:
+        writer.write(handle)
+
+
 def run_pandoc(book: Path) -> None:
     DIST.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -481,16 +536,44 @@ def run_pandoc(book: Path) -> None:
         str(KINDLE / "metadata.yaml"),
         "--include-in-header",
         str(KINDLE / "header.tex"),
-        "--include-before-body",
-        str(KINDLE / "cover-page.tex"),
         "--syntax-highlighting=tango",
         "--resource-path",
         f"{ROOT}:{ROOT / 'chapters'}:{ROOT / 'appendix'}",
         "-o",
-        str(OUTPUT),
+        str(BODY_PDF),
     ]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True, cwd=ROOT)
+    build_cover_pdf()
+    _merge_pdfs(COVER_PDF, BODY_PDF, OUTPUT)
+    print(f"  → merged cover + body → {OUTPUT.name}")
+    _sanitize_pdf_for_viewers(OUTPUT)
+
+
+def _sanitize_pdf_for_viewers(pdf: Path) -> None:
+    """Rewrite PDF for broader viewer support (GitHub preview, mobile apps)."""
+    gs = shutil.which("gs")
+    if not gs:
+        return
+    tmp = pdf.with_suffix(".sanitized.pdf")
+    subprocess.run(
+        [
+            gs,
+            "-sDEVICE=pdfwrite",
+            "-dCompatibilityLevel=1.4",
+            "-dPDFSETTINGS=/prepress",
+            "-dDetectDuplicateImages=true",
+            "-dCompressFonts=true",
+            "-dNOPAUSE",
+            "-dBATCH",
+            "-dQUIET",
+            f"-sOutputFile={tmp}",
+            str(pdf),
+        ],
+        check=True,
+    )
+    tmp.replace(pdf)
+    print(f"  → sanitized for PDF 1.4 ({pdf.name})")
 
 
 def main() -> int:
@@ -499,7 +582,7 @@ def main() -> int:
     print(f"  → {book} ({book.stat().st_size // 1024} KB)")
     print("Rendering cover JPEG (mobile-safe page 1)…")
     render_cover_jpeg()
-    print("Generating PDF (xelatex — may take a few minutes)…")
+    print("Generating body PDF (xelatex — may take a few minutes)…")
     run_pandoc(book)
     size_mb = OUTPUT.stat().st_size / (1024 * 1024)
     print(f"Done: {OUTPUT} ({size_mb:.1f} MB)")

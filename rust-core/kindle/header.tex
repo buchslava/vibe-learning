@@ -10,10 +10,8 @@
 \usepackage{etoolbox}
 \usepackage{calc}
 \usepackage{graphicx}
-\usepackage{eso-pic}
 
-% Custom cover (cover-page.jpg via --include-before-body) replaces Pandoc \maketitle.
-% Pandoc 3.x emits \maketitle whenever title metadata is set, before include-before-body.
+% Pandoc emits \maketitle when title metadata is set; cover is merged separately.
 \renewcommand{\maketitle}{}
 
 \setlist{nosep,leftmargin=*}
