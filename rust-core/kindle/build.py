@@ -88,6 +88,31 @@ UNICODE_REPLACEMENTS = {
     "\u2190": "<-",
     "\u2194": "<->",
     "\u2014": "---",
+    "\u2013": "-",
+    "\u2018": "'",
+    "\u2019": "'",
+    "\u201c": '"',
+    "\u201d": '"',
+    "\u2248": "~",
+    "\u2260": "!=",
+    "\u2265": ">=",
+    "\u00d7": "x",
+    "\u00f7": "/",
+    "\u00b0": " deg",
+    "\u2500": "-",
+    "\u2502": "|",
+    "\u250c": "+",
+    "\u2510": "+",
+    "\u2514": "+",
+    "\u2518": "+",
+    "\u251c": "+",
+    "\u2524": "+",
+    "\u252c": "+",
+    "\u2534": "+",
+    "\u25b2": "^",
+    "\u25b6": ">",
+    "\u25ba": ">",
+    "\u25c4": "<",
     "\U0001F980": "(crab)",
 }
 
@@ -359,7 +384,7 @@ def run_pandoc(book: Path) -> None:
         str(book),
         "--from=markdown",
         "--to=pdf",
-        "--pdf-engine=xelatex",
+        "--pdf-engine=pdflatex",
         "--listings",
         "--toc",
         "--toc-depth=2",
@@ -381,11 +406,11 @@ def run_pandoc(book: Path) -> None:
 
 
 def _sanitize_pdf_for_mobile(pdf: Path) -> None:
-    """Rewrite to PDF 1.4 with embedded fonts (Android / GitHub viewers)."""
+    """Rewrite to PDF 1.3 + Type1-friendly output for in-browser Android readers."""
     gs = shutil.which("gs")
     if not gs:
         print(
-            "  ! Ghostscript (gs) not found — PDF may fail on Android. "
+            "  ! Ghostscript (gs) not found — PDF may fail in mobile browsers. "
             "Install: brew install ghostscript"
         )
         return
@@ -394,8 +419,8 @@ def _sanitize_pdf_for_mobile(pdf: Path) -> None:
         [
             gs,
             "-sDEVICE=pdfwrite",
-            "-dCompatibilityLevel=1.4",
-            "-dPDFSETTINGS=/prepress",
+            "-dCompatibilityLevel=1.3",
+            "-dPDFSETTINGS=/ebook",
             "-dEmbedAllFonts=true",
             "-dSubsetFonts=true",
             "-dCompressFonts=true",
@@ -409,14 +434,14 @@ def _sanitize_pdf_for_mobile(pdf: Path) -> None:
         check=True,
     )
     tmp.replace(pdf)
-    print(f"  → sanitized for mobile ({pdf.name}, PDF 1.4)")
+    print(f"  → sanitized for mobile browsers ({pdf.name}, PDF 1.3)")
 
 
 def main() -> int:
     print("Assembling markdown…")
     book = assemble_book()
     print(f"  → {book} ({book.stat().st_size // 1024} KB)")
-    print("Generating PDF (xelatex — may take a few minutes)…")
+    print("Generating PDF (pdflatex — may take a few minutes)…")
     run_pandoc(book)
     size_mb = OUTPUT.stat().st_size / (1024 * 1024)
     print(f"Done: {OUTPUT} ({size_mb:.1f} MB)")

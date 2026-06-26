@@ -1,9 +1,9 @@
 % Kindle / KDP-friendly typography (6×9 trim, e-ink readable)
-% PDF 1.4 — Android PdfRenderer / mobile apps reject some PDF 1.5 object streams.
-\AtBeginDocument{%
-  \special{pdf:majorversion 1}%
-  \special{pdf:minorversion 4}%
-}
+% pdflatex + Type1 fonts — in-browser Android PDF readers reject XeLaTeX CID fonts.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{inconsolata}
 \usepackage{microtype}
 \usepackage{enumitem}
 \usepackage{booktabs}
