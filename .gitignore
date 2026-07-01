@@ -60,8 +60,12 @@ node_modules/
 .env.test.local
 .env.production.local
 
-# Kindle PDF build (rust-core/kindle/build.py)
+# Kindle PDF build
 rust-core/kindle/build/
+rust-from-the-scratch/kindle/build/
+
+# Local compile checks for rust-from-the-scratch
+rust-from-the-scratch/.test/
 
 # Python
 __pycache__/

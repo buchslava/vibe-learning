@@ -1,0 +1,26 @@
+---
+title: "Rust from the Scratch"
+subtitle: "Draft edition -- learn Rust from zero through small games and story chapters"
+author: "Viacheslav Chub"
+date: "Draft, 2026"
+lang: en-US
+rights: "Text CC BY-SA 4.0; code examples MIT"
+description: |
+  Draft edition. A beginner Rust book for people with no prior programming experience.
+  Playground-first steps, Trust and Use, and a path from first words to terminal Snake.
+publisher: "Vibe Learning"
+documentclass: book
+classoption: oneside
+geometry: "paperwidth=6in,paperheight=9in,margin=0.7in,bindingoffset=0.15in"
+fontsize: 10pt
+linestretch: 1.18
+colorlinks: true
+linkcolor: "MidnightBlue"
+urlcolor: "MidnightBlue"
+toccolor: "MidnightBlue"
+listings: true
+toc: true
+toc-depth: 2
+number-sections: true
+top-level-division: chapter
+---
